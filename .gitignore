@@ -3,7 +3,7 @@
 prelibs/**
 # Cargo config
 .cargo
-
+**/build
 # Profile-guided optimization
 /tmp
 pgo-data.profdata

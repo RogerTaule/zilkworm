@@ -16,7 +16,7 @@ fn main() {
         std::env::var("CARGO_MANIFEST_DIR").unwrap()
     );
 
-    println!("cargo:rustc-link-search=native=/home/som/.sp1/riscv/riscv32im-linux-x86_64/riscv32-unknown-elf/lib");
+    println!("cargo:rustc-link-search=native=~/.sp1/riscv/riscv32im-linux-x86_64/riscv32-unknown-elf/lib");
 
     cc::Build::new()
     .file("src/atomic_stubs.c")
@@ -38,11 +38,11 @@ fn main() {
         )
         .define(
             "GMP_LIBRARY",
-            "/home/som/Documents/code/cppsp1explorations/templibs/gmp",
+            format!("{}/gmp", templib_dir),
         )
         .define(
             "GMP_INCLUDE_DIR",
-            "/home/som/Documents/code/cppsp1explorations/templibs/gmp",
+            format!("{}/gmp", templib_dir),
         )
         .define("CATCH_BUILD_TESTING", "OFF")
         .define("CONAN_HOST_PROFILE", "riscv32-baremetal")
@@ -51,6 +51,8 @@ fn main() {
         .build_arg("LIBFF_WITH_GMP=OFF")
         .define("CMAKE_PREFIX_PATH", conan_dir)
         .cflag("-D_GLIBCXX_HAS_GTHREADS=0")
+        .build_arg("--no-silent")
+        .build_arg("VERBOSE=1")
         .build();
 
     let dst_display = dst.display();
@@ -58,8 +60,8 @@ fn main() {
         println!("cargo:rustc-link-search=native={}/{}", dst_display, subdir);
     }
 
-    println!("cargo:rustc-link-search=native=/home/som/Documents/code/cppsp1explorations/templibs");
-    println!("cargo:rustc-link-search=native=/home/som/Documents/code/cppsp1explorations/templibs/gmp");
+    println!("cargo:rustc-link-search=native={templib_dir}");
+    println!("cargo:rustc-link-search=native={templib_dir}/gmp");
 
     let libs = [
         "c", "gcc", "nosys", "stdc++", "gmp", "ff", "silkworm_dev", 
@@ -99,10 +101,11 @@ fn main() {
         .flag("-Wno-int-in-bool-context")
         .flag("-fno-exceptions")
         .flag("-fno-rtti")
+        .flag("-v")
         .flag("-fno-threadsafe-statics")
         .compiler("riscv32-unknown-elf-g++")
         .include(
-            "/home/som/.sp1/riscv/riscv32im-linux-x86_64/riscv32-unknown-elf/include/c++/13.2.0",
+            "~/.sp1/riscv/riscv32im-linux-x86_64/riscv32-unknown-elf/include/c++/13.2.0",
         );
 
     for (key, val) in env::vars() {
@@ -122,6 +125,8 @@ fn main() {
         "cargo:warning=PKG_CONFIG_PATH set to: {}",
         conan_pc_dir.display()
     );
+
+    println!("cargo:warning=Direct from env - PKG_CONFIG_PATH: {}", std::env::var("PKG_CONFIG_PATH").unwrap());
     // ── 3. pull cflags (include dirs) from the .pc files we care about ────
     for pkg in ["ms-gsl", "nlohmann_json", "magic_enum", "tl-expected"] {
         if let Ok(meta) = pkg_config::Config::new()
