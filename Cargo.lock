@@ -5512,10 +5512,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp1-primitives"
-version = "5.1.1"
+name = "sp1-lib"
+version = "5.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7637ebeb85d03da7d6aa9ec34dfedd9efbe61241f7a7f3fc5924355e48bf4f4c"
+checksum = "0e1fe81b6f87134f9170cb642f948ae41e0ee1cd3785e0cb665add5b67106d1a"
+dependencies = [
+ "bincode",
+ "serde",
+ "sp1-primitives",
+]
+
+[[package]]
+name = "sp1-primitives"
+version = "5.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dddd8d022840c1c500e0d7f82e9b9cf080b7dabd469f06b394010e6a594f692b"
 dependencies = [
  "bincode",
  "blake3",
@@ -5801,9 +5812,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-zkvm"
-version = "5.1.1"
+version = "5.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ea9d099bdf4fc925d5d28ffa12aa122a3d7a8d4e5182d007827ed5d0e055c9a"
+checksum = "18636018d03fcee05736c3a214eeb7c831c5ba2ef08b1bcffbfdb108998e7663"
 dependencies = [
  "cfg-if",
  "critical-section",
@@ -5813,6 +5824,7 @@ dependencies = [
  "lazy_static",
  "rand 0.8.5",
  "sha2",
+ "sp1-lib",
  "sp1-primitives",
 ]
 

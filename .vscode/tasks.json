@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run QEMU (rv32, gdb)",
+      "type": "shell",
+      "command": "qemu-system-riscv32 -M virt -nographic -bios none -kernel ${workspaceFolder}/debug_build/target/elf-compilation/riscv32im-succinct-zkvm-elf/release/z6m_guest_debug -S -s",
+      "problemMatcher": []
+    }
+  ]
+}

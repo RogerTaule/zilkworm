@@ -6,19 +6,19 @@
 // inside the zkVM.
 #![no_main]
 
-// use crate::ffi::sample_run_wrapped;
-sp1_zkvm::entrypoint!(main);
+// sp1_zkvm::entrypoint!(main);
 
 // src/main.rs
 #[cxx::bridge]
 mod ffi {
+    // Tell cxx what C++ header to include
     unsafe extern "C++" {
-        include!("wrapper.hpp");
-        fn sample_run_wrapped() -> u64;
+        include!("cppextern.hpp");          // relative to the BUILD script's include path
+        fn sample_run_wrapped() ;
     }
 }
 
+
 pub fn main() {
-    let _result: u64 = ffi::sample_run_wrapped();
-    sp1_zkvm::io::commit(&_result);
+    ffi::sample_run_wrapped();
 }

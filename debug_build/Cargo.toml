@@ -1,11 +1,12 @@
+[workspace]
+
 [package]
 version = "0.1.0"
-name = "z6m_guest"
+name = "z6m_guest_debug"
 edition = "2021"
 
 
 [dependencies]
-alloy-sol-types = { workspace = true }
 cxx = "1.0.160"                 # runtime bridge
 #sp1-zkvm = "5.0.8"
 
@@ -13,10 +14,6 @@ cxx = "1.0.160"                 # runtime bridge
 version = "0.2.15"
 default-features = false
 
-[dependencies.sp1-zkvm]
-version = "5.2.1"
-default-features = false
-features = ["embedded", "lib"]
 
 [build-dependencies]
 cmake = "0.1.54"

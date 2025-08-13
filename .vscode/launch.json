@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "QEMU RV32",
+            "type": "cppdbg",
+            "request": "launch",
+            // "preLaunchTask": "Run QEMU (rv32, gdb)",
+            "program": "${workspaceFolder}/target/elf-compilation/riscv32im-succinct-zkvm-elf/release/z6m_guest",
+            "cwd": "${workspaceFolder}/debug_build",
+            "MIMode": "gdb",
+            "miDebuggerPath": "riscv-none-elf-gdb",
+            "miDebuggerServerAddress": "localhost:1234",
+            "stopAtEntry": true,
+            "setupCommands": [
+                {
+                    "text": "set architecture riscv:rv32"
+                }
+            ]
+        }
+    ]
+}

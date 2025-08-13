@@ -48,14 +48,15 @@ fn main() {
     // Setup the prover client.
     let client = ProverClient::from_env();
     let mut stdin = SP1Stdin::new();
-    stdin.write(&args.n);
+    // stdin.write(&args.n);
 
-    println!("n: {}", args.n);
+    // println!("n: {}", args.n);
 
     if args.execute {
         // Execute the program
         let (mut output, report) = client.execute(SILK_ST_ELF, &stdin).run().unwrap();
         println!("Program executed successfully.");
+        println!("Cumulative Gas Used: {}", output.read::<u64>()) ;
 
         // Record the number of cycles executed.
         println!("Number of cycles: {}", report.total_instruction_count());
@@ -64,7 +65,7 @@ fn main() {
         let (pk, vk) = client.setup(SILK_ST_ELF);
 
         // Generate the proof
-        let proof = client
+        let mut proof = client
             .prove(&pk, &stdin)
             .run()
             .expect("failed to generate proof");
@@ -74,5 +75,7 @@ fn main() {
         // Verify the proof.
         client.verify(&proof, &vk).expect("failed to verify proof");
         println!("Successfully verified proof!");
+        println!("Cumulative Gas Used: {}", proof.public_values.read::<u64>()) ;
+
     }
 }
