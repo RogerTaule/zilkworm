@@ -33,3 +33,8 @@ rm -rf ../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/build/z6m_g
 
 RUSTFLAGS="-C target-cpu=znver3" RUST_BACKTRACE=full RUST_LOG=info cargo run --release --manifest-path ../prover/Cargo.toml -- --prove
 ```
+
+```
+SP1_PROVER=cuda RUST_BACKTRACE=full RUST_LOG=info cargo run --release -- --prove
+
+```

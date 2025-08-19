@@ -1,4 +1,4 @@
 [submodule "silkworm"]
 	path = silkworm
 	url = https://github.com/somnathb1/silkworm
-	ref=zz_dirty
+	branch = zz_dirty
