@@ -16,3 +16,8 @@ tools.build:sharedlinkflags=["-march=rv32im","-mabi=ilp32","-nostdlib","-Wl,--gc
 [buildenv]
 CC=riscv-none-elf-gcc
 CXX=riscv-none-elf-g++
+AR=riscv-none-elf-ar
+RANLIB=riscv-none-elf-ranlib
+
+[options]
+*:shared=False
