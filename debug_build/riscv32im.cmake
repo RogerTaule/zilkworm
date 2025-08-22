@@ -9,7 +9,7 @@ set(CMAKE_ASM_COMPILER riscv-none-elf-gcc)
 set(GMP_LIBRARY "${CMAKE_SOURCE_DIR}/../prelibs/gmp")
 set(GMP_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/../prelibs/gmp")
 # Specify the architecture and ABI (RV32IM, 32-bit ILP32 ABI)
-set(common_flags "-march=rv32im -mabi=ilp32 -mcmodel=medany -ffunction-sections -fdata-sections")
+set(common_flags "-march=rv32im -mabi=ilp32 -mcmodel=medany -ffunction-sections -Og -ggdb3 -fdata-sections")
 set(CMAKE_C_FLAGS_INIT   "${common_flags}")
 set(CMAKE_CXX_FLAGS_INIT "${common_flags} -fno-exceptions -fno-rtti") # tweak if you need exceptions/RTTI
 

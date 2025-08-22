@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
-project(SilkwormRV32Demo C CXX)
+project(SilkwormRV32Demo C CXX ASM)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
 
 
 set(BUILD_TESTING OFF CACHE BOOL "Disable Silkworm tests")
@@ -15,7 +14,7 @@ set(SILKWORM_CORE_USE_ABSEIL "OFF")
 set(CMAKE_PREFIX_PATH "${CONAN_INSTALL_FOLDER}")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -specs=nosys.specs")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T${CMAKE_SOURCE_DIR}/virt.ld")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T${CMAKE_SOURCE_DIR}/virt.ld") # -nostartfiles"
 
 set(SW_INSTALL_DIR ${CMAKE_BINARY_DIR}/silkworm-install CACHE PATH "")
 
@@ -65,7 +64,7 @@ if (EXISTS "${SW_CONAN_DIR}/conandeps_legacy.cmake")
   list(APPEND CMAKE_PREFIX_PATH "${SW_CONAN_DIR}")
 endif()
 
-add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp)
+add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp src/start.S)
 # Include paths:
 # Silkworm repo (always present)
 # Conan-provided headers via find_package (below)
@@ -84,6 +83,18 @@ target_link_options(z6m_debug PRIVATE -Wl,--start-group)
 target_link_libraries(z6m_debug PRIVATE silkworm_dev silkworm_core)
 target_link_options(z6m_debug PRIVATE -Wl,--end-group)
 
+# target_link_libraries(z6m_debug PRIVATE
+#   -Wl,--start-group
+#   c m gcc gloss            # <-- add gloss
+#   -Wl,--end-group
+# )
+
+target_link_options(z6m_debug PRIVATE
+  # -T ${CMAKE_SOURCE_DIR}/virt.ld
+  -Wl,--gc-sections
+  -Wl,-Map=${CMAKE_BINARY_DIR}/z6m_debug.map
+  # -specs=nosys.specs
+)
 
 ## =========== Comment and run and then re-run uncommented ==========
 find_package(nlohmann_json REQUIRED)
