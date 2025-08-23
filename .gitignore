@@ -19,3 +19,4 @@ pgo-data.profdata
 .env
 
 *.dump
+**/temp

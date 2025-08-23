@@ -6,6 +6,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 
 set(SW_INSTALL_DIR ${CMAKE_BINARY_DIR}/silkworm-install CACHE PATH "")
+# set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/rv32im.sp1.cmake)
+# set(LIBFF_WITH_GMP "OFF")
 
 include(ExternalProject)
 ExternalProject_Add(silkworm_ep
@@ -14,8 +16,7 @@ ExternalProject_Add(silkworm_ep
   CMAKE_ARGS
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-    # -DCMAKE_TOOLCHAIN_FILE=${CMAKE_SOURCE_DIR}/riscv32im.cmake
-    -DCONAN_HOST_PROFILE=${CONAN_HOST_PROFILE}
+    -DCONAN_HOST_PROFILE=${CMAKE_SOURCE_DIR}/conan/profiles/rv32im.sp1.profile
     -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=${CMAKE_SOURCE_DIR}/../silkworm/cmake/conan.cmake
     -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
     -DCMAKE_INSTALL_PREFIX=${SW_INSTALL_DIR}
@@ -52,7 +53,7 @@ if (EXISTS "${SW_CONAN_DIR}/conandeps_legacy.cmake")
   list(APPEND CMAKE_PREFIX_PATH "${SW_CONAN_DIR}")
 endif()
 
-add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp src/start.S src/sys_sbrk_wrap.c)
+add_executable(z6m_debug src/cppextern.cpp src/main.cpp )
 # Include paths:
 # Silkworm repo (always present)
 # Conan-provided headers via find_package (below)
@@ -84,16 +85,6 @@ target_link_options(z6m_debug PRIVATE
   -Wl,--gc-sections
   -Wl,-Map=${CMAKE_BINARY_DIR}/z6m_debug.map
   # -specs=nosys.specs
-)
-
-# make all references to _sbrk/_sbrk_r go to our wrappers
-target_link_options(z6m_debug PRIVATE
-  -Wl,--wrap=_sbrk
-  -Wl,--wrap=_sbrk_r
-)
-target_compile_options(z6m_debug PRIVATE
-  $<$<COMPILE_LANGUAGE:C>:-mstrict-align>
-  $<$<COMPILE_LANGUAGE:CXX>:-mstrict-align>
 )
 
 ## =========== Comment and run and then re-run uncommented ==========

@@ -8,20 +8,28 @@
     .option  norvc
 
 __entry:
-    /* 1) set a sane stack near top of RAM */
+    .cfi_startproc
+    .cfi_undefined ra
+    .option push
+    .option norelax
+    la gp, __global_pointer$
+    .option pop
+    la sp, __stack_top
+    add s0, sp, zero
+    jal zero, main
+    .cfi_endproc
+    .end
+    /* 
+
+
     la      sp, __stack_top
-    addi    sp, sp, -16       /* room for argc, argv[0], alignment */
+    addi    sp, sp, -16       
 
-    /* 2) fake argc/argv for crt0 */
-    sw      zero,  0(sp)      /* argc = 0 */
-    sw      zero,  4(sp)      /* argv[0] = NULL */
-
-    /* 3) optional gp (harmless if symbol missing) */
+    // 2) fake argc/argv for crt0 
+    sw      zero,  0(sp)      
+    sw      zero,  4(sp)  
     .weak   __global_pointer$
     la      gp, __global_pointer$
-
-    /* 4) hand off to toolchain crt0 */
-    /* j       _start            /* provided by crt0.o */
 
     auipc	gp,0x10
     mv	gp,gp
@@ -35,7 +43,7 @@ __entry:
     j	 main
     auipc	t1,0x2ad
     jr	-384(t1)
-
+    */
     /*
     auipc	ra,0x2be
     jalr	-452(ra) 

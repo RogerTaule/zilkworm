@@ -13,9 +13,8 @@ ExternalProject_Add(silkworm_ep
   BINARY_DIR  ${CMAKE_BINARY_DIR}/silkworm
   CMAKE_ARGS
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-    -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-    # -DCMAKE_TOOLCHAIN_FILE=${CMAKE_SOURCE_DIR}/riscv32im.cmake
-    -DCONAN_HOST_PROFILE=${CONAN_HOST_PROFILE}
+    -DCMAKE_TOOLCHAIN_FILE=${CMAKE_SOURCE_DIR}/riscv32im.cmake
+    -DCONAN_HOST_PROFILE=${CMAKE_SOURCE_DIR}/cmake/profiles/riscv32im.conan.profile
     -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=${CMAKE_SOURCE_DIR}/../silkworm/cmake/conan.cmake
     -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
     -DCMAKE_INSTALL_PREFIX=${SW_INSTALL_DIR}
@@ -52,7 +51,7 @@ if (EXISTS "${SW_CONAN_DIR}/conandeps_legacy.cmake")
   list(APPEND CMAKE_PREFIX_PATH "${SW_CONAN_DIR}")
 endif()
 
-add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp src/start.S src/sys_sbrk_wrap.c)
+add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp src/start.S)
 # Include paths:
 # Silkworm repo (always present)
 # Conan-provided headers via find_package (below)
@@ -86,25 +85,15 @@ target_link_options(z6m_debug PRIVATE
   # -specs=nosys.specs
 )
 
-# make all references to _sbrk/_sbrk_r go to our wrappers
-target_link_options(z6m_debug PRIVATE
-  -Wl,--wrap=_sbrk
-  -Wl,--wrap=_sbrk_r
-)
-target_compile_options(z6m_debug PRIVATE
-  $<$<COMPILE_LANGUAGE:C>:-mstrict-align>
-  $<$<COMPILE_LANGUAGE:CXX>:-mstrict-align>
-)
-
 ## =========== Comment and run and then re-run uncommented ==========
-find_package(nlohmann_json REQUIRED)
-find_package(magic_enum REQUIRED)
-find_package(Microsoft.GSL REQUIRED)
-find_package(tl-expected REQUIRED)
-target_link_libraries(z6m_debug PRIVATE Microsoft.GSL::GSL)
-target_link_libraries(z6m_debug PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(z6m_debug PRIVATE magic_enum::magic_enum)
-target_link_libraries(z6m_debug PRIVATE tl::expected)
+# find_package(nlohmann_json REQUIRED)
+# find_package(magic_enum REQUIRED)
+# find_package(Microsoft.GSL REQUIRED)
+# find_package(tl-expected REQUIRED)
+# target_link_libraries(z6m_debug PRIVATE Microsoft.GSL::GSL)
+# target_link_libraries(z6m_debug PRIVATE nlohmann_json::nlohmann_json)
+# target_link_libraries(z6m_debug PRIVATE magic_enum::magic_enum)
+# target_link_libraries(z6m_debug PRIVATE tl::expected)
 ## ===================================================================
 
 
@@ -118,5 +107,5 @@ target_link_libraries(z6m_debug PRIVATE
   "${CMAKE_BINARY_DIR}/silkworm/third_party/secp256k1/libsecp256k1.a"
   "${CMAKE_BINARY_DIR}/silkworm/third_party/evmone/libevmone.a"
   "${CMAKE_BINARY_DIR}/silkworm/deps/src/blst/libblst.a"
-  "${CMAKE_SOURCE_DIR}/../prelibs/gmp/libgmp.a"
+  # "${CMAKE_SOURCE_DIR}/../prelibs/gmp/libgmp.a"
 )

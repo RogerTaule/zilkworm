@@ -10,16 +10,14 @@
             "type": "cppdbg",
             "request": "launch",
             // "preLaunchTask": "Run QEMU (rv32, gdb)",
-            "program": "/home/som/Documents/code/z6m/debug_build/target/elf-compilation/riscv32im-succinct-zkvm-elf/release/z6m_guest_debug",
-            "cwd": "${workspaceFolder}/silkworm",
+            "program": "${workspaceFolder}/debug_build/build/z6m_debug",
+            "cwd": "${workspaceFolder}/debug_build",
             "MIMode": "gdb",
             "miDebuggerPath": "riscv-none-elf-gdb",
             "miDebuggerServerAddress": "localhost:1234",
-            "stopAtEntry": true,
+            "stopAtEntry": false,
             "setupCommands": [
-                {
-                    "text": "set architecture riscv:rv32"
-                }
+               
             ]
         }
     ]
