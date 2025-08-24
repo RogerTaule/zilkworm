@@ -10,7 +10,7 @@
       "cwd": "${workspaceFolder}/debug_build",
       "MIMode": "gdb",
       "miDebuggerPath": "riscv-none-elf-gdb",
-      "miDebuggerArgs": "-q -x ${workspaceFolder}/debug_build/.vscode.gdbinit ${workspaceFolder}/debug_build/build/z6m_debug",             
+      "miDebuggerArgs": "-q -x ${workspaceFolder}/debug_build/.gdbinit ${workspaceFolder}/debug_build/build/z6m_debug -nx",             
       "miDebuggerServerAddress": "localhost:1234",
       "stopAtEntry": true,
       "logging": { "engineLogging": true, "trace": true, "traceResponse": true }

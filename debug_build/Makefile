@@ -43,7 +43,7 @@ run:
 
 
 gdb:
-	riscv-none-elf-gdb -q -x .gdbinit build/z6m_debug
+	riscv-none-elf-gdb -q -ex "target remote :1234" -x .gdbinit build/z6m_debug
 
 
 qemu:
