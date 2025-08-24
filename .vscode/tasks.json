@@ -2,10 +2,27 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run QEMU (rv32, gdb)",
+      "label": "Run qemu-system",
       "type": "shell",
       "command": "cd debug_build && make qemu",
-      "problemMatcher": []
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "pattern": [
+            {
+              "regexp": ".",
+              "file": 1,
+              "location": 2,
+              "message": 3
+            }
+          ],
+         "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".", 
+          "endsPattern": "QEMU waiting for GDB on :1234..."
+        }
+      }
+      ] 
     }
   ]
 }

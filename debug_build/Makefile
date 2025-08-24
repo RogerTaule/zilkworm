@@ -48,9 +48,7 @@ gdb:
 
 qemu:
 	@echo "QEMU waiting for GDB on :1234..."
-	@echo "In another terminal: riscv-none-elf-gdb $(ELF)"
-	@echo "(gdb) target remote :1234 ; break main ; continue"
-	qemu-system-riscv32 -M virt -nographic -m 2G \
+	@qemu-system-riscv32 -M virt -nographic -m 2G \
 	  -bios $(ELF) -S -gdb tcp::1234
 # -semihosting-config enable=on,target=native \
 
