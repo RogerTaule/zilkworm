@@ -121,7 +121,7 @@ extern "C" uint64_t sample_run_wrapped() {
     auto state_transition = silkworm::cmd::state_transition::StateTransition(json_str, false, true);
 
     //Run the state transition function of silkworm - EVMONE - silkworm_validate_transition and back
-    return state_transition.run(100);
+    return state_transition.run(1);
     // return 0;
 }
 
