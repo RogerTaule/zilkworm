@@ -27,5 +27,5 @@ set(CATCH_BUILD_TESTING "OFF")
 set(SILKWORM_CORE_USE_ABSEIL "OFF")
 set(CMAKE_PREFIX_PATH "${CONAN_INSTALL_FOLDER}")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T${CMAKE_SOURCE_DIR}/qemu-xpack.ld -z norelro") # -nostartfiles"
+# It clashes with double inclusion if declared here
+# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T${CMAKE_SOURCE_DIR}/qemu-xpack.ld -z norelro") # -nostartfiles"

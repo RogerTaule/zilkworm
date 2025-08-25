@@ -13,6 +13,7 @@ elf:
 		-DCONAN_OUTPUT_FOLDER=$(BUILD_DIR)/conan \
 		-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE \
 		-DCMAKE_VERBOSE_MAKEFILE=ON \
+		-DCMAKE_EXE_LINKER_FLAGS="-T$(CURDIR)/qemu-xpack.ld -z norelro" \
 		-G "Unix Makefiles" \
 		-Wno-dev
 	cmake --build $(BUILD_DIR) -j --verbose
@@ -22,7 +23,7 @@ CONAN_PROFILE  = $(CURDIR)/conan/profiles/riscv32im.conan.profile
 CMAKE_TOOLCHAIN = $(CURDIR)/cmake/riscv32im.cmake
 
 .PHONY: xpack-elf
-xpack-elf: 
+xpack-elf: xpack-silkworm
 	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	cmake -B$(BUILD_DIR) -S. -DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN) \
@@ -32,19 +33,29 @@ xpack-elf:
 		-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE \
 		-DCMAKE_VERBOSE_MAKEFILE=ON \
 		-G "Unix Makefiles" \
+		-DCMAKE_EXE_LINKER_FLAGS="-T$(CURDIR)/qemu-xpack.ld -z norelro" \
 		-Wno-dev
 	cmake --build $(BUILD_DIR) -j --verbose
 
-
-.PHONY: run
-run:
-	qemu-system-riscv32 -M virt -bios $(ELF) -nographic \
-	    -semihosting -semihosting-config enable=on,target=native
+xpack-silkworm:
+	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
+	@[ -d $(BUILD_DIR)/silkworm ] || mkdir $(BUILD_DIR)/silkworm
+	cmake -B$(BUILD_DIR)/silkworm -S../silkworm -DCMAKE_BUILD_TYPE=Debug \
+		-DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DCONAN_PROFILE_HOST=$(CONAN_PROFILE) \
+		-DCONAN_OUTPUT_FOLDER=$(BUILD_DIR)/conan \
+		-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE \
+		-DCMAKE_VERBOSE_MAKEFILE=ON \
+		-DCMAKE_INSTALL_PREFIX=$(BUILD_DIR)/silkworm-install \
+	    -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+		-G "Unix Makefiles" \
+		-Wno-dev
+	cmake --build $(BUILD_DIR)/silkworm -j --target install
 
 
 gdb:
 	riscv-none-elf-gdb -q -ex "target remote :1234" -x .gdbinit build/z6m_debug
-
 
 qemu:
 	@echo "QEMU waiting for GDB on :1234..."
