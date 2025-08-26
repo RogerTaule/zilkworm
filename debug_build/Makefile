@@ -60,7 +60,7 @@ gdb:
 qemu:
 	@echo "QEMU waiting for GDB on :1234..."
 	@qemu-system-riscv32 -M virt -nographic -m 2G \
-	  -bios $(ELF) -S -gdb tcp::1234
+	  -bios $(ELF) -S -gdb tcp::1234 -semihosting
 # -semihosting-config enable=on,target=native \
 
 
