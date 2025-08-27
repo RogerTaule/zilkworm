@@ -18,7 +18,7 @@ static inline void sh_write0(const char* s) {
 int main() {
     const uint64_t res = sample_run_wrapped();
     char buf[64];
-    std::snprintf(buf, sizeof(buf), "State transition result: %llu", (unsigned long long)res);
+    std::snprintf(buf, sizeof(buf), "State transition result: %llu", res);
     sh_write0(buf);
     // printf("State transition result: %d\n", res);
     while (1) {} // loop indefinitely (no OS to return to)

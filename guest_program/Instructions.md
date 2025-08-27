@@ -27,12 +27,26 @@ You should point the g++ to the one provided by the installation of sp1up, for t
 export RUSTC_LINKER=~/.sp1/riscv/riscv32im-linux-x86_64/bin/riscv32-unknown-elf-ld 
 export CXX_riscv32im_succinct_zkvm_elf=~/.sp1/riscv/riscv32im-linux-x86_64/bin/riscv32-unknown-elf-g++ 
 export CONAN_PROFILE_HOST=riscv32-baremetal
+
+cd prover 
+cargo run --release -- --execute --n=1 --file-name=$PWD/src/test.json
+cargo run --release -- --prove --n=1 --file-name=$PWD/src/test.json
+```
+
+Hardware accelerated
+
+```
+# Nvidia Cuda
+SP1_PROVER=cuda RUST_BACKTRACE=full RUST_LOG=info cargo run --release -- --prove --n=1 --file-name=$PWD/src/test.json
+
+# AMD AVX2 on Zen3/Zen4
+RUSTFLAGS="-C target-cpu=znver3" RUST_BACKTRACE=full RUST_LOG=info cargo run --release -- --prove --n=1 --file-name=$PWD/src/test.json
 ```
 
 
+<!-- ########################## OTHER COMMANDS SHORT/ROUGH BELOW - IGNORE #################################### -->
+
 export CXX_riscv32im_unknown_none_elf=~/.sp1/riscv/riscv32im-linux-x86_64/bin/riscv32-unknown-elf-g++
-
-
 export CC_riscv32im_unknown_none_elf="riscv32-unknown-elf-gcc"
 export CXX_riscv32im_unknown_none_elf="riscv32-unknown-elf-g++"
 export AR_riscv32im_unknown_none_elf="riscv32-unknown-elf-ar"

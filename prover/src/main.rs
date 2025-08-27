@@ -14,6 +14,7 @@ use alloy_sol_types::SolType;
 use clap::Parser;
 // use fibonacci_lib::PublicValuesStruct;
 use sp1_sdk::{include_elf, Prover, ProverClient, SP1Stdin};
+use std::fs;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const SILK_ST_ELF: &[u8] = include_elf!("z6m_guest");
@@ -28,8 +29,11 @@ struct Args {
     #[arg(long)]
     prove: bool,
 
-    #[arg(long, default_value = "20")]
+    #[arg(long, default_value = "1")]
     n: u32,
+
+    #[arg(long, default_value = "test.json")]
+    file_name: String,
 }
 
 fn main() {
@@ -48,9 +52,16 @@ fn main() {
     // Setup the prover client.
     let client = ProverClient::from_env();
     let mut stdin = SP1Stdin::new();
-    // stdin.write(&args.n);
+    stdin.write(&args.n);
 
-    // println!("n: {}", args.n);
+    let test_json_raw = fs::read_to_string(&args.file_name).expect("failed to read file");
+    let test_json_value: serde_json::Value = serde_json::from_str(&test_json_raw).expect("invalid JSON");
+    let test_json = serde_json::to_string(&test_json_value).expect("failed to minify JSON");
+    let test_json_bytes = test_json.as_bytes();
+    stdin.write_slice(test_json_bytes);
+
+    println!("n: {}", args.n);
+    println!("Input len: {}", test_json.len());
 
     if args.execute {
         // Execute the program

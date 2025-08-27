@@ -14,11 +14,25 @@ sp1_zkvm::entrypoint!(main);
 mod ffi {
     unsafe extern "C++" {
         include!("wrapper.hpp");
-        fn sample_run_wrapped() -> u64;
+        fn sample_run_wrapped(n: u32, json_str1: &str) -> u64;
     }
 }
 
 pub fn main() {
-    let _result: u64 = ffi::sample_run_wrapped();
-    sp1_zkvm::io::commit(&_result);
+    let _n: u32 = sp1_zkvm::io::read();
+    // let json = "{}";
+    unsafe{
+        let json = sp1_zkvm::io::read_vec();
+        let json_str = core::str::from_utf8(&json).expect("invalid UTF-8");
+        let _result: u64 = ffi::sample_run_wrapped(_n, json_str);
+        sp1_zkvm::io::commit(&_result); 
+    }
 }
+
+// Const string
+// Cumulative Gas Used: 432140
+// Number of cycles: 6905410
+
+// File string
+// Cumulative Gas Used: 432140
+// Number of cycles: 6919930
