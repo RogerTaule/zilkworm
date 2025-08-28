@@ -31,6 +31,10 @@ export CONAN_PROFILE_HOST=riscv32-baremetal
 cd prover 
 cargo run --release -- --execute --n=1 --file-name=$PWD/src/test.json
 cargo run --release -- --prove --n=1 --file-name=$PWD/src/test.json
+
+# quick build cpp files
+cd guest_program
+rm -rf ../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/build/z6m_guest-* && cargo prove build && RUST_BACKTRACE=full RUST_LOG=info cargo run --release --manifest-path ../prover/Cargo.toml -- --execute --n=1 --file-name=$PWD/../prover/src/test.json
 ```
 
 Hardware accelerated
@@ -60,7 +64,7 @@ export CMAKE_ASM_COMPILER=riscv32-unknown-elf-gcc
 Quick cmd
 ```
 ### Execute
-rm -rf ../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/build/z6m_guest-* && cargo prove build && RUSTFLAGS="-C target-cpu=znver3" RUST_BACKTRACE=full RUST_LOG=info cargo run --release --manifest-path ../prover/Cargo.toml -- --execute
+rm -rf ../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/build/z6m_guest-* && cargo prove build && RUSTFLAGS="-C target-cpu=znver3" RUST_BACKTRACE=full RUST_LOG=info cargo run --release --manifest-path ../prover/Cargo.toml -- --execute --n=1 --file-name=$PWD/src/test.json
 
 ### Prove AMD Zen4
 rm -rf ../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/build/z6m_guest-* && cargo prove build && RUSTFLAGS="-C target-cpu=znver3" RUST_BACKTRACE=full RUST_LOG=info cargo run --release --manifest-path ../prover/Cargo.toml -- --prove
