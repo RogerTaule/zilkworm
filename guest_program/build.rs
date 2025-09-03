@@ -26,6 +26,7 @@ fn main() {
     let conan_dir = Path::new("build/conan2");
     let dst = cmake::Config::new("../silkworm")
         .build_arg("-j16") // Use 4 parallel jobs, adjust as needed
+        .define("SP1", "ON")
         .define("BUILD_SHARED_LIBS", "OFF")
         .define("CMAKE_SYSTEM_NAME", "Generic")
         .define("CMAKE_SYSTEM_PROCESSOR", "riscv32")
