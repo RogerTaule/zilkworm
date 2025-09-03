@@ -27,6 +27,7 @@ fn main() {
     let dst = cmake::Config::new("../silkworm")
         .build_arg("-j16") // Use 4 parallel jobs, adjust as needed
         .define("SP1", "ON")
+        .define("CMAKE_BUILD_TYPE", "Release")
         .define("BUILD_SHARED_LIBS", "OFF")
         .define("CMAKE_SYSTEM_NAME", "Generic")
         .define("CMAKE_SYSTEM_PROCESSOR", "riscv32")
@@ -48,7 +49,7 @@ fn main() {
         .define("CATCH_BUILD_TESTING", "OFF")
         .define("CONAN_HOST_PROFILE", "riscv32-baremetal")
         .define("SILKWORM_CORE_USE_ABSEIL", "OFF")
-        .profile("Debug")
+        .profile("Release")
         .build_arg("LIBFF_WITH_GMP=OFF")
         .define("CMAKE_PREFIX_PATH", conan_dir)
         .cflag("-D_GLIBCXX_HAS_GTHREADS=0")
