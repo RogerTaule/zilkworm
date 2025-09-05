@@ -10,10 +10,9 @@
 //! RUST_LOG=info cargo run --release -- --prove
 //! ```
 
-use alloy_sol_types::SolType;
 use clap::Parser;
 // use fibonacci_lib::PublicValuesStruct;
-use sp1_sdk::{include_elf, Prover, ProverClient, SP1Stdin};
+use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
 use std::fs;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
