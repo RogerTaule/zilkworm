@@ -20,3 +20,4 @@ pgo-data.profdata
 
 *.dump
 **/temp
+**/*.bin

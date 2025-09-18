@@ -13,6 +13,7 @@ sp1-sdk = "5.1.0"
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 serde = { version = "1.0.200", default-features = false, features = ["derive"] }
 clap = { version = "4.0", features = ["derive", "env"] }
+bincode = { version = "2.0.1", features = ["serde"] }
 tracing = "0.1.40"
 hex = "0.4.3"
 alloy-sol-types = { workspace = true }
