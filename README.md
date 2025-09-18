@@ -4,6 +4,36 @@
 
 Prototype implementation of Silkworm to run on ZKVM provers with native support for RISC-V targets (e.g. rv32im)
 
+To run
+
+```
+# Help
+$ docker run somnergy/z6m_prover --help
+Usage: z6m_prover [OPTIONS]
+
+Options:
+      --setup                    Run setup only: produce pk/vk and save to disk
+      --execute                  Execute the guest program without proving
+      --prove                    Prove using an existing pk (reads pk_path) and save proof to disk
+      --verify                   Verify a proof from disk against a vk from disk
+      --n <N>                    First input written to SP1Stdin [default: 1]
+      --file-name <FILE_NAME>    JSON file to read, minify, and pass as bytes to the guest (second input) [default: test.json]
+      --pk-path <PK_PATH>        File path to persist/read proving key [default: pk.bin]
+      --vk-path <VK_PATH>        File path to persist/read verifying key [default: vk.bin]
+      --proof-path <PROOF_PATH>  File path to persist/read proof [default: proof.bin]
+  -h, --help                     Print help
+  -V, --version                  Print version
+
+```
+
+Examples
+```
+docker run --rm -v "$PWD:/work" -w /work somnergy/z6m_prover --execute --n 1 --file-name test.json
+docker run --rm -v "$PWD:/work" -w /work somnergy/z6m_prover --setup --prove --n 1 --file-name test.json
+```
+
+Usage
+
 Direct use docker to get started with dev work
 ```
 docker pull somnergy/z6m:latest
