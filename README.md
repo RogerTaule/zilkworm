@@ -26,11 +26,22 @@ Options:
 
 ```
 
-Examples
+### Examples
 ```
 docker run --rm -v "$PWD:/work" -w /work somnergy/z6m_prover --execute --n 1 --file-name test.json
 docker run --rm -v "$PWD:/work" -w /work somnergy/z6m_prover --setup --prove --n 1 --file-name test.json
 ```
+
+### NVIDIA CUDA Accelerated proving
+First make sure to install NVIDIA drivers and the NVIDIA Container Toolkit https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+```
+$ user@machine-with-gpu
+docker run --gpus all --rm --network host -v "$PWD:/work:rw" -v /var/run/docker.sock:/var/run/docker.sock  -w /work -it --entrypoint bash somnergy/z6m_prover
+
+root@instance-20250919-091229:/work# 
+SP1_PROVER=cuda RUST_BACKTRACE=full RUST_LOG=info --prove --n 1 --file-name test.json
+```
+
 
 Usage
 
