@@ -50,6 +50,7 @@ xpack-silkworm:
 		-DCMAKE_INSTALL_PREFIX=$(BUILD_DIR)/silkworm-install \
 	    -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
 		-G "Unix Makefiles" \
+		-DQEMU_DEBUG=ON \
 		-Wno-dev
 	cmake --build $(BUILD_DIR)/silkworm -j --target install
 
@@ -59,8 +60,19 @@ gdb:
 
 qemu:
 	@echo "QEMU waiting for GDB on :1234..."
-	@qemu-system-riscv32 -M virt -nographic -m 2G \
-	  -bios $(ELF) -S -gdb tcp::1234 -semihosting
+	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu file-name=path/to.json"; exit 1; fi
+	@N=$$(wc -c <"$(file-name)"); \
+	{ printf "%u\n" $$N; cat "$(file-name)"; } | \
+	qemu-system-riscv32 -M virt -m 2G -nographic \
+	  -bios $(ELF) -S -gdb tcp::1234 \
+	  -serial none -monitor none \
+	  -chardev stdio,id=sh0,signal=off \
+	  -semihosting-config enable=on,target=native,chardev=sh0 
+
+# qemu:
+# 	@echo "QEMU waiting for GDB on :1234..."
+# 	@qemu-system-riscv32 -M virt -nographic -m 2G \
+# 	  -bios $(ELF) -S -gdb tcp::1234 -semihosting
 # -semihosting-config enable=on,target=native \
 
 
