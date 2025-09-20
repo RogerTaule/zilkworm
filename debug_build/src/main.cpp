@@ -1,26 +1,52 @@
 #include "./include/cppextern.hpp"
 #include <cstdio>
+#include <string>
+#include "./include/semihosting.hpp"
 
-static inline void sh_write0(const char* s) {
-    register long a0 asm("a0") = 0x04;      // SYS_WRITE0
-    register const char* a1 asm("a1") = s;  // pointer to 0-terminated string
-    asm volatile(
-        ".option push       \n"
-        ".option norvc      \n"  // avoid C extension in the magic sequence
-        "slli x0, x0, 0x1f  \n"
-        "ebreak             \n"
-        "srai x0, x0, 0x7   \n"
-        ".option pop        \n"
-        : "+r"(a0) : "r"(a1) : "memory"
-    );
-}
+// Keep a static buffer big enough for your JSON payloads.
+static char JSON_BUF[64 * 1024];
 
-int main() {
-    const uint64_t res = sample_run_wrapped();
+int main(int argc, char *argv[])
+{
+    // 1) Read n (uint32 decimal) from stdin
+    std::uint32_t n = 0;
+    if (!sh::read_u32_from_stdin(n))
+    {
+        sys_println("Could not read file size from stdin");
+        for (;;)
+        {
+        } // parse error -> park
+    }
+
+    // 2) Read exactly n bytes of JSON
+    if (static_cast<std::size_t>(n) >= sizeof(JSON_BUF))
+    {
+        sys_println("File Too large for JSON_BUF");
+        for (;;)
+        {
+        } // too large -> park
+    }
+
+    if (!sh::read_exact(JSON_BUF, static_cast<std::size_t>(n)))
+    {
+        sys_println("Unexpected EOF");
+        for (;;)
+        {
+        } // unexpected EOF -> park
+    }
+
+    JSON_BUF[n] = '\0'; // null-terminate for convenience
+
+    std::string jsonStr(JSON_BUF, JSON_BUF + n);
+    sys_println("The string read:");
+    sys_println(jsonStr.c_str());
+    const uint64_t res = sample_run_wrapped(n, jsonStr);
     char buf[64];
     std::snprintf(buf, sizeof(buf), "State transition result: %llu", res);
-    sh_write0(buf);
+    sys_println(buf);
     // printf("State transition result: %d\n", res);
-    while (1) {} // loop indefinitely (no OS to return to)
+    while (1)
+    {
+    } // loop indefinitely (no OS to return to)
     // return 0;   // Don't
 }

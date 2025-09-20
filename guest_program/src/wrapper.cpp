@@ -24,7 +24,7 @@ extern "C" uint64_t sample_run_wrapped(uint32_t n, rust::Str jsonStr1) {
         (*p)();
     }
 
-    sys_println("Silkworm guest started");
+    sys_println("Zilkworm guest started");
 
     //Initialize a state_transition object with one Shanghai Transaction - within silkworm
     auto state_transition = silkworm::cmd::state_transition::StateTransition(jsonStr1.data(), false, true);
