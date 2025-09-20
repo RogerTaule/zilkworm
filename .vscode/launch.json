@@ -5,7 +5,7 @@
       "name": "QEMU gdb z6m_debug",
       "type": "cppdbg",
       "request": "launch",
-      "preLaunchTask": "Run qemu-system",
+      // "preLaunchTask": "Run qemu-system",
       "program": "${workspaceFolder}/debug_build/build/z6m_debug",
       "cwd": "${workspaceFolder}/debug_build",
       "MIMode": "gdb",
