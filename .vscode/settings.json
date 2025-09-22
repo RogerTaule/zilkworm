@@ -83,5 +83,16 @@
         "typeinfo": "cpp",
         "variant": "cpp",
         "stdint.h": "c"
+    },
+
+    "search.exclude": {
+        "**/target": true,
+        "**/target/**": true
+    },
+    "files.exclude": {
+        "**/target": true
+    },
+    "files.watcherExclude": {
+        "**/target/**": true
     }
 }
