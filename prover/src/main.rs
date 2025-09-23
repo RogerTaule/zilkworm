@@ -70,9 +70,14 @@ enum Command {
 
     /// Generate a proof for a block
     Prove {
-        /// Block number to prove
-        #[arg(long)]
+        /// Block number to execute
+        #[arg(long, default_value = "0")]
         block_number: u64,
+
+        /// JSON file to load ethereum/tests format test from
+        #[arg(long)]
+        file_name: String,
+
         /// Data directory
         #[arg(long, default_value = "data")]
         data_dir: PathBuf,
@@ -123,11 +128,12 @@ async fn main() -> Result<()> {
         }
         Command::Prove {
             block_number,
+            file_name,
             data_dir,
             pk_path,
             proof_path,
         } => {
-            prove_block(block_number, data_dir, pk_path, proof_path)?;
+            prove_block(block_number, file_name, data_dir, pk_path, proof_path)?;
         }
         Command::Verify {
             proof_path,
@@ -179,7 +185,7 @@ fn execute_block(block_number: u64, file_name: String, data_dir: PathBuf) -> Res
         );
     }
 
-    let stdin = build_stdin_from_eth_tests(&file_path)?;
+    let mut stdin = build_stdin_from_eth_tests(&file_path)?;
     let (mut output, report) = client.execute(SILK_ST_ELF, &stdin).run().unwrap();
 
     println!("Program executed successfully.");
@@ -191,6 +197,7 @@ fn execute_block(block_number: u64, file_name: String, data_dir: PathBuf) -> Res
 
 fn prove_block(
     block_number: u64,
+    file_name: String,
     data_dir: PathBuf,
     pk_path: String,
     proof_path: String,
@@ -205,17 +212,27 @@ fn prove_block(
     };
 
     // Load test data
-    let tests_path = data_dir.join(format!("{}/ethTests{}.json", block_number, block_number));
-    if !tests_path.exists() {
+    let file_path;
+    if file_name.is_empty() {
+        if block_number == 0 {
+            bail!("Must pecify --file-name or --block-number > 0")
+        }
+        println!("Requested proof for block {}...", block_number);
+        file_path = data_dir.join(format!("{}/ethTests{}.json", block_number, block_number));
+    } else {
+        file_path = file_name.into();
+    }
+
+    if !file_path.exists() {
         bail!(
             "Test file not found: {}. Run 'fetch' first.",
-            tests_path.display()
+            file_path.display()
         );
     }
 
-    let stdin = build_stdin_from_eth_tests(&tests_path)?;
+    let mut stdin = build_stdin_from_eth_tests(&file_path)?;
 
-    println!("Generating proof for block {}...", block_number);
+    println!("Starting Proof Generation");
     let mut proof = client.prove(&pk, &stdin).run().unwrap();
 
     println!("Successfully generated proof!");
