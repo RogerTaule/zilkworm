@@ -19,11 +19,11 @@ mod ffi {
 }
 
 pub fn main() {
-    let _n: u32 = sp1_zkvm::io::read();
+    // let _n: u32 = sp1_zkvm::io::read();
     // let json = "{}";
     let json = sp1_zkvm::io::read_vec();
     let json_str = core::str::from_utf8(&json).expect("invalid UTF-8");
-    let _result: u64 = ffi::sample_run_wrapped(_n, json_str);
+    let _result: u64 = ffi::sample_run_wrapped(1, json_str);
     sp1_zkvm::io::commit(&_result);
 }
 

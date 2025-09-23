@@ -10,7 +10,7 @@ z6m_prover: z6m_guest
 	cargo build --release --manifest-path prover/Cargo.toml
 
 selftest: z6m_prover
-	target/release/z6m_prover --execute --n=1 --file-name $(TESTS_DIR)/GeneralStateTests/stExample/add11_yml.json
+	target/release/z6m_prover execute --file-name $(TESTS_DIR)/GeneralStateTests/stExample/add11_yml.json
 
 TESTFILES := $(shell find $(TESTS_DIR) -type f -name '*.json')
 RELTESTS := $(patsubst $(TESTS_DIR)/%,%,$(TESTFILES))
@@ -20,4 +20,4 @@ tests: $(LOGFILES)
 
 target/logs/%.log: $(TESTS_DIR)/%.json
 	@mkdir -p $(dir $@)
-	target/release/z6m_prover --execute --n=1 --file-name $< 2>&1 | tee $@
+	target/release/z6m_prover execute --file-name $< 2>&1 | tee $@

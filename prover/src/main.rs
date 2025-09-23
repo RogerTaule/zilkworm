@@ -51,14 +51,18 @@ enum Command {
         block_number: u64,
         /// Output directory
         #[arg(long, default_value = "temp")]
-        output: PathBuf,
+        data_dir: PathBuf,
     },
 
     /// Execute the guest program without proving
     Execute {
         /// Block number to execute
-        #[arg(long)]
+        #[arg(long, default_value = "0")]
         block_number: u64,
+
+        #[arg(long)]
+        file_name: String,
+
         /// Data directory
         #[arg(long, default_value = "temp")]
         data_dir: PathBuf,
@@ -106,15 +110,16 @@ async fn main() -> Result<()> {
         Command::Fetch {
             rpc_url,
             block_number,
-            output,
+            data_dir,
         } => {
-            fetch_block_and_witness(rpc_url, block_number, output).await?;
+            fetch_block_and_witness(rpc_url, block_number, data_dir).await?;
         }
         Command::Execute {
             block_number,
+            file_name,
             data_dir,
         } => {
-            execute_block(block_number, data_dir)?;
+            execute_block(block_number, file_name, data_dir)?;
         }
         Command::Prove {
             block_number,
@@ -155,18 +160,26 @@ fn setup(pk_path: String, vk_path: String) -> Result<()> {
     Ok(())
 }
 
-fn execute_block(block_number: u64, data_dir: PathBuf) -> Result<()> {
+fn execute_block(block_number: u64, file_name: String, data_dir: PathBuf) -> Result<()> {
     let client = ProverClient::from_env();
-    let tests_path = data_dir.join(format!("{}/ethTests{}.json", block_number, block_number));
+    let file_path;
+    if file_name.is_empty() {
+        if block_number == 0 {
+            bail!("Must pecify --file-name or --block-number > 0")
+        }
+        file_path = data_dir.join(format!("{}/ethTests{}.json", block_number, block_number));
+    } else {
+        file_path = file_name.into();
+    }
 
-    if !tests_path.exists() {
+    if !file_path.exists() {
         bail!(
             "Test file not found: {}. Run 'fetch' first.",
-            tests_path.display()
+            file_path.display()
         );
     }
 
-    let stdin = build_stdin_from_eth_tests(&tests_path)?;
+    let stdin = build_stdin_from_eth_tests(&file_path)?;
     let (mut output, report) = client.execute(SILK_ST_ELF, &stdin).run().unwrap();
 
     println!("Program executed successfully.");
