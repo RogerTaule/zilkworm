@@ -1,29 +1,21 @@
 use clap::Parser;
-use sp1_sdk::{
-    include_elf, ProverClient, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin, SP1VerifyingKey,
-};
+use sp1_sdk::SP1Stdin;
 use std::{
-    any::{self, Any},
     collections::{BTreeMap, HashMap},
     fs,
-    io::{BufReader, BufWriter},
+    io::BufWriter,
     path::PathBuf,
 };
 
 // Import alloy types (updated for 1.0)
-use alloy_consensus::{Block, BlockHeader, Transaction, TxEnvelope};
-use alloy_eips::eip4895::Withdrawals;
-use alloy_network::{Ethereum, Network};
-use alloy_primitives::{keccak256, Address, Bloom, Bytes, B256, B64, U256};
+use alloy_consensus::{BlockHeader, Transaction, TxEnvelope};
+use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
 use alloy_rlp::Decodable;
 use alloy_rpc_types::{Block as RpcBlock, BlockTransactions, Transaction as RPCTransaction};
 use alloy_rpc_types_debug::ExecutionWitness;
-use alloy_transport::Transport;
-use alloy_transport_http::Http;
 use alloy_trie::{TrieAccount, KECCAK_EMPTY};
 use eyre::{bail, eyre, Context, Result};
-use reqwest::Client;
 use serde::Serialize;
 use url::Url;
 
@@ -32,7 +24,7 @@ use rsp_mpt::EthereumState;
 // Import the types from our types module
 use crate::types::{
     BlockchainTestCase, EthTestAccessListItem, EthTestAccount, EthTestAuthorization,
-    EthTestTransaction, SealEngine, TestBlock, TestHeader, TransactionSequence,
+    EthTestTransaction, SealEngine, TestBlock, TestHeader,
 };
 
 pub async fn fetch_block_and_witness(
@@ -225,9 +217,6 @@ fn build_eth_tests_case(
 
     let pre = build_pre_state(&state, &code_map, &preimage_map);
 
-    // let block_rlp = block_to_rlp(current_block)?;
-    let genesis_rlp = prev_block_rlp;
-
     let transactions = match &current_block.transactions {
         BlockTransactions::Full(txs) => {
             let mut converted = Vec::with_capacity(txs.len());
@@ -326,6 +315,7 @@ fn build_pre_state(
     accounts
 }
 
+// Convert json-gotten block object to RLP bytes
 fn block_to_rlp(block: &RpcBlock) -> Result<Bytes> {
     // In alloy 1.0, we need to handle this slightly differently
     let BlockTransactions::Full(ref txs) = block.transactions else {

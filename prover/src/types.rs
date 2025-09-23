@@ -1,33 +1,10 @@
-use clap::Parser;
-use sp1_sdk::{
-    include_elf, ProverClient, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin, SP1VerifyingKey,
-};
-use std::{
-    any::{self, Any},
-    collections::{BTreeMap, HashMap},
-    fs,
-    io::{BufReader, BufWriter},
-    path::PathBuf,
-};
+use std::collections::BTreeMap;
 
 // Import alloy types (updated for 1.0)
-use alloy_consensus::{Block, BlockHeader, Transaction, TxEnvelope};
 use alloy_eips::eip4895::Withdrawals;
-use alloy_network::{Ethereum, Network};
-use alloy_primitives::{keccak256, Address, Bloom, Bytes, B256, B64, U256};
-use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
-use alloy_rlp::Decodable;
-use alloy_rpc_types::{Block as RpcBlock, BlockTransactions, Transaction as RPCTransaction};
-use alloy_rpc_types_debug::ExecutionWitness;
-use alloy_transport::Transport;
-use alloy_transport_http::Http;
-use alloy_trie::{TrieAccount, KECCAK_EMPTY};
-use eyre::{bail, eyre, Context, Result};
-use reqwest::Client;
+use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
 use serde::Serialize;
-use url::Url;
 
-use rsp_mpt::EthereumState;
 
 // Include all the type definitions from fetcher.rs
 #[derive(Debug, Serialize)]
