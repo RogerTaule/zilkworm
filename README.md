@@ -1,5 +1,5 @@
 <p align="center">
-<img width="120" height="120" alt="z6m logo" src="https://github.com/user-attachments/assets/d8e4fd66-4e1f-40cd-889e-3860553c4eaa" />
+<img width="120" height="120" alt="z6m logo" src="https://github.com/user-attachments/assets/4f48edc9-9db7-4fe0-a4a6-d3aafdfeb741" />
 </p>
 
 Prototype implementation of Silkworm to run on ZKVM provers with native support for RISC-V targets (e.g. rv32im)
