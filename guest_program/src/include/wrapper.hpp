@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-uint64_t sample_run_wrapped(uint32_t n, rust::Str jsonStr1);
+uint64_t sample_run_wrapped(bool is_test, rust::Vec<uint8_t> input_str);
 
 #ifdef __cplusplus
 }

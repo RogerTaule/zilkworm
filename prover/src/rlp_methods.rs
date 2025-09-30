@@ -1,0 +1,314 @@
+use sp1_sdk::SP1Stdin;
+use std::{
+    collections::{BTreeMap, HashMap},
+    fs,
+    io::{BufWriter, Read},
+    path::PathBuf,
+};
+
+// Import alloy types (updated for 1.0)
+use alloy_consensus::{Block, BlockHeader, Header, Transaction, TxEnvelope};
+use alloy_eips::eip4895::Withdrawals;
+use alloy_primitives::{hex, keccak256, Address, Bytes, B256, U256};
+use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
+use alloy_rlp::{Decodable, Encodable};
+use alloy_rpc_types::{Block as RpcBlock, BlockTransactions, Transaction as RPCTransaction};
+use alloy_rpc_types_debug::ExecutionWitness;
+use alloy_trie::{TrieAccount, EMPTY_ROOT_HASH, KECCAK_EMPTY};
+use eyre::{bail, eyre, Context, Result};
+use rsp_mpt::EthereumState;
+use serde::Serialize;
+use url::Url;
+
+// Convert json-gotten block object to RLP bytes
+pub fn block_to_rlp(block: &RpcBlock) -> Result<Bytes> {
+    // In alloy 1.0, we need to handle this slightly differently
+    let BlockTransactions::Full(ref txs) = block.transactions else {
+        bail!(
+            "block {} is missing full transactions for RLP encoding",
+            block.header.number
+        );
+    };
+
+    // Convert transactions to TxEnvelope
+    let tx_envelopes: Vec<TxEnvelope> = txs
+        .iter()
+        .map(|tx| TxEnvelope::try_from(tx.clone()))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| eyre!("Failed to convert transaction: {}", e))?;
+
+    // Create a consensus block - this part might need adjustment based on your exact needs
+    // You might need to construct the block manually
+    Ok(Bytes::from(alloy_rlp::encode(&tx_envelopes)))
+}
+
+// Convert RPC block to RLP bytes with header only (empty transactions, uncles, withdrawals)
+pub fn block_to_header_only_rlp(rpc_block: &RpcBlock) -> Result<Bytes> {
+    // Convert RPC header to consensus header
+    let header = Header {
+        parent_hash: rpc_block.header.parent_hash,
+        ommers_hash: rpc_block.header.ommers_hash,
+        beneficiary: rpc_block.header.beneficiary,
+        state_root: rpc_block.header.state_root,
+        transactions_root: rpc_block.header.transactions_root,
+        receipts_root: rpc_block.header.receipts_root,
+        logs_bloom: rpc_block.header.logs_bloom,
+        difficulty: rpc_block.header.difficulty,
+        number: rpc_block.header.number,
+        gas_limit: rpc_block.header.gas_limit,
+        gas_used: rpc_block.header.gas_used,
+        timestamp: rpc_block.header.timestamp,
+        extra_data: rpc_block.header.extra_data.clone(),
+        mix_hash: rpc_block.header.mix_hash().unwrap_or_default(),
+        nonce: rpc_block.header.nonce,
+        base_fee_per_gas: rpc_block.header.base_fee_per_gas,
+        withdrawals_root: rpc_block.header.withdrawals_root,
+        blob_gas_used: rpc_block.header.blob_gas_used,
+        excess_blob_gas: rpc_block.header.excess_blob_gas,
+        parent_beacon_block_root: rpc_block.header.parent_beacon_block_root,
+        requests_hash: rpc_block.header.requests_hash,
+    };
+
+    // Create a block with header only (empty body)
+    // The Block struct in alloy-consensus has header and body
+    // For header-only block, we create empty transactions and uncles
+    let block = Block {
+        header,
+        body: alloy_consensus::BlockBody {
+            transactions: Vec::<TxEnvelope>::new(),
+            ommers: Vec::<Header>::new(),
+            withdrawals: Some(Withdrawals::new(Vec::new())),
+        },
+    };
+
+    // Encode the block using RLP
+    let mut buf = Vec::new();
+    block.encode(&mut buf);
+    Ok(Bytes::from(buf))
+}
+
+// /// Encode pre_state accounts into RLP format
+// /// Returns the RLP-encoded bytes of the entire pre-state
+// pub fn encode_pre_state_to_rlp(pre_state: &BTreeMap<Address, EthTestAccount>) -> Result<Bytes> {
+//     // Pre-state can be encoded in different ways depending on use case
+//     // Option 1: As a list of (address, account_rlp) pairs
+//     encode_pre_state_as_list(pre_state)
+// }
+
+// /// Encode pre_state as a list of (address, account) pairs
+// pub fn encode_pre_state_as_list(pre_state: &BTreeMap<Address, EthTestAccount>) -> Result<Bytes> {
+//     let mut encoded_accounts = Vec::new();
+
+//     for (address, account) in pre_state.iter() {
+//         // Encode each account entry as [address, account_data]
+//         let mut entry = Vec::new();
+
+//         // Encode address
+//         address.encode(&mut entry);
+
+//         // Encode account data
+//         let account_rlp = encode_account_to_rlp(account)?;
+//         entry.extend_from_slice(&account_rlp);
+
+//         encoded_accounts.push(entry);
+//     }
+
+//     // Encode the entire list
+//     let output = alloy_rlp::encode(&encoded_accounts);
+
+//     Ok(Bytes::from(output))
+// }
+
+/// Build pre-state as RLP with structure:
+/// [[{address, account}], [{address, storage}], [{codeHash, code}]]
+pub fn build_pre_state_rlp(
+    state: &EthereumState,
+    code_map: &HashMap<B256, Bytes>,
+    preimage_map: &HashMap<B256, Bytes>,
+) -> Result<Bytes> {
+    let mut accounts_list = Vec::new();
+    let mut storage_list = Vec::new();
+    let mut codes_list = Vec::new();
+
+    // Track which code hashes we've already added
+    let mut added_codes = std::collections::HashSet::new();
+
+    state.state_trie.for_each_leaves(|key, value| {
+        let hashed_address = B256::from_slice(key);
+        if let Some(address_bytes) = preimage_map.get(&hashed_address) {
+            if address_bytes.len() != Address::len_bytes() {
+                return;
+            }
+            let address = Address::from_slice(address_bytes.as_ref());
+            let mut bytes = value;
+
+            // pub struct TrieAccount {
+            //     pub nonce: u64,
+            //     pub balance: U256,
+            //     pub storage_root: B256,
+            //     /// The hash of the code of the account.
+            //     pub code_hash: B256,
+            // }
+
+            if let Ok(account) = TrieAccount::decode(&mut bytes) {
+                // Encode account entry: [address, nonce, balance, codeHash, storageRoot]
+
+                // Option 2: Manual RLP list construction
+                // let mut account_rlp = Vec::new();
+
+                // // Calculate payload length for each item
+                // let addr_len = address.length();
+                // let nonce_len = account.nonce.length();
+                // let balance_len = account.balance.length();
+                // let code_hash_len = account.code_hash.length();
+                // let storage_root_len = account.storage_root.length();
+
+                // let total_payload = addr_len + nonce_len + balance_len + code_hash_len + storage_root_len;
+
+                // // Encode list header
+                // if total_payload < 56 {
+                //     account_rlp.push(0xc0 + total_payload as u8);
+                // } else {
+                //     let len_bytes = total_payload.to_be_bytes();
+                //     let len_bytes = &len_bytes[len_bytes.iter().position(|&b| b != 0).unwrap_or(7)..];
+                //     account_rlp.push(0xf7 + len_bytes.len() as u8);
+                //     account_rlp.extend_from_slice(len_bytes);
+                // }
+
+                // // Encode each field directly
+                // address.encode(&mut account_rlp);
+                // account.nonce.encode(&mut account_rlp);
+                // account.balance.encode(&mut account_rlp);
+                // account.code_hash.encode(&mut account_rlp);
+                // account.storage_root.encode(&mut account_rlp);
+                // println!("account_rlp: {}", hex::encode(&account_rlp));
+                // accounts_list.push(account_rlp.clone());
+
+                // // Create account data parts separately for RLP encoding
+                let addr_rlp = alloy_rlp::encode(&address);
+                let nonce_rlp = alloy_rlp::encode(&account.nonce);
+                let balance_rlp = alloy_rlp::encode(&account.balance);
+                let code_hash_rlp = alloy_rlp::encode(&account.code_hash);
+                let storage_root_rlp = alloy_rlp::encode(&account.storage_root);
+
+                accounts_list.push(encode_rlp_list(&[
+                    &addr_rlp,
+                    &nonce_rlp,
+                    &balance_rlp,
+                    &code_hash_rlp,
+                    &storage_root_rlp,
+                ]));
+                // // Encode account data list
+                // let mut account_data_items = Vec::new();
+                // account_data_items.push(&addr_rlp);
+                // account_data_items.push(&nonce_rlp);
+                // account_data_items.push(&balance_rlp);
+                // account_data_items.push(&code_hash_rlp);
+                // account_data_items.push(&storage_root_rlp);
+
+                // let account_rlp = alloy_rlp::encode(&account_data_items);
+
+                // // Debug print for first account only (based on accounts_list length)
+
+                // println!("First account debug info:");
+                // println!("addr_rlp: {}", hex::encode(&addr_rlp));
+                // println!("nonce_rlp: {}", hex::encode(&nonce_rlp));
+                // println!("balance_rlp: {}", hex::encode(&balance_rlp));
+                // println!("code_hash_rlp: {}", hex::encode(&code_hash_rlp));
+                // println!("storage_root_rlp: {}", hex::encode(&storage_root_rlp));
+
+                // println!("account_rlp: {}", hex::encode(account_rlp));
+
+                // accounts_list.push(account_rlp);
+
+                // Add code to codes list if not empty and not yet added
+                if account.code_hash != KECCAK_EMPTY && !added_codes.contains(&account.code_hash) {
+                    if let Some(code) = code_map.get(&account.code_hash) {
+                        let mut code_entry = Vec::new();
+                        account.code_hash.encode(&mut code_entry);
+                        code.encode(&mut code_entry);
+                        codes_list.push(code_entry);
+                        added_codes.insert(account.code_hash);
+                    }
+                }
+
+                // Process storage for this account
+                if let Some(storage_trie) = state.storage_tries.get(&hashed_address) {
+
+                    let mut storage_entries = Vec::new();
+
+                    storage_trie.for_each_leaves(|slot_key, slot_value| {
+                        let hashed_slot = B256::from_slice(slot_key);
+                        if let Some(slot_preimage) = preimage_map.get(&hashed_slot) {
+                            if slot_preimage.len() == 32 {
+                                let slot = U256::from_be_slice(slot_preimage.as_ref());
+                                let mut slot_bytes = slot_value;
+                                if let Ok(value) = U256::decode(&mut slot_bytes) {
+                                    if !value.is_zero() {
+                                        let mut kv = Vec::new();
+                                        slot.encode(&mut kv);
+                                        value.encode(&mut kv);
+                                        storage_entries.push(kv);
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    if !storage_entries.is_empty() {
+                        // Encode storage entry: [address, [[key, value], ...]]
+                        let addr_rlp = alloy_rlp::encode(address);
+                        let storage_entries_ref: Vec<&Vec<u8>> = storage_entries.iter().collect();
+                        let storage_entries_rlp = encode_rlp_list(&storage_entries_ref);
+                        let storage_rlp = encode_rlp_list(&[&addr_rlp, &storage_entries_rlp]);
+                        storage_list.push(storage_rlp);
+                    }
+                }
+            }
+        }
+    });
+
+    // Encode the mega list: [accounts, storage, codes]
+    let accounts_refs: Vec<&Vec<u8>> = accounts_list.iter().collect();
+    let accounts_rlp = encode_rlp_list(&accounts_refs);
+
+    let storage_refs: Vec<&Vec<u8>> = storage_list.iter().collect();
+    let storage_rlp = encode_rlp_list(&storage_refs);
+
+
+    let code_refs: Vec<&Vec<u8>> = codes_list.iter().collect();
+    let codes_rlp = encode_rlp_list(&code_refs);
+
+    // println!("accounts_rlp: {}", hex::encode(&accounts_rlp));
+    // println!("storage_rlp: {}", hex::encode(&storage_rlp));
+    // println!("codes_rlp: {}", hex::encode(&codes_rlp));
+
+    let output = encode_rlp_list(&[&accounts_rlp, &storage_rlp, &codes_rlp]);
+
+    // println!("output: {}", hex::encode(&output));
+    Ok(Bytes::from(output))
+}
+
+pub fn encode_rlp_list(items: &[&Vec<u8>]) -> Vec<u8> {
+    let mut output = Vec::new();
+
+    // Calculate total payload length
+    let total_payload: usize = items.iter().map(|item| item.len()).sum();
+
+    // Encode list header
+    if total_payload < 56 {
+        output.push(0xc0 + total_payload as u8);
+    } else {
+        let len_bytes = total_payload.to_be_bytes();
+        let len_bytes = &len_bytes[len_bytes.iter().position(|&b| b != 0).unwrap_or(7)..];
+        output.push(0xf7 + len_bytes.len() as u8);
+        output.extend_from_slice(len_bytes);
+    }
+
+    // Append all the pre-encoded items
+    for item in items {
+        output.extend_from_slice(item);
+    }
+
+    output
+}

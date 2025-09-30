@@ -1,4 +1,3 @@
-use clap::Parser;
 use sp1_sdk::SP1Stdin;
 use std::{
     collections::{BTreeMap, HashMap},
@@ -8,19 +7,20 @@ use std::{
 };
 
 // Import alloy types (updated for 1.0)
-use alloy_consensus::{BlockHeader, Transaction, TxEnvelope};
+use alloy_consensus::{BlockHeader, Transaction};
+
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
-use alloy_rlp::Decodable;
+use alloy_rlp::{Decodable, Encodable};
 use alloy_rpc_types::{Block as RpcBlock, BlockTransactions, Transaction as RPCTransaction};
 use alloy_rpc_types_debug::ExecutionWitness;
-use alloy_trie::{TrieAccount, KECCAK_EMPTY};
+use alloy_trie::{TrieAccount, EMPTY_ROOT_HASH, KECCAK_EMPTY};
 use eyre::{bail, eyre, Context, Result};
 use serde::Serialize;
 use url::Url;
-
 use rsp_mpt::EthereumState;
 
+use crate::rlp_methods::*;
 // Import the types from our types module
 use crate::types::{
     BlockchainTestCase, EthTestAccessListItem, EthTestAccount, EthTestAuthorization,
@@ -46,8 +46,11 @@ pub async fn fetch_block_and_witness(
     let block_path = block_dir.join(format!("block{}.json", block_number));
     let block_rlp_path = block_dir.join(format!("blockRlp{}.json", block_number));
     let prev_block_path = block_dir.join(format!("block{}.json", block_number - 1));
-    let prev_block_rlp_path = block_dir.join(format!("blockRlp{}.json", block_number - 1));
+    // let prev_block_rlp_path = block_dir.join(format!("blockRlp{}.json", block_number - 1));
     let tests_path = block_dir.join(format!("ethTests{}.json", block_number));
+    let unified_rlp_path = block_dir.join(format!("inputRlpUnified{}.json", block_number));
+    let unified_block_rlp_only_path =
+        block_dir.join(format!("unifiedBlockAndStateRlp{}.json", block_number));
 
     let current_block;
     let current_block_rlp;
@@ -117,13 +120,9 @@ pub async fn fetch_block_and_witness(
             block_number - 1
         );
     }
-    if prev_block_rlp_path.exists() {
-        let prev_block_rlp_json = fs::read_to_string(&prev_block_rlp_path)?;
-        prev_block_rlp = serde_json::from_str(&prev_block_rlp_json)?;
-    } else {
-        prev_block_rlp = provider.debug_get_raw_block(block_number.into()).await?;
-        write_json(&prev_block_rlp_path, &current_block_rlp)?;
-    }
+
+    // Generate previous block RLP with header only
+    prev_block_rlp = block_to_header_only_rlp(&prev_block)?;
 
     if witness_path.exists() {
         println!(
@@ -146,23 +145,56 @@ pub async fn fetch_block_and_witness(
         // Save witness
         write_json(&witness_path, &execution_witness)?;
     }
-    // Build and save eth tests
-    let eth_tests = build_eth_tests_case(
-        block_number,
-        &current_block,
-        &current_block_rlp,
-        &prev_block,
-        &prev_block_rlp,
-        &execution_witness,
-    )?;
 
-    write_json(&tests_path, &eth_tests)?;
+    if tests_path.exists() {
+        println!(
+            "Tests Path exists at {}, nothing to do",
+            tests_path.display()
+        );
+    } else {
+        // Build and save eth tests
+        let eth_tests = build_eth_tests_case(
+            block_number,
+            &current_block,
+            &current_block_rlp,
+            &prev_block,
+            &prev_block_rlp,
+            &execution_witness,
+        )?;
+        write_json(&tests_path, &eth_tests)?;
+        println!(
+            "Saved eth-tests JSON for block {}, to location {}",
+            block_number,
+            tests_path.display()
+        );
+    }
 
-    println!(
-        "Saved eth-tests JSON for block {}, to location {}",
-        block_number,
-        tests_path.display()
-    );
+    // if unified_rlp_path.exists() {
+    //     println!(
+    //         "Unified rlp file for block {} exists at {}",
+    //         block_number,
+    //         unified_rlp_path.display()
+    //     );
+    // } else {
+        let unified_rlp_map = build_unified_rlp_map(
+            block_number,
+            &current_block,
+            &current_block_rlp,
+            &prev_block,
+            &prev_block_rlp,
+            &execution_witness,
+        )?;
+        write_json(&unified_rlp_path, &unified_rlp_map)?;
+        println!(
+            "Saved Unified RLP file for block {} to {}",
+            block_number,
+            unified_rlp_path.display()
+        );
+        // Write the bytes into file
+        if let Some(unified_rlp_bytes) = unified_rlp_map.get("unifiedBlockAndStateRlp") {
+            fs::write(unified_block_rlp_only_path, unified_rlp_bytes)?;
+        }
+    // }
 
     Ok(())
 }
@@ -170,6 +202,8 @@ pub async fn fetch_block_and_witness(
 pub fn build_stdin_from_eth_tests(path: &PathBuf) -> Result<SP1Stdin> {
     let mut stdin = SP1Stdin::new();
 
+    // is_test
+    stdin.write(&true);
     // Read the eth tests JSON
     let raw = fs::read_to_string(path)?;
     let value: serde_json::Value = serde_json::from_str(&raw)?;
@@ -182,11 +216,76 @@ pub fn build_stdin_from_eth_tests(path: &PathBuf) -> Result<SP1Stdin> {
     Ok(stdin)
 }
 
+pub fn build_stdin_from_unified_rlp(path: &PathBuf) -> Result<SP1Stdin> {
+    let mut stdin = SP1Stdin::new();
+
+    // is_test
+    stdin.write(&false);
+
+    // Read the Unified RLP bytes JSON
+    let raw = fs::read(path)?;
+    stdin.write_slice(&raw.as_ref());
+
+    println!("Loaded Unified RLP: {} bytes", raw.len());
+
+    Ok(stdin)
+}
+
 pub fn write_json<T: ?Sized + Serialize>(path: &PathBuf, value: &T) -> Result<()> {
     let file = fs::File::create(path)?;
     let writer = BufWriter::new(file);
     serde_json::to_writer_pretty(writer, value)?;
     Ok(())
+}
+
+// Build eth tests case - same as fetcher.rs but updated for alloy 1.0
+fn build_unified_rlp_map(
+    _block_number: u64,
+    _current_block: &RpcBlock,
+    block_rlp: &Bytes,
+    previous_block: &RpcBlock,
+    prev_block_rlp: &Bytes,
+    witness: &ExecutionWitness,
+) -> Result<BTreeMap<String, Bytes>> {
+    let pre_state_root = previous_block.header.state_root;
+    let state = EthereumState::from_execution_witness(witness, pre_state_root);
+
+    let code_map: HashMap<B256, Bytes> = witness
+        .codes
+        .iter()
+        .cloned()
+        .map(|code| (keccak256(&code), code))
+        .collect();
+
+    let preimage_map: HashMap<B256, Bytes> = witness
+        .keys
+        .iter()
+        .cloned()
+        .map(|preimage| (keccak256(&preimage), preimage))
+        .collect();
+
+    let pre_state_rlp = build_pre_state_rlp(&state, &code_map, &preimage_map)?;
+
+    // Create a list of the three RLP items as byte arrays
+    let items = vec![
+        prev_block_rlp.as_ref(),
+        block_rlp.as_ref(),
+        pre_state_rlp.as_ref(),
+    ];
+
+    // Encode the list
+    let unified_rlp = alloy_rlp::encode(&items);
+
+    let mut input_map = BTreeMap::<String, Bytes>::new();
+    input_map.insert("genesisRlp".to_string(), prev_block_rlp.clone());
+    input_map.insert("blockRlp".to_string(), block_rlp.clone());
+    input_map.insert("preState".to_string(), pre_state_rlp.clone());
+    input_map.insert(
+        "unifiedBlockAndStateRlp".to_string(),
+        Bytes::from(unified_rlp),
+    );
+
+    Ok(input_map)
 }
 
 // Build eth tests case - same as fetcher.rs but updated for alloy 1.0
@@ -315,28 +414,6 @@ fn build_pre_state(
     accounts
 }
 
-// Convert json-gotten block object to RLP bytes
-fn block_to_rlp(block: &RpcBlock) -> Result<Bytes> {
-    // In alloy 1.0, we need to handle this slightly differently
-    let BlockTransactions::Full(ref txs) = block.transactions else {
-        bail!(
-            "block {} is missing full transactions for RLP encoding",
-            block.header.number
-        );
-    };
-
-    // Convert transactions to TxEnvelope
-    let tx_envelopes: Vec<TxEnvelope> = txs
-        .iter()
-        .map(|tx| TxEnvelope::try_from(tx.clone()))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| eyre!("Failed to convert transaction: {}", e))?;
-
-    // Create a consensus block - this part might need adjustment based on your exact needs
-    // You might need to construct the block manually
-    Ok(Bytes::from(alloy_rlp::encode(&tx_envelopes)))
-}
-
 // Add this import at the top of the file
 use alloy_consensus::transaction::SignerRecoverable;
 
@@ -444,4 +521,133 @@ fn convert_header(header: &alloy_rpc_types::Header) -> TestHeader {
         requests_hash: header.requests_hash,
         target_blobs_per_block: None,
     }
+}
+
+
+// /// Encode a single account to RLP (as it would appear in the state trie)
+// fn encode_account_to_rlp(account: &EthTestAccount) -> Result<Vec<u8>> {
+//     // Calculate code hash if code exists
+//     let code_hash = if account.code.is_empty() {
+//         KECCAK_EMPTY
+//     } else {
+//         keccak256(&account.code)
+//     };
+
+//     // Calculate storage root
+//     // For simplicity, we'll use empty root if no storage
+//     // In production, you'd build a storage trie and get its root
+//     let storage_root = if account.storage.is_empty() {
+//         EMPTY_ROOT_HASH
+//     } else {
+//         // Build storage trie and get root
+//         calculate_storage_root(&account.storage)?
+//     };
+
+//     // Create TrieAccount structure
+//     let trie_account = TrieAccount {
+//         nonce: account.nonce.to::<u64>(),
+//         balance: account.balance,
+//         storage_root,
+//         code_hash,
+//     };
+
+//     // Encode the TrieAccount
+//     let mut output = Vec::new();
+//     trie_account.encode(&mut output);
+
+//     Ok(output)
+// }
+
+/// Calculate storage root from storage mapping
+fn calculate_storage_root(storage: &BTreeMap<U256, U256>) -> Result<B256> {
+    use alloy_trie::{HashBuilder, Nibbles};
+
+    // Create a new hash builder for the storage trie
+    let mut hash_builder = HashBuilder::default();
+
+    // Add all storage entries
+    for (slot, value) in storage.iter() {
+        // Skip zero values as they're not stored in the trie
+        if value.is_zero() {
+            continue;
+        }
+
+        // Hash the storage slot key
+        let hashed_slot = keccak256(slot.to_be_bytes::<32>());
+
+        // Convert to nibbles for trie insertion
+        let key_nibbles = Nibbles::unpack(hashed_slot);
+
+        // Encode the value
+        let mut value_rlp = Vec::new();
+        value.encode(&mut value_rlp);
+
+        // Add to hash builder
+        hash_builder.add_leaf(key_nibbles, &value_rlp);
+    }
+
+    // Get the root hash
+    Ok(hash_builder.root())
+}
+
+/// Alternative: Encode pre_state as it appears in ethereum tests JSON
+/// This encodes in a format suitable for test consumption
+pub fn encode_pre_state_for_tests(pre_state: &BTreeMap<Address, EthTestAccount>) -> Result<Bytes> {
+    // For test format, we might want a different encoding
+    // This would be a list of [address, nonce, balance, storage_rlp, code]
+    let mut test_entries = Vec::new();
+
+    for (address, account) in pre_state.iter() {
+        // Create a list: [address, nonce, balance, storage, code]
+        let mut fields = Vec::new();
+
+        // Address
+        let mut addr_bytes = Vec::new();
+        address.encode(&mut addr_bytes);
+        fields.push(addr_bytes);
+
+        // Nonce
+        let mut nonce_bytes = Vec::new();
+        account.nonce.encode(&mut nonce_bytes);
+        fields.push(nonce_bytes);
+
+        // Balance
+        let mut balance_bytes = Vec::new();
+        account.balance.encode(&mut balance_bytes);
+        fields.push(balance_bytes);
+
+        // Storage (as a list of key-value pairs)
+        let mut storage_bytes = Vec::new();
+        if !account.storage.is_empty() {
+            let storage_pairs: Vec<Vec<u8>> = account
+                .storage
+                .iter()
+                .map(|(k, v)| {
+                    let mut pair = Vec::new();
+                    k.encode(&mut pair);
+                    v.encode(&mut pair);
+                    pair
+                })
+                .collect();
+            storage_bytes = alloy_rlp::encode(&storage_pairs);
+        } else {
+            // Empty list
+            storage_bytes.push(0xc0);
+        }
+        fields.push(storage_bytes);
+
+        // Code
+        let mut code_bytes = Vec::new();
+        account.code.encode(&mut code_bytes);
+        fields.push(code_bytes);
+
+        // Encode the entry as a list
+        let entry = alloy_rlp::encode(&fields);
+        test_entries.push(entry);
+    }
+
+    // Encode all entries as a list
+    let output = alloy_rlp::encode(&test_entries);
+
+    Ok(Bytes::from(output))
 }

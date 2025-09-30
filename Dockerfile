@@ -35,7 +35,7 @@ RUN apt install -y \
       libnvidia-container1
 
 COPY ./target/release/z6m_prover /usr/bin/z6m_prover
-COPY ./target/elf-compilation/riscv32im-succinct-zkvm-elf/release/z6m_guest /usr/bin/z6m_guest
+COPY ./target/elf-compilation/riscv32im-succinct-zkvm-elf/release/z6m_guest /usr/local/bin/z6m_guest
 
-ENTRYPOINT ["/usr/local/bin/z6m_prover"]
+ENTRYPOINT ["/usr/bin/z6m_prover"]
 CMD ["--help"]

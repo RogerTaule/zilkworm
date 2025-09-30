@@ -2,10 +2,11 @@
 
 pub mod fetcher;
 pub mod types;
+pub mod rlp_methods;
 
 use clap::Parser;
 use sp1_sdk::{
-    include_elf, ProverClient, SP1ProofWithPublicValues, SP1ProvingKey, SP1VerifyingKey,
+    include_elf, ProverClient, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin, SP1VerifyingKey
 };
 use std::{
     fs,
@@ -16,7 +17,7 @@ use std::{
 // Import alloy types (updated for 1.0)
 use eyre::{bail, Result};
 
-use crate::fetcher::{build_stdin_from_eth_tests, fetch_block_and_witness};
+use crate::fetcher::{build_stdin_from_eth_tests, build_stdin_from_unified_rlp, fetch_block_and_witness};
 
 /// The ELF file for the zkVM
 pub const SILK_ST_ELF: &[u8] = include_elf!("z6m_guest");
@@ -60,8 +61,12 @@ enum Command {
         #[arg(long, default_value = "0")]
         block_number: u64,
 
-        #[arg(long)]
+        #[arg(long, default_value = "")]
         file_name: String,
+
+        /// Whether the input file is an Ethereum/tests file
+        #[arg(long)]
+        is_test: bool,
 
         /// Data directory
         #[arg(long, default_value = "temp")]
@@ -75,18 +80,28 @@ enum Command {
         block_number: u64,
 
         /// JSON file to load ethereum/tests format test from
-        #[arg(long)]
+        #[arg(long, default_value = "")]
         file_name: String,
 
+        /// Whether the input file is an Ethereum/tests file
+        #[arg(long)]
+        is_test: bool,
+
         /// Data directory
-        #[arg(long, default_value = "data")]
+        #[arg(long, default_value = "temp")]
         data_dir: PathBuf,
+
         /// Proving key path
         #[arg(long, default_value = "pk.bin")]
         pk_path: String,
+
         /// Proof output path
         #[arg(long, default_value = "proof.bin")]
         proof_path: String,
+
+        /// Proof type: core, compressed, groth16, plonk
+        #[arg(long, default_value = "compressed")]
+        proof_type: String,
     },
 
     /// Verify a proof
@@ -122,18 +137,21 @@ async fn main() -> Result<()> {
         Command::Execute {
             block_number,
             file_name,
+            is_test,
             data_dir,
         } => {
-            execute_block(block_number, file_name, data_dir)?;
+            execute_block(block_number, file_name, is_test, data_dir)?;
         }
         Command::Prove {
             block_number,
             file_name,
+            is_test,
             data_dir,
             pk_path,
             proof_path,
+            proof_type,
         } => {
-            prove_block(block_number, file_name, data_dir, pk_path, proof_path)?;
+            prove_block(block_number, file_name, is_test, data_dir, pk_path, proof_path, proof_type)?;
         }
         Command::Verify {
             proof_path,
@@ -166,14 +184,18 @@ fn setup(pk_path: String, vk_path: String) -> Result<()> {
     Ok(())
 }
 
-fn execute_block(block_number: u64, file_name: String, data_dir: PathBuf) -> Result<()> {
+fn execute_block(block_number: u64, file_name: String, is_test:bool, data_dir: PathBuf) -> Result<()> {
     let client = ProverClient::from_env();
     let file_path;
     if file_name.is_empty() {
         if block_number == 0 {
             bail!("Must pecify --file-name or --block-number > 0")
         }
-        file_path = data_dir.join(format!("{}/ethTests{}.json", block_number, block_number));
+        if is_test{
+            file_path = data_dir.join(format!("{}/ethTests{}.json", block_number, block_number));
+        } else {
+            file_path = data_dir.join(format!("{}/unifiedBlockAndStateRlp{}.json", block_number, block_number));
+        }
     } else {
         file_path = file_name.into();
     }
@@ -184,8 +206,13 @@ fn execute_block(block_number: u64, file_name: String, data_dir: PathBuf) -> Res
             file_path.display()
         );
     }
+    let stdin: SP1Stdin;
+    if is_test {
+        stdin =  build_stdin_from_eth_tests(&file_path)?;
+    } else {
+        stdin =  build_stdin_from_unified_rlp(&file_path)?;
+    }
 
-    let mut stdin = build_stdin_from_eth_tests(&file_path)?;
     let (mut output, report) = client.execute(SILK_ST_ELF, &stdin).run().unwrap();
 
     println!("Program executed successfully.");
@@ -198,11 +225,14 @@ fn execute_block(block_number: u64, file_name: String, data_dir: PathBuf) -> Res
 fn prove_block(
     block_number: u64,
     file_name: String,
+    is_test: bool,
     data_dir: PathBuf,
     pk_path: String,
     proof_path: String,
+    proof_type: String,
 ) -> Result<()> {
     let client = ProverClient::from_env();
+    
     let cfg = bincode::config::standard();
 
     // Load proving key
@@ -217,8 +247,11 @@ fn prove_block(
         if block_number == 0 {
             bail!("Must pecify --file-name or --block-number > 0")
         }
-        println!("Requested proof for block {}...", block_number);
-        file_path = data_dir.join(format!("{}/ethTests{}.json", block_number, block_number));
+        if is_test{
+            file_path = data_dir.join(format!("{}/ethTests{}.json", block_number, block_number));
+        } else {
+            file_path = data_dir.join(format!("{}/unifiedBlockAndStateRlp{}.json", block_number, block_number));
+        }
     } else {
         file_path = file_name.into();
     }
@@ -230,10 +263,23 @@ fn prove_block(
         );
     }
 
-    let mut stdin = build_stdin_from_eth_tests(&file_path)?;
-
+    let stdin: SP1Stdin;
+    if is_test {
+        stdin =  build_stdin_from_eth_tests(&file_path)?;
+    } else {
+        stdin =  build_stdin_from_unified_rlp(&file_path)?;
+    }
     println!("Starting Proof Generation");
-    let mut proof = client.prove(&pk, &stdin).run().unwrap();
+    let mut proof: SP1ProofWithPublicValues;
+    if proof_type == "core" {
+        proof = client.prove(&pk, &stdin).run().unwrap();
+    } else if proof_type == "groth16" {
+        proof = client.prove(&pk, &stdin).groth16().run().unwrap();
+    } else if proof_type == "plonk" {
+        proof = client.prove(&pk, &stdin).plonk().run().unwrap();
+    } else {
+        proof = client.prove(&pk, &stdin).compressed().run().unwrap();
+    }
 
     println!("Successfully generated proof!");
     println!("Cumulative Gas Used: {}", proof.public_values.read::<u64>());

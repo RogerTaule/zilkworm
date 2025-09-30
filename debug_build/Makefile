@@ -58,16 +58,40 @@ xpack-silkworm:
 gdb:
 	riscv-none-elf-gdb -q -ex "target remote :1234" -x .gdbinit build/z6m_debug
 
-qemu:
+qemu-test: xpack-elf
 	@echo "QEMU waiting for GDB on :1234..."
 	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu file-name=path/to.json"; exit 1; fi
 	@N=$$(wc -c <"$(file-name)"); \
-	{ printf "%u\n" $$N; cat "$(file-name)"; } | \
+	{ printf "123456789_123456789_123456789_123"; printf "1 %u\n" $$N; cat "$(file-name)"; } | \
 	qemu-system-riscv32 -M virt -m 2G -nographic \
-	  -bios $(ELF) -S -gdb tcp::1234 \
-	  -serial none -monitor none \
-	  -chardev stdio,id=sh0,signal=off \
-	  -semihosting-config enable=on,target=native,chardev=sh0 
+		-bios $(ELF) -S -gdb tcp::1234 \
+		-chardev stdio,mux=on,id=stdio0 \
+		-serial chardev:stdio0 \
+		-semihosting-config enable=on,chardev=stdio0 \
+		-mon chardev=stdio0,mode=readline
+
+rlp-qemu: xpack-elf
+	@echo "QEMU waiting for GDB on :1234..."
+	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu file-name=path/to.json"; exit 1; fi
+	@N=$$(wc -c <"$(file-name)"); \
+	{ printf "123456789_123456789_123456789_123"; printf "%u\n" $$N; cat "$(file-name)"; } | \
+	qemu-system-riscv32 -M virt -m 2G -nographic \
+		-bios $(ELF) -S -gdb tcp::1234 \
+		-chardev stdio,mux=on,id=stdio0 \
+		-serial chardev:stdio0 \
+		-semihosting-config enable=on,chardev=stdio0 \
+		-mon chardev=stdio0,mode=readline
+
+# qemu: xpack-elf
+# 	@echo "QEMU waiting for GDB on :1234..."
+# 	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu file-name=path/to.json"; exit 1; fi
+# 	@N=$$(wc -c <"$(file-name)"); \
+# 	{ printf "%u\n" $$N; cat "$(file-name)"; } | \
+# 	qemu-system-riscv32 -M virt -m 2G -nographic \
+# 	  -bios $(ELF) -S -gdb tcp::1234 \
+# 	  -serial none -monitor none \
+# 	  -chardev stdio,id=sh0,signal=off \
+# 	  -semihosting-config enable=on,target=native,chardev=sh0 
 
 # qemu:
 # 	@echo "QEMU waiting for GDB on :1234..."

@@ -6,6 +6,8 @@
 // inside the zkVM.
 #![no_main]
 
+use sp1_zkvm::lib::syscall_write;
+
 // use crate::ffi::sample_run_wrapped;
 sp1_zkvm::entrypoint!(main);
 
@@ -14,23 +16,18 @@ sp1_zkvm::entrypoint!(main);
 mod ffi {
     unsafe extern "C++" {
         include!("wrapper.hpp");
-        fn sample_run_wrapped(n: u32, json_str1: &str) -> u64;
+        fn sample_run_wrapped(is_test: bool, input_str: Vec<u8>) -> u64;
     }
 }
 
 pub fn main() {
-    // let _n: u32 = sp1_zkvm::io::read();
-    // let json = "{}";
-    let json = sp1_zkvm::io::read_vec();
-    let json_str = core::str::from_utf8(&json).expect("invalid UTF-8");
-    let _result: u64 = ffi::sample_run_wrapped(1, json_str);
-    sp1_zkvm::io::commit(&_result);
+    let is_test: bool = sp1_zkvm::io::read();
+    let input_str = sp1_zkvm::io::read_vec();
+    let result: u64;
+    if is_test {
+        result = ffi::sample_run_wrapped(is_test, input_str);
+    } else {
+        result = ffi::sample_run_wrapped(is_test, input_str);
+    }
+    sp1_zkvm::io::commit(&result);
 }
-
-// Const string
-// Cumulative Gas Used: 432140
-// Number of cycles: 6905410
-
-// File string
-// Cumulative Gas Used: 432140
-// Number of cycles: 6919930

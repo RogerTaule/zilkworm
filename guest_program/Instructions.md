@@ -29,8 +29,12 @@ export CXX_riscv32im_succinct_zkvm_elf=~/.sp1/riscv/riscv32im-linux-x86_64/bin/r
 export CONAN_PROFILE_HOST=riscv32-baremetal
 
 cd prover 
+## --block-number 0 fetches the latest block based on what the RPC thinks is the latest
+cargo run --release -- fetch --rpc-url https://reth-ethereum.ithaca.xyz/rpc --block-number 0
+
 cargo run --release -- --execute --n=1 --file-name=$PWD/src/test.json
 cargo run --release -- --prove --n=1 --file-name=$PWD/src/test.json
+
 
 # quick build cpp files
 cd guest_program

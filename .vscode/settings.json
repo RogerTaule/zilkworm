@@ -1,6 +1,7 @@
 {
     "cmake.sourceDirectory": "/home/som/Documents/code/z6m/silkworm",
     "files.associations": {
+        "*.S": "c",
         "any": "cpp",
         "array": "cpp",
         "atomic": "cpp",
@@ -82,9 +83,10 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "valarray": "cpp",
+        "pointers": "cpp"
     },
-
     "search.exclude": {
         "**/target": true,
         "**/target/**": true

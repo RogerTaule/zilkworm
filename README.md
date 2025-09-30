@@ -41,7 +41,13 @@ docker run --gpus all --rm --network host -v "$PWD:/work:rw" -v /var/run/docker.
 root@instance-20250919-091229:/work# 
 SP1_PROVER=cuda RUST_BACKTRACE=full RUST_LOG=info --prove --n 1 --file-name test.json
 ```
+```
+docker run --gpus all --rm --network host -v "$PWD:/work:rw" -v /var/run/docker.sock:/var/run/docker.sock  -w /work -it somnergy/z6m_prover
 
+docker run -v "$PWD:/work:rw" -w /work -it somnergy/z6m_prover fetch --block-number 0
+docker run --gpus all --rm --network host -v "$PWD:/work:rw" -v /var/run/docker.sock:/var/run/docker.sock  -w /work \
+-e SP1_PROVER=cuda -e RUST_BACKTRACE=full -e RUST_LOG=info -it somnergy/z6m_prover prove --block-number 23469366
+```
 
 Usage
 

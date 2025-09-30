@@ -13,7 +13,7 @@ extern void (*__init_array_end[])(void);
 extern void (*__fini_array_start[])(void);
 extern void (*__fini_array_end[])(void);
 
-extern "C" uint64_t sample_run_wrapped(uint32_t n, std::string jsonStr1)
+extern "C" uint64_t sample_run_wrapped(bool is_test, std::string jsonStr1)
 {
 
     // Call global constructors because SP1's _start function doesn't.
@@ -26,13 +26,17 @@ extern "C" uint64_t sample_run_wrapped(uint32_t n, std::string jsonStr1)
         (*p)();
     }
 
-    sys_println("Zilkworm guest started");
+    sys_println("\nZilkworm guest initialized");
+    if (is_test){
+
+    }    
 
     // Initialize a state_transition object with one Shanghai Transaction - within silkworm
-    auto state_transition = silkworm::cmd::state_transition::StateTransition(jsonStr1, false, true);
+    // auto state_transition = silkworm::cmd::state_transition::StateTransition(jsonStr1, false, true);
+    auto state_transition = silkworm::cmd::state_transition::StateTransition(jsonStr1);
 
     // Run the state transition function of silkworm - EVMONE - silkworm_validate_transition and back
-    auto res = state_transition.run(n);
+    auto res = state_transition.run_rlp();
     std::string msg = "[state_transition] run successful, gas used: " + std::to_string(res);
     sys_println(msg.c_str());
     return res;

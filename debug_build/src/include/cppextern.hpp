@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-uint64_t sample_run_wrapped(uint32_t n, std::string jsonStr1);
+uint64_t sample_run_wrapped(bool is_test, std::string jsonStr1);
 
 #ifdef __cplusplus
 }
