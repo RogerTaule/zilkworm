@@ -1,24 +1,17 @@
-use sp1_sdk::SP1Stdin;
 use std::{
-    collections::{BTreeMap, HashMap},
-    fs,
-    io::{BufWriter, Read},
-    path::PathBuf,
+    collections::{HashMap},
 };
 
 // Import alloy types (updated for 1.0)
-use alloy_consensus::{Block, BlockHeader, Header, Transaction, TxEnvelope};
+use alloy_consensus::{Block, BlockHeader, Header, TxEnvelope};
 use alloy_eips::eip4895::Withdrawals;
-use alloy_primitives::{hex, keccak256, Address, Bytes, B256, U256};
-use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
+use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_rlp::{Decodable, Encodable};
-use alloy_rpc_types::{Block as RpcBlock, BlockTransactions, Transaction as RPCTransaction};
-use alloy_rpc_types_debug::ExecutionWitness;
-use alloy_trie::{TrieAccount, EMPTY_ROOT_HASH, KECCAK_EMPTY};
-use eyre::{bail, eyre, Context, Result};
+use alloy_rpc_types::{Block as RpcBlock, BlockTransactions};
+use alloy_trie::{TrieAccount, KECCAK_EMPTY};
+use eyre::{bail, eyre, Result};
 use rsp_mpt::EthereumState;
-use serde::Serialize;
-use url::Url;
+// use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
 
 // Convert json-gotten block object to RLP bytes
 pub fn block_to_rlp(block: &RpcBlock) -> Result<Bytes> {
@@ -87,37 +80,6 @@ pub fn block_to_header_only_rlp(rpc_block: &RpcBlock) -> Result<Bytes> {
     Ok(Bytes::from(buf))
 }
 
-// /// Encode pre_state accounts into RLP format
-// /// Returns the RLP-encoded bytes of the entire pre-state
-// pub fn encode_pre_state_to_rlp(pre_state: &BTreeMap<Address, EthTestAccount>) -> Result<Bytes> {
-//     // Pre-state can be encoded in different ways depending on use case
-//     // Option 1: As a list of (address, account_rlp) pairs
-//     encode_pre_state_as_list(pre_state)
-// }
-
-// /// Encode pre_state as a list of (address, account) pairs
-// pub fn encode_pre_state_as_list(pre_state: &BTreeMap<Address, EthTestAccount>) -> Result<Bytes> {
-//     let mut encoded_accounts = Vec::new();
-
-//     for (address, account) in pre_state.iter() {
-//         // Encode each account entry as [address, account_data]
-//         let mut entry = Vec::new();
-
-//         // Encode address
-//         address.encode(&mut entry);
-
-//         // Encode account data
-//         let account_rlp = encode_account_to_rlp(account)?;
-//         entry.extend_from_slice(&account_rlp);
-
-//         encoded_accounts.push(entry);
-//     }
-
-//     // Encode the entire list
-//     let output = alloy_rlp::encode(&encoded_accounts);
-
-//     Ok(Bytes::from(output))
-// }
 
 /// Build pre-state as RLP with structure:
 /// [[{address, account}], [{address, storage}], [{codeHash, code}]]

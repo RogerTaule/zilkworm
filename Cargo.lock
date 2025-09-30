@@ -8664,12 +8664,14 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "alloy-trie",
+ "base64 0.22.1",
  "bincode 2.0.1",
  "clap",
  "cxx",
  "cxx-build",
  "dotenv",
  "eyre",
+ "futures",
  "hex",
  "libm",
  "reqwest",
@@ -8681,6 +8683,7 @@ dependencies = [
  "sp1-zkvm",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "url",
 ]
 

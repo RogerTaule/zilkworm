@@ -8,22 +8,34 @@ To run
 
 ```
 # Help
-$ docker run somnergy/z6m_prover --help
-Usage: z6m_prover [OPTIONS]
+$ docker run somnergy/z6m_prover help
+Usage: z6m_prover [OPTIONS] [COMMAND]
+
+Commands:
+  setup    Run setup to generate proving and verifying keys
+  fetch    Fetch block and witness from RPC
+  execute  Execute the guest program without proving
+  prove    Generate a proof for a block
+  verify   Verify a proof using a verification key
+  help     Print this message or the help of the given subcommand(s)
 
 Options:
-      --setup                    Run setup only: produce pk/vk and save to disk
-      --execute                  Execute the guest program without proving
-      --prove                    Prove using an existing pk (reads pk_path) and save proof to disk
-      --verify                   Verify a proof from disk against a vk from disk
-      --n <N>                    First input written to SP1Stdin [default: 1]
-      --file-name <FILE_NAME>    JSON file to read, minify, and pass as bytes to the guest (second input) [default: test.json]
-      --pk-path <PK_PATH>        File path to persist/read proving key [default: pk.bin]
-      --vk-path <VK_PATH>        File path to persist/read verifying key [default: vk.bin]
-      --proof-path <PROOF_PATH>  File path to persist/read proof [default: proof.bin]
-  -h, --help                     Print help
-  -V, --version                  Print version
-
+      --service                                      
+      --rpc-url <RPC_URL>                            
+      --websocket-url <WEBSOCKET_URL>                
+      --data-dir <DATA_DIR>                          [default: temp]
+      --save-all-responses                           
+      --prove-every <PROVE_EVERY>                    
+      --execute-every <EXECUTE_EVERY>                
+      --post-every <POST_EVERY>                      
+      --start-block <START_BLOCK>                    
+      --pk-path <PK_PATH>                            
+      --proof-type <PROOF_TYPE>                      [default: compressed]
+      --ethproofs-endpoint <ETHPROOFS_ENDPOINT>      
+      --ethproofs-token <ETHPROOFS_TOKEN>            
+      --ethproofs-cluster-id <ETHPROOFS_CLUSTER_ID>  
+      --ethproofs-hook-id <ETHPROOFS_HOOK_ID>        
+  -h, --help                                         Print help
 ```
 
 ### Examples
@@ -44,7 +56,7 @@ SP1_PROVER=cuda RUST_BACKTRACE=full RUST_LOG=info --prove --n 1 --file-name test
 ```
 docker run --gpus all --rm --network host -v "$PWD:/work:rw" -v /var/run/docker.sock:/var/run/docker.sock  -w /work -it somnergy/z6m_prover
 
-docker run -v "$PWD:/work:rw" -w /work -it somnergy/z6m_prover fetch --block-number 0
+docker run -v "$PWD:/work:rw" -w /work -it somnergy/z6m_prover fetch --block-number 0 --rpc-url https://reth-ethereum.ithaca.xyz/rpc 
 docker run --gpus all --rm --network host -v "$PWD:/work:rw" -v /var/run/docker.sock:/var/run/docker.sock  -w /work \
 -e SP1_PROVER=cuda -e RUST_BACKTRACE=full -e RUST_LOG=info -it somnergy/z6m_prover prove --block-number 23469366
 ```

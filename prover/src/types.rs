@@ -1,12 +1,9 @@
 use std::collections::BTreeMap;
 
-// Import alloy types (updated for 1.0)
 use alloy_eips::eip4895::Withdrawals;
 use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
 use serde::Serialize;
 
-
-// Include all the type definitions from fetcher.rs
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockchainTestCase {

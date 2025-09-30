@@ -1,148 +1,255 @@
-//! SP1 prover CLI with block fetching and witness conversion
+mod ethproofs_client;
+mod fetcher;
+mod rlp_methods;
+mod service;
+mod types;
 
-pub mod fetcher;
-pub mod types;
-pub mod rlp_methods;
-
-use clap::Parser;
-use sp1_sdk::{
-    include_elf, ProverClient, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin, SP1VerifyingKey
+use crate::ethproofs_client::EthProofsConfig;
+use crate::service::{
+    AppConfig, ExecuteOptions, FetchOptions, ProveOptions, ServiceConfig, SetupOptions,
+    VerifyOptions, Z6mProverService,
 };
-use std::{
-    fs,
-    io::{BufReader, BufWriter},
-    path::PathBuf,
-};
-
-// Import alloy types (updated for 1.0)
-use eyre::{bail, Result};
-
-use crate::fetcher::{build_stdin_from_eth_tests, build_stdin_from_unified_rlp, fetch_block_and_witness};
-
-/// The ELF file for the zkVM
-pub const SILK_ST_ELF: &[u8] = include_elf!("z6m_guest");
+use clap::{Parser, Subcommand};
+use eyre::{bail, eyre, Result};
+use std::path::PathBuf;
+use tracing_subscriber::{fmt, EnvFilter};
 
 #[derive(Parser, Debug)]
-#[command(name = "silk-prover", about = "SP1 prover with block fetching")]
+#[command(name = "silk-prover", about = "Standalone SP1 prover service")]
 struct Args {
-    /// Operation mode
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    service: bool,
+
+    #[arg(long)]
+    rpc_url: Option<String>,
+
+    #[arg(long)]
+    websocket_url: Option<String>,
+
+    #[arg(long, default_value = "temp")]
+    data_dir: PathBuf,
+
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    save_all_responses: bool,
+
+    #[arg(long)]
+    prove_every: Option<u64>,
+
+    #[arg(long)]
+    execute_every: Option<u64>,
+
+    #[arg(long)]
+    post_every: Option<u64>,
+
+    #[arg(long)]
+    start_block: Option<u64>,
+
+    #[arg(long)]
+    pk_path: Option<PathBuf>,
+
+    #[arg(long, default_value = "compressed")]
+    proof_type: String,
+
+    #[arg(long)]
+    ethproofs_endpoint: Option<String>,
+
+    #[arg(long)]
+    ethproofs_token: Option<String>,
+
+    #[arg(long)]
+    ethproofs_cluster_id: Option<String>,
+
+    #[arg(long)]
+    ethproofs_hook_id: Option<String>,
+
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
 }
 
-#[derive(Parser, Debug)]
+#[derive(Subcommand, Debug)]
 enum Command {
     /// Run setup to generate proving and verifying keys
     Setup {
-        /// File path to save proving key
         #[arg(long, default_value = "pk.bin")]
-        pk_path: String,
+        pk_path: PathBuf,
         /// File path to save verifying key
         #[arg(long, default_value = "vk.bin")]
-        vk_path: String,
+        vk_path: PathBuf,
     },
-
     /// Fetch block and witness from RPC
     Fetch {
         /// RPC endpoint URL
         #[arg(long)]
-        rpc_url: String,
+        rpc_url: Option<String>,
+
         /// Block number to fetch
         #[arg(long)]
-        block_number: u64,
-        /// Output directory
-        #[arg(long, default_value = "temp")]
-        data_dir: PathBuf,
-    },
+        block_number: Option<u64>,
 
+        /// Output directory
+        #[arg(long)]
+        data_dir: Option<PathBuf>,
+
+        /// Whether to save all the json files to disk after download
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        save_all_responses: bool,
+
+        /// Whether to create an ethereum/tests format json file too
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        build_eth_test: bool,
+    },
     /// Execute the guest program without proving
     Execute {
         /// Block number to execute
-        #[arg(long, default_value = "0")]
+        #[arg(long, default_value_t = 0)]
         block_number: u64,
-
-        #[arg(long, default_value = "")]
-        file_name: String,
-
         /// Whether the input file is an Ethereum/tests file
         #[arg(long)]
+        file_name: Option<PathBuf>,
+        #[arg(long, action = clap::ArgAction::SetTrue)]
         is_test: bool,
-
         /// Data directory
-        #[arg(long, default_value = "temp")]
-        data_dir: PathBuf,
+        #[arg(long)]
+        data_dir: Option<PathBuf>,
     },
-
     /// Generate a proof for a block
     Prove {
-        /// Block number to execute
-        #[arg(long, default_value = "0")]
-        block_number: u64,
-
         /// JSON file to load ethereum/tests format test from
-        #[arg(long, default_value = "")]
-        file_name: String,
-
+        #[arg(long, default_value_t = 0)]
+        block_number: u64,
         /// Whether the input file is an Ethereum/tests file
         #[arg(long)]
+        file_name: Option<PathBuf>,
+        #[arg(long, action = clap::ArgAction::SetTrue)]
         is_test: bool,
-
         /// Data directory
-        #[arg(long, default_value = "temp")]
-        data_dir: PathBuf,
-
+        #[arg(long)]
+        data_dir: Option<PathBuf>,
         /// Proving key path
-        #[arg(long, default_value = "pk.bin")]
-        pk_path: String,
-
+        #[arg(long)]
+        pk_path: Option<PathBuf>,
         /// Proof output path
-        #[arg(long, default_value = "proof.bin")]
-        proof_path: String,
-
+        #[arg(long)]
+        proof_path: Option<PathBuf>,
         /// Proof type: core, compressed, groth16, plonk
         #[arg(long, default_value = "compressed")]
         proof_type: String,
     },
-
-    /// Verify a proof
+    /// Verify a proof using a verification key
     Verify {
         /// Proof file path
         #[arg(long, default_value = "proof.bin")]
-        proof_path: String,
+        proof_path: PathBuf,
         /// Verifying key path
         #[arg(long, default_value = "vk.bin")]
-        vk_path: String,
+        vk_path: PathBuf,
     },
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logger and environment
-    sp1_sdk::utils::setup_logger();
+    // Set up tracing with info level by default
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+    fmt().with_env_filter(filter).init();
+
     dotenv::dotenv().ok();
 
     let args = Args::parse();
 
+    let ethproofs = match (
+        args.ethproofs_endpoint.clone(),
+        args.ethproofs_token.clone(),
+    ) {
+        (Some(endpoint), Some(token)) => Some(EthProofsConfig {
+            endpoint,
+            token,
+            cluster_id: args.ethproofs_cluster_id.clone(),
+            hook_id: args.ethproofs_hook_id.clone(),
+        }),
+        _ => None,
+    };
+
+    let app_config = AppConfig {
+        data_dir: args.data_dir.clone(),
+        rpc_url: args.rpc_url.clone(),
+        websocket_url: args.websocket_url.clone(),
+        save_all_responses: args.save_all_responses,
+        ethproofs,
+    };
+
+    let app = Z6mProverService::new(app_config)?;
+
+    if args.service {
+        let rpc_url = args.rpc_url.clone().or_else(|| {
+            args.command.as_ref().and_then(|cmd| match cmd {
+                Command::Fetch { rpc_url, .. } => rpc_url.clone(),
+                _ => None,
+            })
+        });
+        let rpc_url = rpc_url.ok_or_else(|| eyre!("--service requires --rpc-url"))?;
+
+        let service_config = ServiceConfig {
+            start_block: args.start_block,
+            prove_every: args.prove_every,
+            execute_every: args.execute_every,
+            post_every: args.post_every,
+            rpc_url,
+            save_all_responses: args.save_all_responses,
+            proving_key_path: args.pk_path.clone(),
+            proof_type: args.proof_type.clone(),
+        };
+        app.run_service(service_config).await?;
+        return Ok(());
+    }
+
     match args.command {
-        Command::Setup { pk_path, vk_path } => {
-            setup(pk_path, vk_path)?;
+        Some(Command::Setup { pk_path, vk_path }) => {
+            app.setup_keys(SetupOptions { pk_path, vk_path })?;
         }
-        Command::Fetch {
+        Some(Command::Fetch {
             rpc_url,
             block_number,
             data_dir,
-        } => {
-            fetch_block_and_witness(rpc_url, block_number, data_dir).await?;
+            save_all_responses,
+            build_eth_test,
+        }) => {
+            let rpc = rpc_url
+                .or_else(|| args.rpc_url.clone())
+                .ok_or_else(|| eyre!("fetch requires --rpc-url"))?;
+            let outcome = app
+                .fetch_block(FetchOptions {
+                    block_number,
+                    rpc_url: rpc,
+                    save_all_responses: save_all_responses || args.save_all_responses,
+                    data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
+                    build_eth_test: build_eth_test,
+                })
+                .await?;
+            println!(
+                "Fetched block {} into {}",
+                outcome.block_number,
+                outcome.block_directory.display()
+            );
         }
-        Command::Execute {
+        Some(Command::Execute {
             block_number,
             file_name,
             is_test,
             data_dir,
-        } => {
-            execute_block(block_number, file_name, is_test, data_dir)?;
+        }) => {
+            let log = app.execute_block(ExecuteOptions {
+                block_number,
+                file_name,
+                is_test,
+                data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
+            })?;
+            println!(
+                "Executed block {} (gas_used={}, cycles={})",
+                log.block_number, log.gas_used, log.cycle_count
+            );
         }
-        Command::Prove {
+        Some(Command::Prove {
             block_number,
             file_name,
             is_test,
@@ -150,165 +257,41 @@ async fn main() -> Result<()> {
             pk_path,
             proof_path,
             proof_type,
-        } => {
-            prove_block(block_number, file_name, is_test, data_dir, pk_path, proof_path, proof_type)?;
+        }) => {
+            let pk = pk_path
+                .or_else(|| args.pk_path.clone())
+                .ok_or_else(|| eyre!("prove requires --pk-path"))?;
+
+            let log = app.prove_block(&ProveOptions {
+                block_number,
+                file_name,
+                is_test,
+                data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
+                pk_path: pk,
+                proof_path,
+                proof_type,
+            })?;
+            println!(
+                "Proved block {} (gas_used={}, cycles={}, proof={})",
+                log.block_number,
+                log.gas_used,
+                log.cycle_count,
+                log.proof_path.display()
+            );
         }
-        Command::Verify {
+        Some(Command::Verify {
             proof_path,
             vk_path,
-        } => {
-            verify_proof(proof_path, vk_path)?;
+        }) => {
+            app.verify_proof(VerifyOptions {
+                proof_path,
+                vk_path,
+            })?;
+        }
+        None => {
+            bail!("no command provided; pass --service or a subcommand");
         }
     }
-
-    Ok(())
-}
-
-fn setup(pk_path: String, vk_path: String) -> Result<()> {
-    let client = ProverClient::from_env();
-    let (pk, vk) = client.setup(SILK_ST_ELF);
-
-    std::fs::create_dir_all(".").unwrap();
-
-    let cfg = bincode::config::standard();
-    let mut fpk = BufWriter::new(fs::File::create(&pk_path)?);
-    bincode::serde::encode_into_std_write(&pk, &mut fpk, cfg)?;
-
-    let mut fvk = BufWriter::new(fs::File::create(&vk_path)?);
-    bincode::serde::encode_into_std_write(&vk, &mut fvk, cfg)?;
-
-    println!(
-        "Setup completed. Saved pk -> {}, vk -> {}",
-        pk_path, vk_path
-    );
-    Ok(())
-}
-
-fn execute_block(block_number: u64, file_name: String, is_test:bool, data_dir: PathBuf) -> Result<()> {
-    let client = ProverClient::from_env();
-    let file_path;
-    if file_name.is_empty() {
-        if block_number == 0 {
-            bail!("Must pecify --file-name or --block-number > 0")
-        }
-        if is_test{
-            file_path = data_dir.join(format!("{}/ethTests{}.json", block_number, block_number));
-        } else {
-            file_path = data_dir.join(format!("{}/unifiedBlockAndStateRlp{}.json", block_number, block_number));
-        }
-    } else {
-        file_path = file_name.into();
-    }
-
-    if !file_path.exists() {
-        bail!(
-            "Test file not found: {}. Run 'fetch' first.",
-            file_path.display()
-        );
-    }
-    let stdin: SP1Stdin;
-    if is_test {
-        stdin =  build_stdin_from_eth_tests(&file_path)?;
-    } else {
-        stdin =  build_stdin_from_unified_rlp(&file_path)?;
-    }
-
-    let (mut output, report) = client.execute(SILK_ST_ELF, &stdin).run().unwrap();
-
-    println!("Program executed successfully.");
-    println!("Cumulative Gas Used: {}", output.read::<u64>());
-    println!("Number of cycles: {}", report.total_instruction_count());
-
-    Ok(())
-}
-
-fn prove_block(
-    block_number: u64,
-    file_name: String,
-    is_test: bool,
-    data_dir: PathBuf,
-    pk_path: String,
-    proof_path: String,
-    proof_type: String,
-) -> Result<()> {
-    let client = ProverClient::from_env();
-    
-    let cfg = bincode::config::standard();
-
-    // Load proving key
-    let pk: SP1ProvingKey = {
-        let mut r = BufReader::new(fs::File::open(&pk_path)?);
-        bincode::serde::decode_from_std_read(&mut r, cfg)?
-    };
-
-    // Load test data
-    let file_path;
-    if file_name.is_empty() {
-        if block_number == 0 {
-            bail!("Must pecify --file-name or --block-number > 0")
-        }
-        if is_test{
-            file_path = data_dir.join(format!("{}/ethTests{}.json", block_number, block_number));
-        } else {
-            file_path = data_dir.join(format!("{}/unifiedBlockAndStateRlp{}.json", block_number, block_number));
-        }
-    } else {
-        file_path = file_name.into();
-    }
-
-    if !file_path.exists() {
-        bail!(
-            "Test file not found: {}. Run 'fetch' first.",
-            file_path.display()
-        );
-    }
-
-    let stdin: SP1Stdin;
-    if is_test {
-        stdin =  build_stdin_from_eth_tests(&file_path)?;
-    } else {
-        stdin =  build_stdin_from_unified_rlp(&file_path)?;
-    }
-    println!("Starting Proof Generation");
-    let mut proof: SP1ProofWithPublicValues;
-    if proof_type == "core" {
-        proof = client.prove(&pk, &stdin).run().unwrap();
-    } else if proof_type == "groth16" {
-        proof = client.prove(&pk, &stdin).groth16().run().unwrap();
-    } else if proof_type == "plonk" {
-        proof = client.prove(&pk, &stdin).plonk().run().unwrap();
-    } else {
-        proof = client.prove(&pk, &stdin).compressed().run().unwrap();
-    }
-
-    println!("Successfully generated proof!");
-    println!("Cumulative Gas Used: {}", proof.public_values.read::<u64>());
-
-    // Save proof
-    let mut fp = BufWriter::new(fs::File::create(&proof_path)?);
-    bincode::serde::encode_into_std_write(&proof, &mut fp, cfg)?;
-    println!("Saved proof -> {}", proof_path);
-
-    Ok(())
-}
-
-fn verify_proof(proof_path: String, vk_path: String) -> Result<()> {
-    let cfg = bincode::config::standard();
-
-    let mut proof: SP1ProofWithPublicValues = {
-        let mut r = BufReader::new(fs::File::open(&proof_path)?);
-        bincode::serde::decode_from_std_read(&mut r, cfg)?
-    };
-
-    let vk: SP1VerifyingKey = {
-        let mut r = BufReader::new(fs::File::open(&vk_path)?);
-        bincode::serde::decode_from_std_read(&mut r, cfg)?
-    };
-
-    ProverClient::from_env().verify(&proof, &vk)?;
-
-    println!("Successfully verified proof!");
-    println!("Cumulative Gas Used: {}", proof.public_values.read::<u64>());
 
     Ok(())
 }
