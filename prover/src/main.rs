@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use tracing_subscriber::{fmt, EnvFilter};
 
 #[derive(Parser, Debug)]
-#[command(name = "silk-prover", about = "Standalone SP1 prover service")]
+#[command(name = "z6m_prover", about = "Zilkworm prover service")]
 struct Args {
     #[arg(long, action = clap::ArgAction::SetTrue)]
     service: bool,
