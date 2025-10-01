@@ -1,6 +1,11 @@
 <p align="center">
-<img width="360" height="120" alt="z6m logo" src="https://github.com/user-attachments/assets/4f48edc9-9db7-4fe0-a4a6-d3aafdfeb741" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/45b21fd0-ca96-4ca1-b2b0-8ad5a2cd0d8c">
+    <source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/4f48edc9-9db7-4fe0-a4a6-d3aafdfeb741">
+    <img alt="Project Logo" src="docs/assets/logo-light.png" width="320">
+  </picture>
 </p>
+
 
 Prototype implementation of Silkworm to run on ZKVM provers with native support for RISC-V targets (e.g. rv32im)
 
