@@ -45,6 +45,7 @@ Options:
 
 ### Examples
 ```
+docker run --rm -v "$PWD:/work" -w /work somnergy/z6m_prover  --service --rpc-url https://reth-ethereum.ithaca.xyz/rpc --execute-every 1 --save-all-responses
 docker run --rm -v "$PWD:/work" -w /work somnergy/z6m_prover --execute --n 1 --file-name test.json
 docker run --rm -v "$PWD:/work" -w /work somnergy/z6m_prover --setup --prove --n 1 --file-name test.json
 ```
@@ -64,6 +65,11 @@ docker run --gpus all --rm --network host -v "$PWD:/work:rw" -v /var/run/docker.
 docker run -v "$PWD:/work:rw" -w /work -it somnergy/z6m_prover fetch --block-number 0 --rpc-url https://reth-ethereum.ithaca.xyz/rpc 
 docker run --gpus all --rm --network host -v "$PWD:/work:rw" -v /var/run/docker.sock:/var/run/docker.sock  -w /work \
 -e SP1_PROVER=cuda -e RUST_BACKTRACE=full -e RUST_LOG=info -it somnergy/z6m_prover prove --block-number 23469366
+
+docker run --rm -v "$PWD:/work" -w /work somnergy/z6m_prover setup
+docker run --gpus all --rm --network host -v "$PWD:/work:rw" -v /var/run/docker.sock:/var/run/docker.sock  -w /work \
+-e SP1_PROVER=cuda -e RUST_BACKTRACE=full -e RUST_LOG=info -it \
+somnergy/z6m_prover --service --rpc-url https://reth-ethereum.ithaca.xyz/rpc --prove-every 100 --save-all-responses
 ```
 
 Usage

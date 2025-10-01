@@ -18,7 +18,9 @@ use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
-use tracing::debug;
+use std::time::Duration;
+use tokio::time::sleep;
+use tracing::{debug, warn};
 use url::Url;
 
 pub struct FetchRequest<'a> {
@@ -42,11 +44,11 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
     let mut block_number = if let Some(num) = request.block_number {
         num
     } else {
-        provider.get_block_number().await?
+        get_block_number_with_retry(&provider, 3).await?
     };
 
     if block_number == 0 {
-        block_number = provider.get_block_number().await?;
+        block_number = get_block_number_with_retry(&provider, 3).await?;
     }
     if block_number == 0 {
         bail!("cannot fetch block 0 without a parent");
@@ -58,8 +60,9 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
 
     let block_path = block_dir.join(format!("block{}.json", block_number));
     let block_rlp_path = block_dir.join(format!("blockRlp{}.json", block_number));
-    let prev_number =
-        block_number.checked_sub(1).ok_or_else(|| eyre!("block {} has no parent", block_number))?;
+    let prev_number = block_number
+        .checked_sub(1)
+        .ok_or_else(|| eyre!("block {} has no parent", block_number))?;
     let prev_block_path = block_dir.join(format!("block{}.json", prev_number));
     let witness_path = block_dir.join(format!("executionWitness{}.json", block_number));
     let tests_path = block_dir.join(format!("ethTests{}.json", block_number));
@@ -71,8 +74,7 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
         let block_json = fs::read_to_string(&block_path)?;
         serde_json::from_str(&block_json)?
     } else {
-        let fetched = provider
-            .get_block_by_number(block_number.into())
+        let fetched = get_block_by_number_with_retry(&provider, block_number, 3)
             .await?
             .ok_or_else(|| eyre!("block {} not found", block_number))?;
         if request.save_all_responses {
@@ -85,7 +87,7 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
         let block_rlp_json = fs::read_to_string(&block_rlp_path)?;
         serde_json::from_str(&block_rlp_json)?
     } else {
-        let rlp = provider.debug_get_raw_block(block_number.into()).await?;
+        let rlp = debug_get_raw_block_with_retry(&provider, block_number, 3).await?;
         if request.save_all_responses {
             write_json(&block_rlp_path, &rlp)?;
         }
@@ -96,8 +98,7 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
         let block_json = fs::read_to_string(&prev_block_path)?;
         serde_json::from_str(&block_json)?
     } else {
-        let fetched = provider
-            .get_block_by_number(prev_number.into())
+        let fetched = get_block_by_number_with_retry(&provider, prev_number, 3)
             .await?
             .ok_or_else(|| eyre!("block {} not found", prev_number))?;
         if request.save_all_responses {
@@ -112,17 +113,16 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
         let witness_json = fs::read_to_string(&witness_path)?;
         serde_json::from_str(&witness_json)?
     } else {
-        let witness = provider
-            .debug_execution_witness(block_number.into())
+        let witness = debug_execution_witness_with_retry(&provider, block_number, 3)
             .await
-            .wrap_err("failed to fetch execution witness")?;
+            .wrap_err("failed to fetch execution witness after retries")?;
         if request.save_all_responses {
             write_json(&witness_path, &witness)?;
         }
         witness
     };
 
-    if request.save_all_responses && !tests_path.exists() && request.build_eth_test{
+    if request.save_all_responses && !tests_path.exists() && request.build_eth_test {
         let eth_tests = build_eth_tests_case(
             block_number,
             &current_block,
@@ -166,6 +166,138 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
     })
 }
 
+// Helper functions for network retry logic
+async fn get_block_number_with_retry<P>(provider: &P, max_retries: u32) -> Result<u64>
+where
+    P: Provider,
+{
+    let mut attempts = 0;
+
+    loop {
+        match provider.get_block_number().await {
+            Ok(block_number) => return Ok(block_number),
+            Err(err) => {
+                attempts += 1;
+                if attempts >= max_retries {
+                    return Err(err.into());
+                }
+
+                let delay = Duration::from_secs(2_u64.pow(attempts.min(5))); // Exponential backoff, max 32 seconds
+                warn!(
+                    attempt = attempts,
+                    max_retries = max_retries,
+                    delay_secs = delay.as_secs(),
+                    error = %err,
+                    "Failed to get block number, retrying..."
+                );
+                sleep(delay).await;
+            }
+        }
+    }
+}
+
+async fn get_block_by_number_with_retry<P>(
+    provider: &P,
+    block_number: u64,
+    max_retries: u32,
+) -> Result<Option<RpcBlock>>
+where
+    P: Provider,
+{
+    let mut attempts = 0;
+
+    loop {
+        match provider.get_block_by_number(block_number.into()).await {
+            Ok(block) => return Ok(block),
+            Err(err) => {
+                attempts += 1;
+                if attempts >= max_retries {
+                    return Err(err.into());
+                }
+
+                let delay = Duration::from_secs(2_u64.pow(attempts.min(5)));
+                warn!(
+                    attempt = attempts,
+                    max_retries = max_retries,
+                    delay_secs = delay.as_secs(),
+                    block_number = block_number,
+                    error = %err,
+                    "Failed to get block by number, retrying..."
+                );
+                sleep(delay).await;
+            }
+        }
+    }
+}
+
+async fn debug_get_raw_block_with_retry<P>(
+    provider: &P,
+    block_number: u64,
+    max_retries: u32,
+) -> Result<Bytes>
+where
+    P: Provider + DebugApi,
+{
+    let mut attempts = 0;
+
+    loop {
+        match provider.debug_get_raw_block(block_number.into()).await {
+            Ok(rlp) => return Ok(rlp),
+            Err(err) => {
+                attempts += 1;
+                if attempts >= max_retries {
+                    return Err(err.into());
+                }
+
+                let delay = Duration::from_secs(2_u64.pow(attempts.min(5)));
+                warn!(
+                    attempt = attempts,
+                    max_retries = max_retries,
+                    delay_secs = delay.as_secs(),
+                    block_number = block_number,
+                    error = %err,
+                    "Failed to get raw block, retrying..."
+                );
+                sleep(delay).await;
+            }
+        }
+    }
+}
+
+async fn debug_execution_witness_with_retry<P>(
+    provider: &P,
+    block_number: u64,
+    max_retries: u32,
+) -> Result<ExecutionWitness>
+where
+    P: Provider + DebugApi,
+{
+    let mut attempts = 0;
+
+    loop {
+        match provider.debug_execution_witness(block_number.into()).await {
+            Ok(witness) => return Ok(witness),
+            Err(err) => {
+                attempts += 1;
+                if attempts >= max_retries {
+                    return Err(err.into());
+                }
+
+                let delay = Duration::from_secs(2_u64.pow(attempts.min(5)));
+                warn!(
+                    attempt = attempts,
+                    max_retries = max_retries,
+                    delay_secs = delay.as_secs(),
+                    block_number = block_number,
+                    error = %err,
+                    "Failed to get execution witness, retrying..."
+                );
+                sleep(delay).await;
+            }
+        }
+    }
+}
+
 pub fn write_json<T: ?Sized + Serialize>(path: &Path, value: &T) -> Result<()> {
     let file = fs::File::create(path)?;
     let writer = BufWriter::new(file);
@@ -204,22 +336,37 @@ fn build_unified_rlp_map(
     let pre_state_root = previous_block.header.state_root;
     let state = EthereumState::from_execution_witness(witness, pre_state_root);
 
-    let code_map: HashMap<B256, Bytes> =
-        witness.codes.iter().cloned().map(|code| (keccak256(&code), code)).collect();
+    let code_map: HashMap<B256, Bytes> = witness
+        .codes
+        .iter()
+        .cloned()
+        .map(|code| (keccak256(&code), code))
+        .collect();
 
-    let preimage_map: HashMap<B256, Bytes> =
-        witness.keys.iter().cloned().map(|preimage| (keccak256(&preimage), preimage)).collect();
+    let preimage_map: HashMap<B256, Bytes> = witness
+        .keys
+        .iter()
+        .cloned()
+        .map(|preimage| (keccak256(&preimage), preimage))
+        .collect();
 
     let pre_state_rlp = build_pre_state_rlp(&state, &code_map, &preimage_map)?;
 
-    let items = vec![prev_block_rlp.as_ref(), block_rlp.as_ref(), pre_state_rlp.as_ref()];
+    let items = vec![
+        prev_block_rlp.as_ref(),
+        block_rlp.as_ref(),
+        pre_state_rlp.as_ref(),
+    ];
     let unified_rlp = alloy_rlp::encode(&items);
 
     let mut input_map = BTreeMap::<String, Bytes>::new();
     // input_map.insert("genesisRlp".to_string(), prev_block_rlp.clone());
     // input_map.insert("blockRlp".to_string(), block_rlp.clone());
     // input_map.insert("preState".to_string(), pre_state_rlp.clone());
-    input_map.insert("unifiedBlockAndStateRlp".to_string(), Bytes::from(unified_rlp));
+    input_map.insert(
+        "unifiedBlockAndStateRlp".to_string(),
+        Bytes::from(unified_rlp),
+    );
 
     Ok(input_map)
 }
@@ -235,11 +382,19 @@ fn build_eth_tests_case(
     let pre_state_root = previous_block.header.state_root;
     let state = EthereumState::from_execution_witness(witness, pre_state_root);
 
-    let code_map: HashMap<B256, Bytes> =
-        witness.codes.iter().cloned().map(|code| (keccak256(&code), code)).collect();
+    let code_map: HashMap<B256, Bytes> = witness
+        .codes
+        .iter()
+        .cloned()
+        .map(|code| (keccak256(&code), code))
+        .collect();
 
-    let preimage_map: HashMap<B256, Bytes> =
-        witness.keys.iter().cloned().map(|preimage| (keccak256(&preimage), preimage)).collect();
+    let preimage_map: HashMap<B256, Bytes> = witness
+        .keys
+        .iter()
+        .cloned()
+        .map(|preimage| (keccak256(&preimage), preimage))
+        .collect();
 
     let pre = build_pre_state(&state, &code_map, &preimage_map);
 
@@ -301,7 +456,10 @@ fn build_pre_state(
                 let code = if account.code_hash == KECCAK_EMPTY {
                     Bytes::default()
                 } else {
-                    code_map.get(&account.code_hash).cloned().unwrap_or_default()
+                    code_map
+                        .get(&account.code_hash)
+                        .cloned()
+                        .unwrap_or_default()
                 };
 
                 let mut storage = BTreeMap::new();

@@ -15,7 +15,9 @@ use sp1_sdk::{
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
 use url::Url;
@@ -95,14 +97,14 @@ pub struct ExecutionLog {
 pub struct ProvingLog {
     pub block_number: u64,
     pub gas_used: u64,
-    pub cycle_count: u64,
     pub proof_path: PathBuf,
     pub proof_type: String,
     pub proving_millis: u64,
+    pub message: String,
 }
 
 pub struct Z6mProverService {
-    client: EnvProver,
+    client: Arc<Mutex<EnvProver>>,
     config: AppConfig,
     eth_client: Option<EthproofsClient>,
 }
@@ -115,7 +117,7 @@ impl Z6mProverService {
     }
 
     pub fn new(config: AppConfig) -> Result<Self> {
-        let client = ProverClient::from_env();
+        let client = Arc::new(Mutex::new(ProverClient::from_env()));
         let eth_client = config
             .ethproofs
             .clone()
@@ -128,8 +130,9 @@ impl Z6mProverService {
         })
     }
 
-    pub fn setup_keys(&self, opts: SetupOptions) -> Result<()> {
-        let (pk, vk) = self.client.setup(SILK_ST_ELF);
+    pub async fn setup_keys(&self, opts: SetupOptions) -> Result<()> {
+        let client = self.client.lock().await;
+        let (pk, vk) = client.setup(SILK_ST_ELF);
         std::fs::create_dir_all(opts.pk_path.parent().unwrap_or_else(|| Path::new(".")))?;
         std::fs::create_dir_all(opts.vk_path.parent().unwrap_or_else(|| Path::new(".")))?;
         let cfg = bincode::config::standard();
@@ -198,7 +201,7 @@ impl Z6mProverService {
         Ok(log)
     }
 
-    pub fn prove_block(&self, opts: &ProveOptions) -> Result<ProvingLog> {
+    pub async fn prove_block(&self, opts: &ProveOptions) -> Result<ProvingLog> {
         let input_path = self.resolve_input_path(
             opts.block_number,
             opts.file_name.clone(),
@@ -225,42 +228,146 @@ impl Z6mProverService {
             bincode::serde::decode_from_std_read(&mut r, cfg)?
         };
 
-        let (mut exec_output, exec_report) =
-            self.client.execute(SILK_ST_ELF, &stdin).run().unwrap();
+        // Lock the client for exclusive proving access
+        let client = self.client.lock().await;
 
-        println!("Program executed successfully.");
-        println!("Cumulative Gas Used: {}", exec_output.read::<u64>());
-        println!(
-            "Number of cycles: {}",
-            exec_report.total_instruction_count()
-        );
-        let gas_used = exec_output.read::<u64>();
-        let cycle_count = exec_report.total_instruction_count();
+        let cycle_count = 0;
 
         let start = Instant::now();
-        let proof = match opts.proof_type.as_str() {
-            "core" => self.client.prove(&pk, &stdin).run(),
-            "groth16" => self.client.prove(&pk, &stdin).groth16().run(),
-            "plonk" => self.client.prove(&pk, &stdin).plonk().run(),
-            _ => self.client.prove(&pk, &stdin).compressed().run(),
+        let mut proof = match opts.proof_type.as_str() {
+            "core" => client.prove(&pk, &stdin).run(),
+            "groth16" => client.prove(&pk, &stdin).groth16().run(),
+            "plonk" => client.prove(&pk, &stdin).plonk().run(),
+            _ => client.prove(&pk, &stdin).compressed().run(),
         }
         .unwrap();
         let proving_millis = start.elapsed().as_millis() as u64;
+        let gas_used = proof.public_values.read::<u64>();
+
+        // Drop the client lock here so other operations can proceed
+        drop(client);
 
         let proof_path = self.write_proof(&opts, &proof)?;
         let log = ProvingLog {
             block_number: opts.block_number,
             gas_used,
-            cycle_count,
             proof_path: proof_path.clone(),
             proof_type: opts.proof_type.clone(),
             proving_millis,
+            message: String::from("Success"),
         };
         self.persist_proving_logs(&opts.data_dir, &log)?;
         Ok(log)
     }
 
-    pub fn verify_proof(&self, opts: VerifyOptions) -> Result<()> {
+    // Static version of prove_block that takes client as parameter for concurrent use
+    async fn prove_block_with_client(
+        opts: &ProveOptions,
+        client_arc: Arc<Mutex<EnvProver>>,
+    ) -> Result<ProvingLog> {
+        let input_path = if let Some(file_name) = &opts.file_name {
+            file_name.clone()
+        } else {
+            let file_path = if opts.is_test {
+                format!("ethTests{}.json", opts.block_number)
+            } else {
+                format!("unifiedBlockAndStateRlp{}.bin", opts.block_number)
+            };
+            opts.data_dir
+                .join(opts.block_number.to_string())
+                .join(file_path)
+        };
+
+        if !input_path.exists() {
+            bail!(
+                "input file for block {} not found at {}",
+                opts.block_number,
+                input_path.display()
+            );
+        }
+
+        let stdin = if opts.is_test {
+            build_stdin_from_eth_tests(&input_path)?
+        } else {
+            build_stdin_from_unified_rlp(&input_path)?
+        };
+
+        let cfg = bincode::config::standard();
+        let pk: SP1ProvingKey = {
+            let mut r = BufReader::new(File::open(&opts.pk_path)?);
+            bincode::serde::decode_from_std_read(&mut r, cfg)?
+        };
+
+        // Lock the client for exclusive proving access
+        let client = client_arc.lock().await;
+        // Write proof to file
+        let proof_path = opts
+            .data_dir
+            .join(opts.block_number.to_string())
+            .join(format!("proof{}.bin", opts.block_number));
+
+        if let Some(parent) = proof_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        let start = Instant::now();
+        let proof_result = match opts.proof_type.as_str() {
+            "core" => client.prove(&pk, &stdin).run(),
+            "groth16" => client.prove(&pk, &stdin).groth16().run(),
+            "plonk" => client.prove(&pk, &stdin).plonk().run(),
+            _ => client.prove(&pk, &stdin).compressed().run(),
+        };
+
+        let proving_millis = start.elapsed().as_millis() as u64;
+
+        // Drop the client lock here so other operations can proceed
+        drop(client);
+
+        match proof_result {
+            Ok(mut proof) => {
+                let gas_used = proof.public_values.read::<u64>();
+
+                let cfg = bincode::config::standard();
+                let mut fp = BufWriter::new(File::create(&proof_path)?);
+                bincode::serde::encode_into_std_write(&proof, &mut fp, cfg)?;
+
+                let log = ProvingLog {
+                    block_number: opts.block_number,
+                    gas_used,
+                    proof_path: proof_path.clone(),
+                    proof_type: opts.proof_type.clone(),
+                    proving_millis,
+                    message: String::from("Success")
+                };
+
+                // Write log to file
+                Self::persist_proving_logs_static(&opts.data_dir, &log)?;
+                Ok(log)
+            }
+            Err(err) => {
+                println!(
+                    "[{}] Error trying to prove block {}: {}",
+                    Self::format_timestamp(),
+                    opts.block_number,
+                    err
+                );
+
+                let log = ProvingLog {
+                    block_number: opts.block_number,
+                    gas_used: 0,
+                    proof_path: proof_path.clone(),
+                    proof_type: opts.proof_type.clone(),
+                    proving_millis,
+                    message: err.to_string(),
+                };
+
+                Self::persist_proving_logs_static(&opts.data_dir, &log)?;
+                bail!("Proving failed: {}", err)
+            }
+        }
+    }
+
+    pub async fn verify_proof(&self, opts: VerifyOptions) -> Result<()> {
         let cfg = bincode::config::standard();
         let mut proof: SP1ProofWithPublicValues = {
             let mut r = BufReader::new(File::open(&opts.proof_path)?);
@@ -272,7 +379,8 @@ impl Z6mProverService {
             bincode::serde::decode_from_std_read(&mut r, cfg)?
         };
 
-        self.client
+        let client = self.client.lock().await;
+        client
             .verify(&proof, &vk)
             .wrap_err("failed to verify proof")?;
 
@@ -285,55 +393,126 @@ impl Z6mProverService {
         info!("starting service mode");
         let url = Url::parse(&service.rpc_url)?;
         let provider = ProviderBuilder::new().connect_http(url);
+
         let mut next_block = if let Some(start) = service.start_block {
             start
         } else {
-            provider.get_block_number().await?.saturating_add(1)
+            match Self::get_block_number_with_retry(&provider, 3).await {
+                Ok(block_num) => block_num.saturating_add(1),
+                Err(e) => {
+                    error!("Failed to get initial block number after retries: {}", e);
+                    return Err(e);
+                }
+            }
         };
 
+        info!("Service starting from block: {}", next_block);
+
         loop {
-            let latest = provider.get_block_number().await?;
+            match Self::get_block_number_with_retry(&provider, 3).await {
+                Ok(latest) => {
+                    // Collect blocks to process
+                    let blocks_to_process: Vec<u64> = (next_block..=latest).collect();
 
-            // Collect blocks to process
-            let blocks_to_process: Vec<u64> = (next_block..=latest).collect();
-
-            // Process all blocks concurrently
-            let data_dir = self.config.data_dir.clone();
-            let tasks: Vec<_> = blocks_to_process
-                .into_iter()
-                .map(|block_num| {
-                    let service_clone = service.clone();
-                    let data_dir_clone = data_dir.clone();
-                    tokio::spawn(async move {
-                        if let Err(err) =
-                            Self::process_block_static(block_num, &service_clone, &data_dir_clone)
+                    // Process all blocks concurrently
+                    let data_dir = self.config.data_dir.clone();
+                    let client_arc = self.client.clone(); // Clone the Arc<Mutex<EnvProver>>
+                    let tasks: Vec<_> = blocks_to_process
+                        .into_iter()
+                        .map(|block_num| {
+                            let service_clone = service.clone();
+                            let data_dir_clone = data_dir.clone();
+                            let client_clone = client_arc.clone();
+                            tokio::spawn(async move {
+                                if let Err(err) = Self::process_block_static(
+                                    block_num,
+                                    &service_clone,
+                                    &data_dir_clone,
+                                    client_clone,
+                                )
                                 .await
-                        {
-                            error!(%block_num, error = %err, "failed to process block");
-                        }
-                    })
-                })
-                .collect();
+                                {
+                                    error!(%block_num, error = %err, "failed to process block");
+                                }
+                            })
+                        })
+                        .collect();
 
-            if !tasks.is_empty() {
-                // Wait for all spawned tasks to complete
-                for task in tasks {
-                    let _ = task.await;
+                    if !tasks.is_empty() {
+                        // Wait for all spawned tasks to complete
+                        for task in tasks {
+                            let _ = task.await;
+                        }
+                        next_block = latest + 1;
+                    }
                 }
-                next_block = latest + 1;
+                Err(err) => {
+                    error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
+                    sleep(Duration::from_secs(30)).await;
+                    continue;
+                }
             }
 
             sleep(Duration::from_secs(6)).await;
         }
     }
 
-    // Static version of process_block that doesn't need &self
+    // Helper method to get block number with retry logic
+    async fn get_block_number_with_retry<P>(provider: &P, max_retries: u32) -> Result<u64>
+    where
+        P: Provider,
+    {
+        let mut attempts = 0;
+
+        loop {
+            match provider.get_block_number().await {
+                Ok(block_number) => return Ok(block_number),
+                Err(err) => {
+                    attempts += 1;
+                    if attempts >= max_retries {
+                        return Err(err.into());
+                    }
+
+                    let delay = Duration::from_secs(2_u64.pow(attempts.min(5))); // Exponential backoff, max 32 seconds
+                    warn!(
+                        attempt = attempts,
+                        max_retries = max_retries,
+                        delay_secs = delay.as_secs(),
+                        error = %err,
+                        "Failed to get block number, retrying..."
+                    );
+                    sleep(delay).await;
+                }
+            }
+        }
+    }
+
+    // Process block using shared client for proper synchronization
     async fn process_block_static(
         block_number: u64,
         service: &ServiceConfig,
         data_dir: &PathBuf,
+        client: Arc<Mutex<EnvProver>>,
     ) -> Result<()> {
-        println!("[{}] processing block {}", Self::format_timestamp(), block_number);
+        println!(
+            "[{}] Received block number from RPC {}",
+            Self::format_timestamp(),
+            block_number
+        );
+        let should_prove = matches_interval(service.prove_every, block_number);
+        let should_execute = matches_interval(service.execute_every, block_number) && !should_prove;
+        let should_post = matches_interval(service.post_every, block_number);
+
+        let should_anything = should_prove || should_execute || service.save_all_responses;
+        if !should_anything {
+            println!(
+                "[{}] Nothing to do for block {}",
+                Self::format_timestamp(),
+                block_number
+            );
+            return Ok(());
+        }
+
         let outcome = fetch_block_and_witness(FetchRequest {
             rpc_url: &service.rpc_url,
             block_number: Some(block_number),
@@ -342,13 +521,14 @@ impl Z6mProverService {
             build_eth_test: false,
         })
         .await?;
-
         let unified_path = outcome.unified_rlp_path.clone();
-        let should_prove = matches_interval(service.prove_every, block_number);
-        let should_execute = matches_interval(service.execute_every, block_number) && !should_prove;
-        let should_post = matches_interval(service.post_every, block_number);
 
         if should_execute {
+            println!(
+                "[{}] Executing only block {}",
+                Self::format_timestamp(),
+                block_number
+            );
             if let Err(err) = Self::execute_block_static(block_number, &unified_path, data_dir) {
                 error!(%block_number, error = %err, "execution failed");
             }
@@ -356,6 +536,11 @@ impl Z6mProverService {
 
         let mut proof_log: Option<ProvingLog> = None;
         if should_prove {
+            println!(
+                "[{}] Proving block {}",
+                Self::format_timestamp(),
+                block_number
+            );
             let pk_path = match service.proving_key_path.clone() {
                 Some(path) => path,
                 None => {
@@ -363,13 +548,17 @@ impl Z6mProverService {
                     return Ok(());
                 }
             };
-            match Self::prove_block_static(
+            let prove_opts = ProveOptions {
                 block_number,
-                &unified_path,
-                data_dir,
-                &pk_path,
-                &service.proof_type,
-            ) {
+                file_name: Some(unified_path.clone()),
+                is_test: false,
+                data_dir: data_dir.clone(),
+                pk_path: pk_path.clone(),
+                proof_path: None, // Will be generated by prove_block method
+                proof_type: service.proof_type.clone(),
+            };
+
+            match Self::prove_block_with_client(&prove_opts, client.clone()).await {
                 Ok(log) => {
                     proof_log = Some(log);
                 }
@@ -380,7 +569,7 @@ impl Z6mProverService {
         }
 
         if should_post {
-            if let Some(log) = proof_log.as_ref() {
+            if let Some(_log) = proof_log.as_ref() {
                 // TODO: Handle ethproofs posting in static context
                 warn!(%block_number, "ethproofs posting not implemented in concurrent mode");
             }
@@ -423,66 +612,6 @@ impl Z6mProverService {
         Ok(log)
     }
 
-    fn prove_block_static(
-        block_number: u64,
-        input_path: &PathBuf,
-        data_dir: &PathBuf,
-        pk_path: &PathBuf,
-        proof_type: &str,
-    ) -> Result<ProvingLog> {
-        if !input_path.exists() {
-            bail!(
-                "input file for block {} not found at {}",
-                block_number,
-                input_path.display()
-            );
-        }
-
-        let stdin = build_stdin_from_unified_rlp(input_path)?;
-        let cfg = bincode::config::standard();
-        let pk: SP1ProvingKey = {
-            let mut r = BufReader::new(File::open(pk_path)?);
-            bincode::serde::decode_from_std_read(&mut r, cfg)?
-        };
-
-        let client = ProverClient::from_env();
-        let (mut exec_output, exec_report) = client.execute(SILK_ST_ELF, &stdin).run().unwrap();
-
-        let gas_used = exec_output.read::<u64>();
-        let cycle_count = exec_report.total_instruction_count();
-
-        let start = Instant::now();
-        let proof = match proof_type {
-            "core" => client.prove(&pk, &stdin).run(),
-            "groth16" => client.prove(&pk, &stdin).groth16().run(),
-            "plonk" => client.prove(&pk, &stdin).plonk().run(),
-            _ => client.prove(&pk, &stdin).compressed().run(),
-        }
-        .unwrap();
-        let proving_millis = start.elapsed().as_millis() as u64;
-
-        let proof_path = data_dir
-            .join(block_number.to_string())
-            .join(format!("proof{}.bin", block_number));
-
-        if let Some(parent) = proof_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut fp = BufWriter::new(File::create(&proof_path)?);
-        bincode::serde::encode_into_std_write(&proof, &mut fp, cfg)?;
-
-        let log = ProvingLog {
-            block_number,
-            gas_used,
-            cycle_count,
-            proof_path: proof_path.clone(),
-            proof_type: proof_type.to_string(),
-            proving_millis,
-        };
-        Self::persist_proving_logs_static(data_dir, &log)?;
-        Ok(log)
-    }
-
     fn persist_execution_logs_static(data_dir: &Path, log: &ExecutionLog) -> Result<()> {
         let log_file: PathBuf = data_dir.join("executionLogs.log");
         let mut text_file = OpenOptions::new()
@@ -511,11 +640,10 @@ impl Z6mProverService {
         let timestamp = Self::format_timestamp();
         writeln!(
             &mut text_file,
-            "[{}] block {} proved, gas_used={}, cycles={}, proof={}, proof_type={}, proving_ms={}",
+            "[{}] block {} proved, gas_used={}, proof_path={}, proof_type={}, proving_ms={}",
             timestamp,
             log.block_number,
             log.gas_used,
-            log.cycle_count,
             log.proof_path.display(),
             log.proof_type,
             log.proving_millis
@@ -594,11 +722,10 @@ impl Z6mProverService {
         let timestamp = Self::format_timestamp();
         writeln!(
             &mut text_file,
-            "[{}] block {} proved, gas_used={}, cycles={}, proof={}, proof_type={}, proving_ms={}",
+            "[{}] block {} proved, gas_used={}, proof_path={}, proof_type={}, proving_ms={}",
             timestamp,
             log.block_number,
             log.gas_used,
-            log.cycle_count,
             log.proof_path.display(),
             log.proof_type,
             log.proving_millis

@@ -44,8 +44,8 @@ struct Args {
     #[arg(long)]
     start_block: Option<u64>,
 
-    #[arg(long)]
-    pk_path: Option<PathBuf>,
+    #[arg(long, default_value = "pk.bin")]
+    pk_path: PathBuf,
 
     #[arg(long, default_value = "compressed")]
     proof_type: String,
@@ -103,11 +103,14 @@ enum Command {
         /// Block number to execute
         #[arg(long, default_value_t = 0)]
         block_number: u64,
+
         /// Whether the input file is an Ethereum/tests file
         #[arg(long)]
         file_name: Option<PathBuf>,
+
         #[arg(long, action = clap::ArgAction::SetTrue)]
         is_test: bool,
+
         /// Data directory
         #[arg(long)]
         data_dir: Option<PathBuf>,
@@ -117,20 +120,26 @@ enum Command {
         /// JSON file to load ethereum/tests format test from
         #[arg(long, default_value_t = 0)]
         block_number: u64,
+
         /// Whether the input file is an Ethereum/tests file
         #[arg(long)]
         file_name: Option<PathBuf>,
+
         #[arg(long, action = clap::ArgAction::SetTrue)]
         is_test: bool,
+
         /// Data directory
         #[arg(long)]
         data_dir: Option<PathBuf>,
+
         /// Proving key path
-        #[arg(long)]
-        pk_path: Option<PathBuf>,
+        #[arg(long, default_value = "pk.bin")]
+        pk_path: PathBuf,
+
         /// Proof output path
         #[arg(long)]
         proof_path: Option<PathBuf>,
+
         /// Proof type: core, compressed, groth16, plonk
         #[arg(long, default_value = "compressed")]
         proof_type: String,
@@ -149,7 +158,7 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     // Set up tracing with info level by default
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
     fmt().with_env_filter(filter).init();
 
@@ -196,7 +205,7 @@ async fn main() -> Result<()> {
             post_every: args.post_every,
             rpc_url,
             save_all_responses: args.save_all_responses,
-            proving_key_path: args.pk_path.clone(),
+            proving_key_path: Some(args.pk_path.clone()),
             proof_type: args.proof_type.clone(),
         };
         app.run_service(service_config).await?;
@@ -205,7 +214,7 @@ async fn main() -> Result<()> {
 
     match args.command {
         Some(Command::Setup { pk_path, vk_path }) => {
-            app.setup_keys(SetupOptions { pk_path, vk_path })?;
+            app.setup_keys(SetupOptions { pk_path, vk_path }).await?;
         }
         Some(Command::Fetch {
             rpc_url,
@@ -258,24 +267,24 @@ async fn main() -> Result<()> {
             proof_path,
             proof_type,
         }) => {
-            let pk = pk_path
-                .or_else(|| args.pk_path.clone())
-                .ok_or_else(|| eyre!("prove requires --pk-path"))?;
+            let pk = pk_path.clone();
 
-            let log = app.prove_block(&ProveOptions {
-                block_number,
-                file_name,
-                is_test,
-                data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
-                pk_path: pk,
-                proof_path,
-                proof_type,
-            })?;
+            let log = app
+                .prove_block(&ProveOptions {
+                    block_number,
+                    file_name,
+                    is_test,
+                    data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
+                    pk_path: pk,
+                    proof_path,
+                    proof_type,
+                })
+                .await?;
             println!(
-                "Proved block {} (gas_used={}, cycles={}, proof={})",
+                "Proved block {} (gas_used={}, proof={})",
                 log.block_number,
                 log.gas_used,
-                log.cycle_count,
+
                 log.proof_path.display()
             );
         }
@@ -286,7 +295,8 @@ async fn main() -> Result<()> {
             app.verify_proof(VerifyOptions {
                 proof_path,
                 vk_path,
-            })?;
+            })
+            .await?;
         }
         None => {
             bail!("no command provided; pass --service or a subcommand");
