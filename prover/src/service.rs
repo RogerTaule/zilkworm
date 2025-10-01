@@ -6,6 +6,7 @@ use crate::fetcher::{
 use alloy_provider::{Provider, ProviderBuilder};
 use eyre::{bail, Context, Result};
 
+use chrono;
 use serde::Serialize;
 use sp1_sdk::{
     include_elf, EnvProver, ProverClient, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin,
@@ -107,6 +108,12 @@ pub struct Z6mProverService {
 }
 
 impl Z6mProverService {
+    fn format_timestamp() -> String {
+        chrono::Utc::now()
+            .format("%Y-%m-%dT%H:%M:%S%.6fZ")
+            .to_string()
+    }
+
     pub fn new(config: AppConfig) -> Result<Self> {
         let client = ProverClient::from_env();
         let eth_client = config
@@ -326,7 +333,7 @@ impl Z6mProverService {
         service: &ServiceConfig,
         data_dir: &PathBuf,
     ) -> Result<()> {
-        info!("processing block {}", block_number);
+        println!("[{}] processing block {}", Self::format_timestamp(), block_number);
         let outcome = fetch_block_and_witness(FetchRequest {
             rpc_url: &service.rpc_url,
             block_number: Some(block_number),
@@ -482,10 +489,7 @@ impl Z6mProverService {
             .create(true)
             .append(true)
             .open(&log_file)?;
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let timestamp = Self::format_timestamp();
         writeln!(
             &mut text_file,
             "[{}] block {} executed, gas_used={}, cycles={}, input={}",
@@ -504,10 +508,7 @@ impl Z6mProverService {
             .create(true)
             .append(true)
             .open(&log_file)?;
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let timestamp = Self::format_timestamp();
         writeln!(
             &mut text_file,
             "[{}] block {} proved, gas_used={}, cycles={}, proof={}, proof_type={}, proving_ms={}",
@@ -571,10 +572,7 @@ impl Z6mProverService {
             .create(true)
             .append(true)
             .open(&log_file)?;
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let timestamp = Self::format_timestamp();
         writeln!(
             &mut text_file,
             "[{}] block {} executed, gas_used={}, cycles={}, input={}",
@@ -593,10 +591,7 @@ impl Z6mProverService {
             .create(true)
             .append(true)
             .open(&log_file)?;
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let timestamp = Self::format_timestamp();
         writeln!(
             &mut text_file,
             "[{}] block {} proved, gas_used={}, cycles={}, proof={}, proof_type={}, proving_ms={}",
