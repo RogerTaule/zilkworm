@@ -12,6 +12,7 @@ use alloy_rpc_types::{Block as RpcBlock, BlockTransactions, Transaction as RPCTr
 use alloy_rpc_types_debug::ExecutionWitness;
 use alloy_trie::{TrieAccount, KECCAK_EMPTY};
 use eyre::{bail, eyre, Context, Result};
+use reqwest::header;
 use rsp_mpt::EthereumState;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
@@ -352,10 +353,14 @@ fn build_unified_rlp_map(
 
     let pre_state_rlp = build_pre_state_rlp(&state, &code_map, &preimage_map)?;
 
+    let headers_rlp_list = alloy_rlp::encode(witness.headers.clone());
+    println!("headers_rlp_list: 0x{}", hex::encode(&headers_rlp_list));
+
     let items = vec![
         prev_block_rlp.as_ref(),
         block_rlp.as_ref(),
         pre_state_rlp.as_ref(),
+        headers_rlp_list.as_ref(),
     ];
     let unified_rlp = alloy_rlp::encode(&items);
 
