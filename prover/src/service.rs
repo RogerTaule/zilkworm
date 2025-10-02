@@ -337,7 +337,7 @@ impl Z6mProverService {
                     proof_path: proof_path.clone(),
                     proof_type: opts.proof_type.clone(),
                     proving_millis,
-                    message: String::from("Success")
+                    message: String::from("Success"),
                 };
 
                 // Write log to file
@@ -664,7 +664,7 @@ impl Z6mProverService {
         if block_number == 0 {
             bail!("must provide --block-number > 0 or explicit input file");
         }
-        let dir = data_dir.join(block_number.to_string());
+        let dir = data_dir.join("blocks/".to_owned() + &block_number.to_string());
         let file_name = if is_test {
             format!("ethTests{}.json", block_number)
         } else {

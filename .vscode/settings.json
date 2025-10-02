@@ -85,16 +85,23 @@
         "variant": "cpp",
         "stdint.h": "c",
         "valarray": "cpp",
-        "pointers": "cpp"
+        "pointers": "cpp",
+        "print": "cpp"
     },
     "search.exclude": {
         "**/target": true,
-        "**/target/**": true
+        "**/target/**": true,
+        "**/build": true,
+        "**/build/**": true
     },
     "files.exclude": {
-        "**/target": true
+        "**/target": true,
+        "**/build": true,
+        "**/build/**": true
     },
     "files.watcherExclude": {
-        "**/target/**": true
+        "**/target/**": true,
+        "**/build": true,
+        "**/build/**": true
     }
 }

@@ -70,6 +70,7 @@ qemu-test: xpack-elf
 		-semihosting-config enable=on,chardev=stdio0 \
 		-mon chardev=stdio0,mode=readline
 
+## make rlp-qemu file-name=../prover/temp/blocks/2347866/uni...bin
 rlp-qemu: xpack-elf
 	@echo "QEMU waiting for GDB on :1234..."
 	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu file-name=path/to.json"; exit 1; fi

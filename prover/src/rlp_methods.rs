@@ -104,48 +104,7 @@ pub fn build_pre_state_rlp(
             let address = Address::from_slice(address_bytes.as_ref());
             let mut bytes = value;
 
-            // pub struct TrieAccount {
-            //     pub nonce: u64,
-            //     pub balance: U256,
-            //     pub storage_root: B256,
-            //     /// The hash of the code of the account.
-            //     pub code_hash: B256,
-            // }
-
             if let Ok(account) = TrieAccount::decode(&mut bytes) {
-                // Encode account entry: [address, nonce, balance, codeHash, storageRoot]
-
-                // Option 2: Manual RLP list construction
-                // let mut account_rlp = Vec::new();
-
-                // // Calculate payload length for each item
-                // let addr_len = address.length();
-                // let nonce_len = account.nonce.length();
-                // let balance_len = account.balance.length();
-                // let code_hash_len = account.code_hash.length();
-                // let storage_root_len = account.storage_root.length();
-
-                // let total_payload = addr_len + nonce_len + balance_len + code_hash_len + storage_root_len;
-
-                // // Encode list header
-                // if total_payload < 56 {
-                //     account_rlp.push(0xc0 + total_payload as u8);
-                // } else {
-                //     let len_bytes = total_payload.to_be_bytes();
-                //     let len_bytes = &len_bytes[len_bytes.iter().position(|&b| b != 0).unwrap_or(7)..];
-                //     account_rlp.push(0xf7 + len_bytes.len() as u8);
-                //     account_rlp.extend_from_slice(len_bytes);
-                // }
-
-                // // Encode each field directly
-                // address.encode(&mut account_rlp);
-                // account.nonce.encode(&mut account_rlp);
-                // account.balance.encode(&mut account_rlp);
-                // account.code_hash.encode(&mut account_rlp);
-                // account.storage_root.encode(&mut account_rlp);
-                // println!("account_rlp: {}", hex::encode(&account_rlp));
-                // accounts_list.push(account_rlp.clone());
-
                 // // Create account data parts separately for RLP encoding
                 let addr_rlp = alloy_rlp::encode(&address);
                 let nonce_rlp = alloy_rlp::encode(&account.nonce);
@@ -160,28 +119,6 @@ pub fn build_pre_state_rlp(
                     &code_hash_rlp,
                     &storage_root_rlp,
                 ]));
-                // // Encode account data list
-                // let mut account_data_items = Vec::new();
-                // account_data_items.push(&addr_rlp);
-                // account_data_items.push(&nonce_rlp);
-                // account_data_items.push(&balance_rlp);
-                // account_data_items.push(&code_hash_rlp);
-                // account_data_items.push(&storage_root_rlp);
-
-                // let account_rlp = alloy_rlp::encode(&account_data_items);
-
-                // // Debug print for first account only (based on accounts_list length)
-
-                // println!("First account debug info:");
-                // println!("addr_rlp: {}", hex::encode(&addr_rlp));
-                // println!("nonce_rlp: {}", hex::encode(&nonce_rlp));
-                // println!("balance_rlp: {}", hex::encode(&balance_rlp));
-                // println!("code_hash_rlp: {}", hex::encode(&code_hash_rlp));
-                // println!("storage_root_rlp: {}", hex::encode(&storage_root_rlp));
-
-                // println!("account_rlp: {}", hex::encode(account_rlp));
-
-                // accounts_list.push(account_rlp);
 
                 // Add code to codes list if not empty and not yet added
                 if account.code_hash != KECCAK_EMPTY && !added_codes.contains(&account.code_hash) {
@@ -237,13 +174,8 @@ pub fn build_pre_state_rlp(
     let storage_refs: Vec<&Vec<u8>> = storage_list.iter().collect();
     let storage_rlp = encode_rlp_list(&storage_refs);
 
-
     let code_refs: Vec<&Vec<u8>> = codes_list.iter().collect();
     let codes_rlp = encode_rlp_list(&code_refs);
-
-    // println!("accounts_rlp: {}", hex::encode(&accounts_rlp));
-    // println!("storage_rlp: {}", hex::encode(&storage_rlp));
-    // println!("codes_rlp: {}", hex::encode(&codes_rlp));
 
     let output = encode_rlp_list(&[&accounts_rlp, &storage_rlp, &codes_rlp]);
 

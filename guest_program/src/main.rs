@@ -5,10 +5,6 @@
 // Under the hood, we wrap your main function with some extra code so that it behaves properly
 // inside the zkVM.
 #![no_main]
-
-use sp1_zkvm::lib::syscall_write;
-
-// use crate::ffi::sample_run_wrapped;
 sp1_zkvm::entrypoint!(main);
 
 // src/main.rs
