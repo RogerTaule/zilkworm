@@ -354,7 +354,6 @@ fn build_unified_rlp_map(
     let pre_state_rlp = build_pre_state_rlp(&state, &code_map, &preimage_map)?;
 
     let headers_rlp_list = alloy_rlp::encode(witness.headers.clone());
-    println!("headers_rlp_list: 0x{}", hex::encode(&headers_rlp_list));
 
     let items = vec![
         prev_block_rlp.as_ref(),
