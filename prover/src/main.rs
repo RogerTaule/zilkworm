@@ -158,7 +158,7 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     // Set up tracing with info level by default
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
 
     fmt().with_env_filter(filter).init();
 
