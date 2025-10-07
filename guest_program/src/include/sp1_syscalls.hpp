@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef> // size_t
 #include <cstdint> // uint8_t, uint32_t, uint64_t
+#include <cstring> // strlen
 
 // Notes:
 // - Rust `usize` <-> C++ `size_t`
@@ -31,10 +32,10 @@ extern "C"
     void syscall_read(uint32_t fd, uint8_t *read_buf, size_t nbytes);
 
     // pub fn syscall_sha256_extend(w: *mut [u32; 64])
-    void syscall_sha256_extend(uint32_t (*w)[64]);
+    void syscall_sha256_extend(uint32_t w[64]);
 
     // pub fn syscall_sha256_compress(w: *mut [u32; 64], state: *mut [u32; 8])
-    void syscall_sha256_compress(uint32_t (*w)[64], uint32_t (*state)[8]);
+    void syscall_sha256_compress(uint32_t w[64], uint32_t state[8]);
 
     // pub fn syscall_ed_add(p: *mut [u32; 16], q: *const [u32; 16])
     void syscall_ed_add(uint32_t (*p)[16], const uint32_t (*q)[16]);
