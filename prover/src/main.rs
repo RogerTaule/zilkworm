@@ -41,6 +41,9 @@ struct Args {
     #[arg(long)]
     start_block: Option<u64>,
 
+    #[arg(long)]
+    end_block: Option<u64>,
+
     #[arg(long, default_value = "pk.bin")]
     pk_path: PathBuf,
 
@@ -193,6 +196,7 @@ async fn main() -> Result<()> {
 
         let service_config = ServiceConfig {
             start_block: args.start_block,
+            end_block: args.end_block,
             prove_every: args.prove_every,
             execute_every: args.execute_every,
             post_every: args.post_every,

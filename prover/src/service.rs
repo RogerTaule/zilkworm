@@ -104,6 +104,7 @@ pub struct AppConfig {
 #[derive(Clone, Debug)]
 pub struct ServiceConfig {
     pub start_block: Option<u64>,
+    pub end_block: Option<u64>,
     pub prove_every: Option<u64>,
     pub execute_every: Option<u64>,
     pub post_every: Option<u64>,
@@ -532,10 +533,23 @@ impl Z6mProverService {
         info!("Service starting from block: {}", next_block);
 
         loop {
-            match Self::get_block_number_with_retry(&provider, 3).await {
-                Ok(latest) => {
-                    // Collect blocks to process
-                    let blocks_to_process: Vec<u64> = (next_block..=latest).collect();
+            let mut latest = if let Some(end) = service.end_block {
+                end
+            } else {
+                match Self::get_block_number_with_retry(&provider, 3).await {
+                    Ok(latest) => {
+                        latest
+                    }
+                    Err(err) => {
+                        error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
+                        sleep(Duration::from_secs(30)).await;
+                        continue;
+                    }
+                }
+            };
+
+            // Collect blocks to process
+            let blocks_to_process: Vec<u64> = (next_block..=latest).collect();
 
                     // Process all blocks concurrently
                     let data_dir = self.config.data_dir.clone();
@@ -564,19 +578,12 @@ impl Z6mProverService {
                         })
                         .collect();
 
-                    if !tasks.is_empty() {
-                        // Wait for all spawned tasks to complete
-                        for task in tasks {
-                            let _ = task.await;
-                        }
-                        next_block = latest + 1;
-                    }
+            if !tasks.is_empty() {
+                // Wait for all spawned tasks to complete
+                for task in tasks {
+                    let _ = task.await;
                 }
-                Err(err) => {
-                    error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
-                    sleep(Duration::from_secs(30)).await;
-                    continue;
-                }
+                next_block = latest + 1;
             }
 
             sleep(Duration::from_secs(6)).await;
