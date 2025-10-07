@@ -70,6 +70,13 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
     // let unified_map_path = block_dir.join(format!("inputRlpUnified{}.json", block_number));
     let unified_rlp_only_path =
         block_dir.join(format!("unifiedBlockAndStateRlp{}.bin", block_number));
+    if unified_rlp_only_path.exists() {
+        Ok(FetchOutcome {
+            block_number,
+            block_directory: block_dir,
+            unified_rlp_path: unified_rlp_only_path,
+        })
+    }
 
     let current_block: RpcBlock = if block_path.exists() {
         let block_json = fs::read_to_string(&block_path)?;
