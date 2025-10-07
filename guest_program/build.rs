@@ -38,19 +38,10 @@ fn main() {
             "CMAKE_EXE_LINKER_FLAGS",
             format!("-T{templib_dir}/ldscripts/elf32lriscv.xn -z norelro"),
         )
-        .define(
-            "GMP_LIBRARY",
-            format!("{}/gmp", templib_dir),
-        )
-        .define(
-            "GMP_INCLUDE_DIR",
-            format!("{}/gmp", templib_dir),
-        )
         .define("CATCH_BUILD_TESTING", "OFF")
         .define("CONAN_HOST_PROFILE", "riscv32-baremetal")
         .define("SILKWORM_CORE_USE_ABSEIL", "OFF")
         .profile("Release")
-        .build_arg("LIBFF_WITH_GMP=OFF")
         .define("CMAKE_PREFIX_PATH", conan_dir)
         .cflag("-D_GLIBCXX_HAS_GTHREADS=0")
         .build_arg("--no-silent")
@@ -63,12 +54,11 @@ fn main() {
     }
 
     println!("cargo:rustc-link-search=native={templib_dir}");
-    println!("cargo:rustc-link-search=native={templib_dir}/gmp");
 
     let libs = [
-        "c", "gcc", "nosys", "stdc++", "gmp", "ff", "silkworm_dev", 
-        "silkworm_core", "evmone", "blst", "secp256k1", "ethash", 
-        "keccak", "tooling", "evmc-loader", "atomic_stubs"
+        "c", "gcc", "nosys", "stdc++", "silkworm_dev",
+        "silkworm_core", "evmone", "blst", "secp256k1",
+        "tooling", "evmc-loader", "atomic_stubs"
     ];
 
     for lib in libs {
@@ -86,6 +76,9 @@ fn main() {
         .std("c++20")
         .file("src/wrapper.cpp")
         .include("src/include")
+        // FIXME: these are needed to build evmone, but silkworm builds fine.
+        .include("../silkworm/third_party/evmone/evmone/lib")
+        .include("../silkworm/third_party/evmone/evmone/lib/evmone_precompiles")
         .flag("-nostdlib")
         .flag("-Os")
         .flag("-Wno-unused-parameter")
