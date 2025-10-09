@@ -7,12 +7,11 @@ use alloy_consensus::transaction::SignerRecoverable;
 use alloy_consensus::{BlockHeader, Transaction};
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
-use alloy_rlp::{Decodable, Encodable};
+use alloy_rlp::Decodable;
 use alloy_rpc_types::{Block as RpcBlock, BlockTransactions, Transaction as RPCTransaction};
 use alloy_rpc_types_debug::ExecutionWitness;
 use alloy_trie::{TrieAccount, KECCAK_EMPTY};
 use eyre::{bail, eyre, Context, Result};
-use reqwest::header;
 use rsp_mpt::EthereumState;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
@@ -71,11 +70,11 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
     let unified_rlp_only_path =
         block_dir.join(format!("unifiedBlockAndStateRlp{}.bin", block_number));
     if unified_rlp_only_path.exists() {
-        Ok(FetchOutcome {
+        return Ok(FetchOutcome {
             block_number,
             block_directory: block_dir,
             unified_rlp_path: unified_rlp_only_path,
-        })
+        });
     }
 
     let current_block: RpcBlock = if block_path.exists() {

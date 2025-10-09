@@ -23,9 +23,6 @@ struct Args {
     #[arg(long)]
     rpc_url: Option<String>,
 
-    #[arg(long)]
-    websocket_url: Option<String>,
-
     #[arg(long, default_value = "temp")]
     data_dir: PathBuf,
 
@@ -57,10 +54,7 @@ struct Args {
     ethproofs_token: Option<String>,
 
     #[arg(long)]
-    ethproofs_cluster_id: Option<String>,
-
-    #[arg(long)]
-    ethproofs_hook_id: Option<String>,
+    ethproofs_cluster_id: Option<u64>,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -169,12 +163,12 @@ async fn main() -> Result<()> {
     let ethproofs = match (
         args.ethproofs_endpoint.clone(),
         args.ethproofs_token.clone(),
+        args.ethproofs_cluster_id,
     ) {
-        (Some(endpoint), Some(token)) => Some(EthProofsConfig {
+        (Some(endpoint), Some(token), Some(cluster_id)) => Some(EthProofsConfig {
             endpoint,
             token,
-            cluster_id: args.ethproofs_cluster_id.clone(),
-            hook_id: args.ethproofs_hook_id.clone(),
+            cluster_id,
         }),
         _ => None,
     };
@@ -182,7 +176,6 @@ async fn main() -> Result<()> {
     let app_config = AppConfig {
         data_dir: args.data_dir.clone(),
         rpc_url: args.rpc_url.clone(),
-        websocket_url: args.websocket_url.clone(),
         save_all_responses: args.save_all_responses,
         ethproofs,
     };
@@ -232,7 +225,7 @@ async fn main() -> Result<()> {
                     rpc_url: rpc,
                     save_all_responses: save_all_responses || args.save_all_responses,
                     data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
-                    build_eth_test: build_eth_test,
+                    build_eth_test,
                 })
                 .await?;
             println!(
@@ -284,7 +277,6 @@ async fn main() -> Result<()> {
                 "Proved block {} (gas_used={}, proof={})",
                 log.block_number,
                 log.gas_used,
-
                 log.proof_path.display()
             );
         }

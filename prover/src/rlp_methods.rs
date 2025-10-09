@@ -1,39 +1,15 @@
-use std::{
-    collections::{HashMap},
-};
+use std::collections::HashMap;
 
 // Import alloy types (updated for 1.0)
 use alloy_consensus::{Block, BlockHeader, Header, TxEnvelope};
 use alloy_eips::eip4895::Withdrawals;
 use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_rlp::{Decodable, Encodable};
-use alloy_rpc_types::{Block as RpcBlock, BlockTransactions};
+use alloy_rpc_types::Block as RpcBlock;
 use alloy_trie::{TrieAccount, KECCAK_EMPTY};
-use eyre::{bail, eyre, Result};
+use eyre::Result;
 use rsp_mpt::EthereumState;
 // use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
-
-// Convert json-gotten block object to RLP bytes
-pub fn block_to_rlp(block: &RpcBlock) -> Result<Bytes> {
-    // In alloy 1.0, we need to handle this slightly differently
-    let BlockTransactions::Full(ref txs) = block.transactions else {
-        bail!(
-            "block {} is missing full transactions for RLP encoding",
-            block.header.number
-        );
-    };
-
-    // Convert transactions to TxEnvelope
-    let tx_envelopes: Vec<TxEnvelope> = txs
-        .iter()
-        .map(|tx| TxEnvelope::try_from(tx.clone()))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| eyre!("Failed to convert transaction: {}", e))?;
-
-    // Create a consensus block - this part might need adjustment based on your exact needs
-    // You might need to construct the block manually
-    Ok(Bytes::from(alloy_rlp::encode(&tx_envelopes)))
-}
 
 // Convert RPC block to RLP bytes with header only (empty transactions, uncles, withdrawals)
 pub fn block_to_header_only_rlp(rpc_block: &RpcBlock) -> Result<Bytes> {
@@ -79,7 +55,6 @@ pub fn block_to_header_only_rlp(rpc_block: &RpcBlock) -> Result<Bytes> {
     block.encode(&mut buf);
     Ok(Bytes::from(buf))
 }
-
 
 /// Build pre-state as RLP with structure:
 /// [[{address, account}], [{address, storage}], [{codeHash, code}]]
@@ -133,7 +108,6 @@ pub fn build_pre_state_rlp(
 
                 // Process storage for this account
                 if let Some(storage_trie) = state.storage_tries.get(&hashed_address) {
-
                     let mut storage_entries = Vec::new();
 
                     storage_trie.for_each_leaves(|slot_key, slot_value| {

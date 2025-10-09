@@ -1,87 +1,195 @@
-use eyre::{Context, Result};
-use reqwest::{header, Client};
-use serde::Serialize;
+use base64::{self, Engine};
+use reqwest::Client;
 use std::time::Duration;
-use tracing::{debug, info};
+use tracing::error;
 
 #[derive(Clone, Debug)]
 pub struct EthProofsConfig {
     pub endpoint: String,
     pub token: String,
-    pub cluster_id: Option<String>,
-    pub hook_id: Option<String>,
+    pub cluster_id: u64,
 }
 
 #[derive(Clone, Debug)]
 pub struct EthproofsClient {
+    cluster_id: u64,
+    endpoint: String,
+    api_token: String,
     client: Client,
-    config: EthProofsConfig,
-}
-
-#[derive(Debug, Serialize)]
-struct ProofPayload<'a> {
-    block_number: u64,
-    // #[serde(with = "base64_bytes")]
-    proof: &'a [u8],
-    cycle_count: u64,
-    proving_millis: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    cluster_id: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    hook_id: Option<&'a str>,
 }
 
 impl EthproofsClient {
-    pub fn new(config: EthProofsConfig) -> Result<Self> {
-        let mut headers = header::HeaderMap::new();
-        headers.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
-        headers.insert(
-            header::AUTHORIZATION,
-            header::HeaderValue::from_str(&format!("Bearer {}", config.token))?,
-        );
-
+    pub fn new(config: EthProofsConfig) -> Self {
         let client = Client::builder()
-            .default_headers(headers)
             .timeout(Duration::from_secs(30))
             .build()
-            .wrap_err("failed to build reqwest client for ethproofs")?;
+            .expect("Failed to build HTTP client");
 
-        Ok(Self { client, config })
+        Self {
+            cluster_id: config.cluster_id,
+            endpoint: config.endpoint,
+            api_token: config.token,
+            client,
+        }
     }
 
-    pub async fn post_proof(
+    pub async fn queued(&self, block_number: u64) {
+        let json = serde_json::json!({
+            "block_number": block_number,
+            "cluster_id": self.cluster_id,
+        });
+
+        let this = self.clone();
+
+        // Spawn another task to avoid retries to impact block execution
+        tokio::spawn(async move {
+            let url = format!("{}/proofs/queued", this.endpoint);
+            let request_body =
+                serde_json::to_string_pretty(&json).unwrap_or_else(|_| "Invalid JSON".to_string());
+
+            println!("EthProofs queued request:");
+            println!("  URL: {}", url);
+            println!("  Headers: Content-Type: application/json, Authorization: Bearer [REDACTED]");
+            println!("  Body: {}", request_body);
+
+            let response = this
+                .client
+                .post(&url)
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", this.api_token))
+                .json(&json)
+                .send()
+                .await;
+
+            match response {
+                Ok(resp) => {
+                    println!("EthProofs queued response:");
+                    println!("  Status: {}", resp.status());
+                    println!("  Headers: {:?}", resp.headers());
+
+                    match resp.text().await {
+                        Ok(body) => {
+                            println!("  Body: {}", body);
+                        }
+                        Err(e) => {
+                            println!("  Body: Failed to read response body: {}", e);
+                        }
+                    }
+                }
+                Err(err) => {
+                    error!("Failed to report proof queuing: {}", err)
+                }
+            }
+        });
+    }
+
+    pub async fn proving(&self, block_number: u64) {
+        let json = serde_json::json!({
+            "block_number": block_number,
+            "cluster_id": self.cluster_id,
+        });
+        let this = self.clone();
+
+        // Spawn another task to avoid retries to impact block execution
+        tokio::spawn(async move {
+            let url = format!("{}/proofs/proving", this.endpoint);
+            let request_body =
+                serde_json::to_string_pretty(&json).unwrap_or_else(|_| "Invalid JSON".to_string());
+
+            println!("EthProofs proving request:");
+            println!("  URL: {}", url);
+            println!("  Headers: Content-Type: application/json, Authorization: Bearer [REDACTED]");
+            println!("  Body: {}", request_body);
+
+            let response = this
+                .client
+                .post(&url)
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", this.api_token))
+                .json(&json)
+                .send()
+                .await;
+
+            match response {
+                Ok(resp) => {
+                    println!("EthProofs proving response:");
+                    println!("  Status: {}", resp.status());
+                    println!("  Headers: {:?}", resp.headers());
+
+                    match resp.text().await {
+                        Ok(body) => {
+                            println!("  Body: {}", body);
+                        }
+                        Err(e) => {
+                            println!("  Body: Failed to read response body: {}", e);
+                        }
+                    }
+                }
+                Err(err) => {
+                    error!("Failed to report proof proving: {}", err)
+                }
+            }
+        });
+    }
+
+    pub async fn proved(
         &self,
-        block_number: u64,
         proof_bytes: &[u8],
+        block_number: u64,
         cycle_count: u64,
         proving_millis: u64,
-    ) -> Result<()> {
-        let payload = ProofPayload {
-            block_number,
-            proof: proof_bytes,
-            cycle_count,
-            proving_millis,
-            cluster_id: self.config.cluster_id.as_deref(),
-            hook_id: self.config.hook_id.as_deref(),
-        };
+        vk: &sp1_sdk::SP1VerifyingKey,
+    ) {
+        let json = serde_json::json!({
+            "proof": base64::engine::general_purpose::STANDARD.encode(proof_bytes),
+            "block_number": block_number,
+            "proving_cycles": cycle_count,
+            "proving_time": proving_millis,
+            "verifier_id": sp1_sdk::HashableKey::bytes32(vk),
+            "cluster_id": self.cluster_id,
+        });
 
-        let url = format!("{}/proofs", self.config.endpoint.trim_end_matches('/'));
-        debug!(target = "ethproofs", %block_number, "posting proof to ethproofs");
-        let res = self
-            .client
-            .post(url)
-            .json(&payload)
-            .send()
-            .await
-            .wrap_err("failed to POST proof to ethproofs")?;
+        let this = self.clone();
 
-        let status = res.status();
-        let body = res.text().await.unwrap_or_default();
-        if !status.is_success() {
-            eyre::bail!("ethproofs responded with {}: {}", status, body);
-        }
+        // Spawn another task to avoid retries to impact block execution
+        tokio::spawn(async move {
+            let url = format!("{}/proofs/proved", this.endpoint);
+            let request_body =
+                serde_json::to_string_pretty(&json).unwrap_or_else(|_| "Invalid JSON".to_string());
 
-        info!(target = "ethproofs", %block_number, "successfully posted proof to ethproofs");
-        Ok(())
+            println!("EthProofs proved request:");
+            println!("  URL: {}", url);
+            println!("  Headers: Content-Type: application/json, Authorization: Bearer [REDACTED]");
+            // println!("  Body: {}", request_body);
+
+            let response = this
+                .client
+                .post(&url)
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", this.api_token))
+                .json(&json)
+                .send()
+                .await;
+
+            match response {
+                Ok(resp) => {
+                    println!("EthProofs proved response:");
+                    println!("  Status: {}", resp.status());
+                    println!("  Headers: {:?}", resp.headers());
+
+                    match resp.text().await {
+                        Ok(body) => {
+                            println!("  Body: {}", body);
+                        }
+                        Err(e) => {
+                            println!("  Body: Failed to read response body: {}", e);
+                        }
+                    }
+                }
+                Err(err) => {
+                    error!("Failed to report proof proved: {}", err)
+                }
+            }
+        });
     }
 }
