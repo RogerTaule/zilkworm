@@ -44,23 +44,23 @@ extern "C"
     void syscall_ed_decompress(uint8_t (*point)[64]);
 
     // pub fn syscall_secp256k1_add(p: *mut [u32; 16], q: *const [u32; 16])
-    void syscall_secp256k1_add(uint32_t (*p)[16], const uint32_t (*q)[16]);
+    void syscall_secp256k1_add(uint32_t p[16], const uint32_t q[16]);
 
     // pub fn syscall_secp256k1_double(p: *mut [u32; 16])
-    void syscall_secp256k1_double(uint32_t (*p)[16]);
+    void syscall_secp256k1_double(uint32_t p[16]);
 
     // pub fn syscall_secp256k1_decompress(point: &mut [u8; 64], is_odd: bool)
-    void syscall_secp256k1_decompress(uint8_t (*point)[64], bool is_odd);
+    void syscall_secp256k1_decompress(uint8_t point[64], bool is_odd);
     // If you prefer maximum safety for FFI: replace `bool` with `uint8_t`.
 
     // pub fn syscall_secp256r1_add(p: *mut [u32; 16], q: *const [u32; 16])
-    void syscall_secp256r1_add(uint32_t (*p)[16], const uint32_t (*q)[16]);
+    void syscall_secp256r1_add(uint32_t p[16], const uint32_t q[16]);
 
     // pub fn syscall_secp256r1_double(p: *mut [u32; 16])
-    void syscall_secp256r1_double(uint32_t (*p)[16]);
+    void syscall_secp256r1_double(uint32_t p[16]);
 
     // pub fn syscall_secp256r1_decompress(point: &mut [u8; 64], is_odd: bool)
-    void syscall_secp256r1_decompress(uint8_t (*point)[64], bool is_odd);
+    void syscall_secp256r1_decompress(uint8_t point[64], bool is_odd);
     // (Same note as above regarding `bool`.)
 
     // pub fn syscall_bn254_add(p: *mut [u32; 16], q: *const [u32; 16])
