@@ -533,21 +533,27 @@ impl Z6mProverService {
         info!("Service starting from block: {}", next_block);
 
         loop {
-            let mut latest = if let Some(end) = service.end_block {
-                end
-            } else {
-                match Self::get_block_number_with_retry(&provider, 3).await {
-                    Ok(latest) => {
-                        latest
-                    }
-                    Err(err) => {
-                        error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
-                        sleep(Duration::from_secs(30)).await;
-                        continue;
-                    }
+            let mut latest = match Self::get_block_number_with_retry(&provider, 3).await {
+                Ok(latest) => {
+                    latest
+                }
+                Err(err) => {
+                    error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
+                    sleep(Duration::from_secs(30)).await;
+                    continue;
                 }
             };
 
+            if service.end_block.is_some() {
+                let end = service.end_block.unwrap();
+                 if next_block > end {
+                    break Ok(());
+                }
+                if latest > end{
+                    latest = end;
+                }
+            }
+            
             // Collect blocks to process
             let blocks_to_process: Vec<u64> = (next_block..=latest).collect();
 
