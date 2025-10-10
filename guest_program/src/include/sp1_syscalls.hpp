@@ -3,6 +3,8 @@
 #include <cstdint> // uint8_t, uint32_t, uint64_t
 #include <cstring> // strlen
 
+#include <intx/intx.hpp>
+
 // Notes:
 // - Rust `usize` <-> C++ `size_t`
 // - Rust `u8/u32/u64` <-> C++ uint8_t/uint32_t/uint64_t
@@ -64,10 +66,10 @@ extern "C"
     // (Same note as above regarding `bool`.)
 
     // pub fn syscall_bn254_add(p: *mut [u32; 16], q: *const [u32; 16])
-    void syscall_bn254_add(uint32_t (*p)[16], const uint32_t (*q)[16]);
+    void syscall_bn254_add(uint32_t p[16], const uint32_t q[16]);
 
     // pub fn syscall_bn254_double(p: *mut [u32; 16])
-    void syscall_bn254_double(uint32_t (*p)[16]);
+    void syscall_bn254_double(uint32_t p[16]);
 
     // pub fn syscall_bls12381_add(p: *mut [u32; 24], q: *const [u32; 24])
     void syscall_bls12381_add(uint32_t (*p)[24], const uint32_t (*q)[24]);
@@ -169,4 +171,42 @@ static inline void sys_println(const char *s)
 {
     syscall_write(1, reinterpret_cast<const uint8_t *>(s), std::strlen(s));
     syscall_write(1, reinterpret_cast<const uint8_t *>("\n"), 1);
+}
+
+using sp1_AffinePoint = uint32_t[16];
+
+inline bool is_zero(const sp1_AffinePoint p) noexcept
+{
+    uint32_t fold = 0;
+    for (size_t i = 0; i < 16; ++i)
+        fold |= p[i];
+    return fold == 0;
+}
+
+inline bool eq(const sp1_AffinePoint p, const sp1_AffinePoint q) noexcept
+{
+    uint32_t fold = 0;
+    for (size_t i = 0; i < 16; ++i)
+        fold |= p[i] ^ q[i];
+    return fold == 0;
+}
+
+inline void sp1_point_from_bytes(sp1_AffinePoint r, const uint8_t bytes[64]) noexcept
+{
+    const auto x = &bytes[0];
+    const auto y = &bytes[32];
+    for (size_t i = 0; i < 8; ++i)
+        r[i] = intx::be::unsafe::load<uint32_t>(&x[32 - (i + 1) * 4]);
+    for (size_t i = 0; i < 8; ++i)
+        r[i + 8] = intx::be::unsafe::load<uint32_t>(&y[32 - (i + 1) * 4]);
+}
+
+inline void sp1_point_to_bytes(uint8_t bytes[64], const sp1_AffinePoint r ) noexcept
+{
+    const auto x = &bytes[0];
+    const auto y = &bytes[32];
+    for (size_t i = 0; i < 8; ++i)
+        intx::be::unsafe::store(&x[32 - (i + 1) * 4], r[i]);
+    for (size_t i = 0; i < 8; ++i)
+         intx::be::unsafe::store<uint32_t>(&y[32 - (i + 1) * 4], r[i + 8]);
 }
