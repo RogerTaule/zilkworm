@@ -115,11 +115,11 @@ extern "C"
 
     // pub fn sys_bigint(
     //   result:*mut [u32;8], op:u32, x:*const [u32;8], y:*const [u32;8], modulus:*const [u32;8])
-    void sys_bigint(uint32_t (*result)[8],
+    void sys_bigint(uint32_t result[8],
                     uint32_t op,
-                    const uint32_t (*x)[8],
-                    const uint32_t (*y)[8],
-                    const uint32_t (*modulus)[8]);
+                    const uint32_t x[8],
+                    const uint32_t y[8],
+                    const uint32_t modulus[8]);
 
     // Field/Fp and Fp2 ops for BLS12-381 (operands are limb pointers; sizes defined by the ABI)
     // pub fn syscall_bls12381_fp_addmod(p: *mut u32, q: *const u32)
