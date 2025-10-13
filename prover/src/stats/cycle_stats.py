@@ -11,11 +11,11 @@ def parse_execution_log(filename):
     data = {
         'block': [],
         'gas_used': [],
-        'cycles': []
+        'cycle_count': []
     }
     
     # Pattern to match log entries
-    pattern = r'block (\d+) executed, gas_used=(\d+), cycles=(\d+)'
+    pattern = r'block (\d+) executed, gas_used=(\d+), cycle_count=(\d+)'
     
     try:
         with open(filename, 'r') as file:
@@ -30,7 +30,7 @@ def parse_execution_log(filename):
                     if gas_used > 0:
                         data['block'].append(block_num)
                         data['gas_used'].append(gas_used)
-                        data['cycles'].append(cycles)
+                        data['cycle_count'].append(cycles)
         
         total_lines = sum(1 for _ in open(filename, 'r'))
         filtered_count = len(data['block'])
@@ -53,7 +53,7 @@ def create_visualizations(data):
     
     blocks = np.array(data['block'])
     gas = np.array(data['gas_used'])
-    cycles = np.array(data['cycles'])
+    cycles = np.array(data['cycle_count'])
     cycles_per_gas = cycles / gas
     
     # Create figure with subplots
@@ -109,7 +109,7 @@ def calculate_statistics(data, cycles_per_gas):
     
     blocks = np.array(data['block'])
     gas = np.array(data['gas_used'])
-    cycles = np.array(data['cycles'])
+    cycles = np.array(data['cycle_count'])
     
     # Calculate statistics
     avg_cycles_per_gas = np.mean(cycles_per_gas)
@@ -145,7 +145,7 @@ def create_summary_chart(data, cycles_per_gas, worst_indices):
     
     blocks = np.array(data['block'])
     gas = np.array(data['gas_used'])
-    cycles = np.array(data['cycles'])
+    cycles = np.array(data['cycle_count'])
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
     

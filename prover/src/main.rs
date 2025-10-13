@@ -251,8 +251,8 @@ async fn main() -> Result<()> {
                 data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
             })?;
             println!(
-                "Executed block {} (gas_used={}, cycles={})",
-                log.block_number, log.gas_used, log.cycle_count
+                "Executed block {} (gas_used={}, cycles={}, prover_gas={}, syscall_count={})",
+                log.block_number, log.gas_used, log.cycle_count, log.prover_gas, log.syscall_count
             );
         }
         Some(Command::Prove {

@@ -159,6 +159,8 @@ pub struct ExecutionLog {
     pub block_number: u64,
     pub gas_used: u64,
     pub cycle_count: u64,
+    pub prover_gas: u64,
+    pub syscall_count: u64,
     pub input_path: PathBuf,
 }
 
@@ -252,15 +254,19 @@ impl Z6mProverService {
 
         let gas_used = output.read::<u64>();
         let cycle_count = report.total_instruction_count();
+        let prover_gas = report.gas.unwrap_or_default();
+        let syscall_count = report.total_syscall_count();
         info!(
-            "execution complete, block={} gas_used={}, cycle_count={}",
-            opts.block_number, gas_used, cycle_count
+            "execution complete, block={} gas_used={}, cycle_count={}, prover_gas={}, syscall_count={}",
+            opts.block_number, gas_used, cycle_count, prover_gas, syscall_count
         );
 
         let log = ExecutionLog {
             block_number: opts.block_number,
             gas_used,
             cycle_count,
+            prover_gas,
+            syscall_count,
             input_path: input_path.clone(),
         };
         self.persist_execution_logs(&opts.data_dir, &log)?;
@@ -375,13 +381,12 @@ impl Z6mProverService {
             std::fs::create_dir_all(parent)?;
         }
 
-        let start = Instant::now();
-
         // Call proving hook
         if let Some(client) = eth_client {
             client.proving(opts.block_number).await;
         }
 
+        let mut start = Instant::now();
         // Lock the client for exclusive proving access and prove with timeout
         let proof_result = tokio::time::timeout(
             Duration::from_secs(1800), // 30 minutes timeout
@@ -393,6 +398,7 @@ impl Z6mProverService {
                     "plonk" => SP1ProofMode::Plonk,
                     _ => SP1ProofMode::Compressed,
                 };
+                start = Instant::now();
                 client.prove(&pk, &stdin, proof_mode)
             },
         )
@@ -534,9 +540,7 @@ impl Z6mProverService {
 
         loop {
             let mut latest = match Self::get_block_number_with_retry(&provider, 3).await {
-                Ok(latest) => {
-                    latest
-                }
+                Ok(latest) => latest,
                 Err(err) => {
                     error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
                     sleep(Duration::from_secs(30)).await;
@@ -546,43 +550,43 @@ impl Z6mProverService {
 
             if service.end_block.is_some() {
                 let end = service.end_block.unwrap();
-                 if next_block > end {
+                if next_block > end {
                     break Ok(());
                 }
-                if latest > end{
+                if latest > end {
                     latest = end;
                 }
             }
-            
+
             // Collect blocks to process
             let blocks_to_process: Vec<u64> = (next_block..=latest).collect();
 
-                    // Process all blocks concurrently
-                    let data_dir = self.config.data_dir.clone();
-                    let client_arc = self.client.clone(); // Clone the Arc<Mutex<DynamicProver>>
-                    let eth_client = self.eth_client.clone();
-                    let tasks: Vec<_> = blocks_to_process
-                        .into_iter()
-                        .map(|block_num| {
-                            let service_clone = service.clone();
-                            let data_dir_clone = data_dir.clone();
-                            let client_clone = client_arc.clone();
-                            let eth_client_clone = eth_client.clone();
-                            tokio::spawn(async move {
-                                if let Err(err) = Self::process_block_static(
-                                    block_num,
-                                    &service_clone,
-                                    &data_dir_clone,
-                                    client_clone,
-                                    eth_client_clone.as_ref(),
-                                )
-                                .await
-                                {
-                                    error!(%block_num, error = %err, "failed to process block");
-                                }
-                            })
-                        })
-                        .collect();
+            // Process all blocks concurrently
+            let data_dir = self.config.data_dir.clone();
+            let client_arc = self.client.clone(); // Clone the Arc<Mutex<DynamicProver>>
+            let eth_client = self.eth_client.clone();
+            let tasks: Vec<_> = blocks_to_process
+                .into_iter()
+                .map(|block_num| {
+                    let service_clone = service.clone();
+                    let data_dir_clone = data_dir.clone();
+                    let client_clone = client_arc.clone();
+                    let eth_client_clone = eth_client.clone();
+                    tokio::spawn(async move {
+                        if let Err(err) = Self::process_block_static(
+                            block_num,
+                            &service_clone,
+                            &data_dir_clone,
+                            client_clone,
+                            eth_client_clone.as_ref(),
+                        )
+                        .await
+                        {
+                            error!(%block_num, error = %err, "failed to process block");
+                        }
+                    })
+                })
+                .collect();
 
             if !tasks.is_empty() {
                 // Wait for all spawned tasks to complete
@@ -746,15 +750,19 @@ impl Z6mProverService {
         let (mut output, report) = client.execute(SILK_ST_ELF, &stdin).run().unwrap();
         let gas_used = output.read::<u64>();
         let cycle_count = report.total_instruction_count();
+        let prover_gas = report.gas.unwrap_or_default();
+        let syscall_count = report.total_syscall_count();
         info!(
-            "execution complete, block={} gas_used={}, cycle_count={}",
-            block_number, gas_used, cycle_count
+            "execution complete, block={} gas_used={}, cycle_count={}, prover_gas={}, syscall_count={}",
+            block_number, gas_used, cycle_count, prover_gas, syscall_count
         );
 
         let log = ExecutionLog {
-            block_number,
+            block_number: block_number,
             gas_used,
             cycle_count,
+            prover_gas,
+            syscall_count,
             input_path: input_path.clone(),
         };
         Self::persist_execution_logs_static(data_dir, &log)?;
@@ -770,11 +778,13 @@ impl Z6mProverService {
         let timestamp = Self::format_timestamp();
         writeln!(
             &mut text_file,
-            "[{}] block {} executed, gas_used={}, cycles={}, input={}",
+            "[{}] block {} executed, gas_used={}, cycle_count={}, prover_gas={}, syscall_count={}, input={}",
             timestamp,
             log.block_number,
             log.gas_used,
             log.cycle_count,
+            log.prover_gas,
+            log.syscall_count,
             log.input_path.display()
         )?;
         Ok(())
@@ -853,11 +863,13 @@ impl Z6mProverService {
         let timestamp = Self::format_timestamp();
         writeln!(
             &mut text_file,
-            "[{}] block {} executed, gas_used={}, cycles={}, input={}",
+            "[{}] block {} executed, gas_used={}, cycle_count={}, prover_gas={}, syscall_count={}, input={}",
             timestamp,
             log.block_number,
             log.gas_used,
             log.cycle_count,
+            log.prover_gas,
+            log.syscall_count,
             log.input_path.display()
         )?;
         Ok(())
