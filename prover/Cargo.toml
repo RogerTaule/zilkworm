@@ -9,7 +9,7 @@ name = "z6m_prover"
 path = "src/main.rs"
 
 [dependencies]
-sp1-sdk = "5.2.1"
+sp1-sdk = { version = "5.2.2", features = [] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 serde = { version = "1.0.200", default-features = false, features = ["derive"] }
 clap = { version = "4.0", features = ["derive", "env"] }
@@ -58,10 +58,10 @@ version = "0.2.15"
 default-features = false
 
 [dependencies.sp1-zkvm]
-version = "5.2.1"
+version = "5.2.2"
 default-features = false
 features = ["embedded"]
 
 [build-dependencies]
-sp1-build = "5.2.1"
+sp1-build = "5.2.2"
 cxx-build = "1.0.160" # build-time codegen & C++ compilation
