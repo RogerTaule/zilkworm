@@ -5,6 +5,9 @@
 // Under the hood, we wrap your main function with some extra code so that it behaves properly
 // inside the zkVM.
 #![no_main]
+
+mod precompiles;
+
 sp1_zkvm::entrypoint!(main);
 
 // src/main.rs
