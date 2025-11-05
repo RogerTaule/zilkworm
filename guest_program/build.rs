@@ -49,7 +49,7 @@ fn main() {
         .build();
 
     let dst_display = dst.display();
-    for subdir in ["lib", "build/silkworm/core", "build/silkworm/dev", "build/third_party/secp256k1", "build/third_party/evmone", "build/deps/src/blst"] {
+    for subdir in ["lib", "build/silkworm/core", "build/silkworm/dev", "build/third_party/evmone", "build/deps/src/blst"] {
         println!("cargo:rustc-link-search=native={}/{}", dst_display, subdir);
     }
 
@@ -57,7 +57,7 @@ fn main() {
 
     let libs = [
         "c", "gcc", "nosys", "stdc++", "silkworm_dev",
-        "silkworm_core", "evmone", "blst", "secp256k1",
+        "silkworm_core", "evmone", "blst",
         "tooling", "evmc-loader", "atomic_stubs"
     ];
 

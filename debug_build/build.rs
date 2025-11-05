@@ -36,14 +36,14 @@ fn main() {
             "CMAKE_EXE_LINKER_FLAGS",
             format!("-T{templib_dir}/ldscripts/elf32lriscv.xn -z norelro"),
         )
-        .define(
-            "GMP_LIBRARY",
-            format!("{}/gmp", templib_dir),
-        )
-        .define(
-            "GMP_INCLUDE_DIR",
-            format!("{}/gmp", templib_dir),
-        )
+        // .define(
+        //     "GMP_LIBRARY",
+        //     format!("{}/gmp", templib_dir),
+        // )
+        // .define(
+        //     "GMP_INCLUDE_DIR",
+        //     format!("{}/gmp", templib_dir),
+        // )
         .define("CATCH_BUILD_TESTING", "OFF")
         .define("CONAN_HOST_PROFILE", "riscv32-baremetal")
         .define("SILKWORM_CORE_USE_ABSEIL", "OFF")
@@ -56,16 +56,16 @@ fn main() {
         .build();
 
     let dst_display = dst.display();
-    for subdir in ["lib", "build/silkworm/core", "build/silkworm/dev", "build/third_party/secp256k1", "build/third_party/evmone", "build/deps/src/blst"] {
+    for subdir in ["lib", "build/silkworm/core", "build/silkworm/dev", "build/third_party/evmone", "build/deps/src/blst"] {
         println!("cargo:rustc-link-search=native={}/{}", dst_display, subdir);
     }
 
     println!("cargo:rustc-link-search=native={templib_dir}");
-    println!("cargo:rustc-link-search=native={templib_dir}/gmp");
+    // println!("cargo:rustc-link-search=native={templib_dir}/gmp");
 
     let libs = [
-        "c", "gcc", "nosys", "stdc++", "gmp", "ff", "silkworm_dev", 
-        "silkworm_core", "evmone", "blst", "secp256k1", "ethash", 
+        "c", "gcc", "nosys", "stdc++", "silkworm_dev", 
+        "silkworm_core", "evmone", "blst", "ethash", 
         "keccak", "tooling", "evmc-loader", "atomic_stubs"
     ];
 

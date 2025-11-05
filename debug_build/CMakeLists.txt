@@ -118,9 +118,6 @@ target_link_libraries(z6m_debug PRIVATE
   "${CMAKE_BINARY_DIR}/silkworm-install/lib/libkeccak.a"
   "${CMAKE_BINARY_DIR}/silkworm-install/lib/libevmc-loader.a"
   "${CMAKE_BINARY_DIR}/silkworm-install/lib/libevmc-instructions.a"
-  "${CMAKE_BINARY_DIR}/silkworm-install/lib/libff.a"
-  "${CMAKE_BINARY_DIR}/silkworm/third_party/secp256k1/libsecp256k1.a"
   "${CMAKE_BINARY_DIR}/silkworm/third_party/evmone/libevmone.a"
   "${CMAKE_BINARY_DIR}/silkworm/deps/src/blst/libblst.a"
-  "${CMAKE_SOURCE_DIR}/../prelibs/gmp/libgmp.a"
 )

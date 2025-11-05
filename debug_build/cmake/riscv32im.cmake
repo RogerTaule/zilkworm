@@ -8,8 +8,8 @@ set(CMAKE_CXX_COMPILER riscv-none-elf-g++)
 set(CMAKE_ASM_COMPILER riscv-none-elf-gcc)
 
 
-set(GMP_LIBRARY "${CMAKE_SOURCE_DIR}/../prelibs/gmp")
-set(GMP_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/../prelibs/gmp")
+# set(GMP_LIBRARY "${CMAKE_SOURCE_DIR}/../prelibs/gmp")
+# set(GMP_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/../prelibs/gmp")
 set(BUILD_SHARED_LIBS "OFF")
 
 # set(debug_flags "-Os")
