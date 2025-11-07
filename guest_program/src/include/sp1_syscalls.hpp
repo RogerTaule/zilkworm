@@ -81,7 +81,7 @@ extern "C"
     void syscall_keccak_permute(uint64_t (*state)[25]);
 
     // pub fn syscall_uint256_mulmod(x: *mut [u32; 8], y: *const [u32; 8])
-    void syscall_uint256_mulmod(uint32_t (*x)[8], const uint32_t (*y)[8]);
+    void syscall_uint256_mulmod(uint32_t x[8], const uint32_t y[8]);
 
     // pub fn syscall_u256x2048_mul(
     //     x: *const [u32; 8], y: *const [u32; 64], lo: *mut [u32; 64], hi: *mut [u32; 8])
