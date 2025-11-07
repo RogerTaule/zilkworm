@@ -1,6 +1,6 @@
 # Cargo build
 **/target
-prelibs/**
+prelibs*/**
 # Cargo config
 .cargo
 **/build

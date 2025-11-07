@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "guest_program",
-    "prover",
+    "guest_hypercube",
+    "prover_hypercube",
 ]
 resolver = "2"
 

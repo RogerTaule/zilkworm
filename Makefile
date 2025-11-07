@@ -3,10 +3,20 @@ TESTS_DIR := ../silkworm/third_party/ethereum-tests/BlockchainTests
 .PHONY: z6m_guest z6m_prover selftest tests
 
 z6m_guest:
+# 	rm -r target/elf-compilation/riscv64im-succinct-zkvm-elf/* || true
+	rm -r target/elf-compilation/riscv64im-succinct-zkvm-elf/release/build/z6m_guest-* || true
+	(cd guest_hypercube && cargo prove build)
+z6m_prover: z6m_guest
+	cargo build --release --manifest-path prover_hypercube/Cargo.toml
+
+test_hc: z6m_prover
+	target/release/z6m_prover execute --block-number 23540896 --data-dir prover/temp
+
+z6m_guest_turbo:
 	rm -r target/elf-compilation/riscv32im-succinct-zkvm-elf/release/build/z6m_guest-* || true
 	(cd guest_program && cargo prove build)
 
-z6m_prover: z6m_guest
+z6m_prover_turbo: z6m_guest
 	cargo build --release --manifest-path prover/Cargo.toml
 
 selftest: z6m_prover

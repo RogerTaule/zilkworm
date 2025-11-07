@@ -1,0 +1,32 @@
+[package]
+version = "0.1.0"
+name = "z6m_guest"
+edition = "2021"
+
+
+[dependencies]
+cxx = "1.0.160" # runtime bridge
+
+[dependencies.libm]
+version = "0.2.15"
+default-features = false
+
+[dependencies.sp1-zkvm]
+git = "https://github.com/succinctlabs/sp1-wip"
+branch = "multilinear_v6"
+default-features = false
+version = "*"
+features = ["lib"]
+
+[dependencies.bls12_381]
+version = "*"
+#TODO: We don't need the "alloc" feature but it doesn't compile without it.
+features = ["groups", "pairings", "alloc"]
+default-features = false
+package = "sp1_bls12_381"
+
+[build-dependencies]
+cmake = "0.1.54"
+cxx-build = "1.0.160" # build-time codegen & C++ compilation
+cc = "1.2.29"
+pkg-config = "0.3"

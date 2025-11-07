@@ -4,43 +4,51 @@ use std::{env, path::Path};
 fn main() {
     // Tell rustc to use our custom linker script.
     let manifest_root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let templib_dir = manifest_root + "/../prelibs";
+    let templib_dir = manifest_root + "/../prelibs64";
 
-    println!("cargo:rustc-link-search=native={templib_dir}");
+    // Add libstdc++.a location for rv64im/lp64
+    // let home_dir = std::env::var("HOME").unwrap();
+    // let libstdcpp_path = format!("{}/.local/xPacks/@xpack-dev-tools/riscv-none-elf-gcc/14.2.0-3.1/.content/riscv-none-elf/lib/rv64im/lp64", home_dir);
+
+    // let libgcc_path = format!("{}/.local/xPacks/@xpack-dev-tools/riscv-none-elf-gcc/14.2.0-3.1/.content/lib/gcc/riscv-none-elf/14.2.0/rv64im/lp64", home_dir);
+    // println!("cargo:rustc-link-search=native={}", libstdcpp_path);
+    // println!("cargo:rustc-link-search=native={}", libgcc_path);
+    
+    // println!("cargo:rustc-link-search=native={templib_dir}");
     println!("cargo:rustc-link-arg=-z");
     println!("cargo:rustc-link-arg=norelro");
-    println!("cargo:rustc-link-arg=-T{templib_dir}/ldscripts/elf32lriscv.xn");
+    println!("cargo:rustc-link-arg=-T{templib_dir}/ldscripts/elf64lriscv.xn");
 
     println!(
         "cargo:rustc-link-search=native={}",
         std::env::var("CARGO_MANIFEST_DIR").unwrap()
     );
 
-    println!("cargo:rustc-link-search=native=~/.sp1/riscv/riscv32im-linux-x86_64/riscv32-unknown-elf/lib");
+    // println!("cargo:rustc-link-search=native=~/.sp1/riscv/riscv32im-linux-x86_64/riscv32-unknown-elf/lib");
 
     cc::Build::new()
-    .file("src/atomic_stubs.c")
-    .compile("atomic_stubs");
+        .file("src/atomic_stubs.c")
+        .compiler("riscv-none-elf-gcc")
+        .compile("atomic_stubs");
 
-    println!("cargo:rustc-link-search=native={templib_dir}");
+    // println!("cargo:rustc-link-search=native={templib_dir}");
     let conan_dir = Path::new("build/conan2");
     let dst = cmake::Config::new("../silkworm")
         .build_arg("-j16") // Use 4 parallel jobs, adjust as needed
         .define("SP1", "ON")
-        .define("SP1TURBO", "ON")
         .define("CMAKE_BUILD_TYPE", "Release")
         .define("BUILD_SHARED_LIBS", "OFF")
         .define("CMAKE_SYSTEM_NAME", "Generic")
-        .define("CMAKE_SYSTEM_PROCESSOR", "riscv32")
+        .define("CMAKE_SYSTEM_PROCESSOR", "riscv64")
         .define("CMAKE_CXX_STANDARD", "20")
         .define("CMAKE_CXX_STANDARD_REQUIRED", "ON")
-        .define("CMAKE_CXX_FLAGS", "-nostdlib -Os -fno-rtti -ffunction-sections -fdata-sections -fPIC -march=rv32im -mabi=ilp32 -fno-threadsafe-statics")
+        .define("CMAKE_CXX_FLAGS", "-nostdlib -Os -fno-rtti -ffunction-sections -fdata-sections -fPIC -march=rv64im -mabi=lp64 -fno-threadsafe-statics")
         .define(
             "CMAKE_EXE_LINKER_FLAGS",
-            format!("-T{templib_dir}/ldscripts/elf32lriscv.xn -z norelro"),
+            format!("-T{templib_dir}/ldscripts/elf64lriscv.xn -z norelro"),
         )
         .define("CATCH_BUILD_TESTING", "OFF")
-        .define("CONAN_HOST_PROFILE", "riscv32-baremetal")
+        .define("CONAN_HOST_PROFILE", "riscv64-baremetal")
         .define("SILKWORM_CORE_USE_ABSEIL", "OFF")
         .profile("Release")
         .define("CMAKE_PREFIX_PATH", conan_dir)
@@ -50,22 +58,35 @@ fn main() {
         .build();
 
     let dst_display = dst.display();
-    for subdir in ["lib", "build/silkworm/core", "build/silkworm/dev", "build/third_party/evmone", "build/deps/src/blst"] {
+    for subdir in [
+        "lib",
+        "build/silkworm/core",
+        "build/silkworm/dev",
+        "build/third_party/evmone",
+        "build/deps/src/blst",
+    ] {
         println!("cargo:rustc-link-search=native={}/{}", dst_display, subdir);
     }
 
     println!("cargo:rustc-link-search=native={templib_dir}");
 
     let libs = [
-        "c", "gcc", "nosys", "stdc++", "silkworm_dev",
-        "silkworm_core", "evmone", "blst",
-        "tooling", "evmc-loader", "atomic_stubs"
+        "c",
+        "gcc",
+        "nosys",
+        "stdc++",
+        "silkworm_dev",
+        "silkworm_core",
+        "evmone",
+        "blst",
+        "tooling",
+        "evmc-loader",
+        "atomic_stubs",
     ];
 
     for lib in libs {
         println!("cargo:rustc-link-lib=static={}", lib);
     }
-
 
     let include_dir = dst.join("include");
 
@@ -99,10 +120,13 @@ fn main() {
         .flag("-fno-rtti")
         .flag("-v")
         .flag("-fno-threadsafe-statics")
-        .compiler("riscv32-unknown-elf-g++")
-        .include(
-            "~/.sp1/riscv/riscv32im-linux-x86_64/riscv32-unknown-elf/include/c++/13.2.0",
-        );
+        // .include("/usr/include/c++/14")
+        // .compiler("/usr/bin/riscv-none-elf-g++");
+        .compiler("riscv-none-elf-g++")
+    .include(
+        "~/.sp1/riscv/riscv32im-linux-x86_64/riscv32-unknown-elf/include/c++/13.2.0",
+    )
+    ;
 
     for (key, val) in env::vars() {
         if key.starts_with("CONAN_INCLUDE_DIRS_") {
@@ -116,13 +140,16 @@ fn main() {
     let conan_pc_dir = dst.join("build/conan2"); // <-- adjust if needed
     std::env::set_var("PKG_CONFIG_PATH", &conan_pc_dir);
     std::env::set_var("PKG_CONFIG_ALLOW_CROSS", "1");
-    std::env::set_var("PKG_CONFIG_ALLOW_CROSS_riscv32im-succinct-zkvm-elf", "1");
+    std::env::set_var("PKG_CONFIG_ALLOW_CROSS_riscv64im-succinct-zkvm-elf", "1");
     println!(
         "cargo:warning=PKG_CONFIG_PATH set to: {}",
         conan_pc_dir.display()
     );
 
-    println!("cargo:warning=Direct from env - PKG_CONFIG_PATH: {}", std::env::var("PKG_CONFIG_PATH").unwrap());
+    println!(
+        "cargo:warning=Direct from env - PKG_CONFIG_PATH: {}",
+        std::env::var("PKG_CONFIG_PATH").unwrap()
+    );
     // ── 3. pull cflags (include dirs) from the .pc files we care about ────
     for pkg in ["ms-gsl", "nlohmann_json", "magic_enum", "tl-expected"] {
         if let Ok(meta) = pkg_config::Config::new()
