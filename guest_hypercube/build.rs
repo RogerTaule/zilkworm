@@ -42,7 +42,7 @@ fn main() {
         .define("CMAKE_SYSTEM_PROCESSOR", "riscv64")
         .define("CMAKE_CXX_STANDARD", "20")
         .define("CMAKE_CXX_STANDARD_REQUIRED", "ON")
-        .define("CMAKE_CXX_FLAGS", "-nostdlib -Os -fno-rtti -ffunction-sections -fdata-sections -fPIC -march=rv64im -mabi=lp64 -fno-threadsafe-statics")
+        .define("CMAKE_CXX_FLAGS", "-nostdlib -O2 -fno-rtti -ffunction-sections -fdata-sections -fPIC -march=rv64im -mabi=lp64 -fno-threadsafe-statics")
         .define(
             "CMAKE_EXE_LINKER_FLAGS",
             format!("-T{templib_dir}/ldscripts/elf64lriscv.xn -z norelro"),
@@ -102,7 +102,7 @@ fn main() {
         .include("../silkworm/third_party/evmone/evmone/lib")
         .include("../silkworm/third_party/evmone/evmone/lib/evmone_precompiles")
         .flag("-nostdlib")
-        .flag("-Os")
+        .flag("-O2")
         .flag("-Wno-unused-parameter")
         .flag("-Wno-missing-field-initializers")
         .flag("-Wno-unused-variable")
@@ -123,9 +123,9 @@ fn main() {
         // .include("/usr/include/c++/14")
         // .compiler("/usr/bin/riscv-none-elf-g++");
         .compiler("riscv-none-elf-g++")
-    .include(
-        "~/.sp1/riscv/riscv32im-linux-x86_64/riscv32-unknown-elf/include/c++/13.2.0",
-    )
+    // .include(
+    //     "~/.sp1/riscv/riscv32im-linux-x86_64/riscv32-unknown-elf/include/c++/13.2.0",
+    // )
     ;
 
     for (key, val) in env::vars() {
