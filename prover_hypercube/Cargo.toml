@@ -9,9 +9,9 @@ name = "z6m_prover"
 path = "src/main.rs"
 
 [dependencies]
-sp1-sdk = { path = "/home/som/Documents/code/sp1-wip/crates/sdk", features = ["profiling"]}
-sp1-prover = { path = "/home/som/Documents/code/sp1-wip/crates/prover" }
-sp1-cuda = { path = "/home/som/Documents/code/sp1-wip/crates/cuda" }
+sp1-sdk = { path = "../../sp1-wip/crates/sdk", features = ["profiling"]}
+sp1-prover = { path = "../../sp1-wip/crates/prover" }
+sp1-cuda = { path = "../../sp1-wip/crates/cuda" }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 serde = { version = "1.0.200", default-features = false, features = ["derive"] }
 clap = { version = "4.0", features = ["derive", "env"] }
@@ -60,9 +60,9 @@ version = "0.2.15"
 default-features = false
 
 [dependencies.sp1-zkvm]
-path = "/home/som/Documents/code/sp1-wip/crates/zkvm/entrypoint"
+path = "../../sp1-wip/crates/zkvm/entrypoint"
 default-features = false
 
 [build-dependencies]
-sp1-build = { path = "/home/som/Documents/code/sp1-wip/crates/build" }
+sp1-build = { path = "../../sp1-wip/crates/build" }
 cxx-build = "1.0.160" # build-time codegen & C++ compilation

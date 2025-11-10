@@ -12,8 +12,7 @@ version = "0.2.15"
 default-features = false
 
 [dependencies.sp1-zkvm]
-git = "https://github.com/succinctlabs/sp1-wip"
-branch = "multilinear_v6"
+path = "../../sp1-wip/crates/zkvm/entrypoint"
 default-features = false
 version = "*"
 features = ["lib"]

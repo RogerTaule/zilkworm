@@ -13,7 +13,7 @@ fn main() {
     // let libgcc_path = format!("{}/.local/xPacks/@xpack-dev-tools/riscv-none-elf-gcc/14.2.0-3.1/.content/lib/gcc/riscv-none-elf/14.2.0/rv64im/lp64", home_dir);
     // println!("cargo:rustc-link-search=native={}", libstdcpp_path);
     // println!("cargo:rustc-link-search=native={}", libgcc_path);
-    
+
     // println!("cargo:rustc-link-search=native={templib_dir}");
     println!("cargo:rustc-link-arg=-z");
     println!("cargo:rustc-link-arg=norelro");
@@ -42,7 +42,7 @@ fn main() {
         .define("CMAKE_SYSTEM_PROCESSOR", "riscv64")
         .define("CMAKE_CXX_STANDARD", "20")
         .define("CMAKE_CXX_STANDARD_REQUIRED", "ON")
-        .define("CMAKE_CXX_FLAGS", "-nostdlib -O2 -fno-rtti -ffunction-sections -fdata-sections -fPIC -march=rv64im -mabi=lp64 -fno-threadsafe-statics")
+        .define("CMAKE_CXX_FLAGS", "-nostdlib -O2 -fno-rtti -ffunction-sections -fdata-sections -fPIC -march=rv64im -mabi=lp64 -fno-threadsafe-statics -DNDEBUG -fno-stack-protector -fno-builtin-trap")
         .define(
             "CMAKE_EXE_LINKER_FLAGS",
             format!("-T{templib_dir}/ldscripts/elf64lriscv.xn -z norelro"),
@@ -120,6 +120,9 @@ fn main() {
         .flag("-fno-rtti")
         .flag("-v")
         .flag("-fno-threadsafe-statics")
+        .flag("-DNDEBUG")                    // Disable assert() macros
+        .flag("-fno-stack-protector")        // Disable stack canary
+        .flag("-fno-builtin-trap")           // Don't generate EBREAK for traps
         // .include("/usr/include/c++/14")
         // .compiler("/usr/bin/riscv-none-elf-g++");
         .compiler("riscv-none-elf-g++")

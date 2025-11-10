@@ -2,8 +2,8 @@
 os=baremetal
 arch=riscv64
 compiler=gcc
-compiler.version=14
-# compiler.libcxx=libstdc++11
+compiler.version=15
+compiler.libcxx=libstdc++11
 compiler.cppstd=gnu20
 build_type=Release
 
