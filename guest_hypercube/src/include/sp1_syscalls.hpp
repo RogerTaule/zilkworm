@@ -21,6 +21,8 @@ struct ReadVecResult
     size_t capacity;
 };
 
+using uintType = uint64_t;
+
 extern "C"
 {
 

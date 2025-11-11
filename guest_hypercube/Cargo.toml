@@ -18,7 +18,7 @@ version = "*"
 features = ["lib"]
 
 [dependencies.bls12_381]
-version = "*"
+version = "=0.8.0-sp1-5.0.0"
 #TODO: We don't need the "alloc" feature but it doesn't compile without it.
 features = ["groups", "pairings", "alloc"]
 default-features = false

@@ -154,64 +154,74 @@ enum Command {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Set up tracing with info level by default
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
+    // // Set up tracing with info level by default
+    // let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
 
-    fmt().with_env_filter(filter).init();
+    // fmt().with_env_filter(filter).init();
 
-    dotenv::dotenv().ok();
+    // dotenv::dotenv().ok();
 
     let args = Args::parse();
 
-    let ethproofs = match (
-        args.ethproofs_endpoint.clone(),
-        args.ethproofs_token.clone(),
-        args.ethproofs_cluster_id,
-    ) {
-        (Some(endpoint), Some(token), Some(cluster_id)) => Some(EthProofsConfig {
-            endpoint,
-            token,
-            cluster_id,
-        }),
-        _ => None,
-    };
+    // let ethproofs = match (
+    //     args.ethproofs_endpoint.clone(),
+    //     args.ethproofs_token.clone(),
+    //     args.ethproofs_cluster_id,
+    // ) {
+    //     (Some(endpoint), Some(token), Some(cluster_id)) => Some(EthProofsConfig {
+    //         endpoint,
+    //         token,
+    //         cluster_id,
+    //     }),
+    //     _ => None,
+    // };
 
-    let app_config = AppConfig {
-        data_dir: args.data_dir.clone(),
-        rpc_url: args.rpc_url.clone(),
-        save_all_responses: args.save_all_responses,
-        ethproofs,
-    };
+    // let app_config = AppConfig {
+    //     data_dir: args.data_dir.clone(),
+    //     rpc_url: args.rpc_url.clone(),
+    //     save_all_responses: args.save_all_responses,
+    //     ethproofs,
+    // };
 
-    let app = Z6mProverService::new(app_config).await?;
 
-    if args.service {
-        let rpc_url = args.rpc_url.clone().or_else(|| {
-            args.command.as_ref().and_then(|cmd| match cmd {
-                Command::Fetch { rpc_url, .. } => rpc_url.clone(),
-                _ => None,
-            })
-        });
-        let rpc_url = rpc_url.ok_or_else(|| eyre!("--service requires --rpc-url"))?;
+    // // DEBUGGGG
+    // let app = Z6mProverService::new(app_config).await?;
 
-        let service_config = ServiceConfig {
-            start_block: args.start_block,
-            end_block: args.end_block,
-            prove_every: args.prove_every,
-            execute_every: args.execute_every,
-            post_every: args.post_every,
-            rpc_url,
-            save_all_responses: args.save_all_responses,
-            proving_key_path: Some(args.pk_path.clone()),
-            proof_type: args.proof_type.clone(),
-        };
-        app.run_service(service_config).await?;
-        return Ok(());
-    }
+
+    // /// ==================
+    // /// 
+    // /// 
+    // /// 
+    // /// 
+    // /// 
+    
+    // if args.service {
+    //     let rpc_url = args.rpc_url.clone().or_else(|| {
+    //         args.command.as_ref().and_then(|cmd| match cmd {
+    //             Command::Fetch { rpc_url, .. } => rpc_url.clone(),
+    //             _ => None,
+    //         })
+    //     });
+    //     let rpc_url = rpc_url.ok_or_else(|| eyre!("--service requires --rpc-url"))?;
+
+    //     let service_config = ServiceConfig {
+    //         start_block: args.start_block,
+    //         end_block: args.end_block,
+    //         prove_every: args.prove_every,
+    //         execute_every: args.execute_every,
+    //         post_every: args.post_every,
+    //         rpc_url,
+    //         save_all_responses: args.save_all_responses,
+    //         proving_key_path: Some(args.pk_path.clone()),
+    //         proof_type: args.proof_type.clone(),
+    //     };
+    //     app.run_service(service_config).await?;
+    //     return Ok(());
+    // }
 
     match args.command {
         Some(Command::Setup { pk_path, vk_path }) => {
-            app.setup_keys(SetupOptions { pk_path, vk_path }).await?;
+            // app.setup_keys(SetupOptions { pk_path, vk_path }).await?;
         }
         Some(Command::Fetch {
             rpc_url,
@@ -220,23 +230,23 @@ async fn main() -> Result<()> {
             save_all_responses,
             build_eth_test,
         }) => {
-            let rpc = rpc_url
-                .or_else(|| args.rpc_url.clone())
-                .ok_or_else(|| eyre!("fetch requires --rpc-url"))?;
-            let outcome = app
-                .fetch_block(FetchOptions {
-                    block_number,
-                    rpc_url: rpc,
-                    save_all_responses: save_all_responses || args.save_all_responses,
-                    data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
-                    build_eth_test,
-                })
-                .await?;
-            println!(
-                "Fetched block {} into {}",
-                outcome.block_number,
-                outcome.block_directory.display()
-            );
+        //     let rpc = rpc_url
+        //         .or_else(|| args.rpc_url.clone())
+        //         .ok_or_else(|| eyre!("fetch requires --rpc-url"))?;
+        //     let outcome = app
+        //         .fetch_block(FetchOptions {
+        //             block_number,
+        //             rpc_url: rpc,
+        //             save_all_responses: save_all_responses || args.save_all_responses,
+        //             data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
+        //             build_eth_test,
+        //         })
+        //         .await?;
+        //     println!(
+        //         "Fetched block {} into {}",
+        //         outcome.block_number,
+        //         outcome.block_directory.display()
+        //     );
         }
         Some(Command::Execute {
             block_number,
@@ -266,35 +276,35 @@ async fn main() -> Result<()> {
             proof_path,
             proof_type,
         }) => {
-            let pk = pk_path.clone();
+        //     let pk = pk_path.clone();
 
-            let log = app
-                .prove_block(&ProveOptions {
-                    block_number,
-                    file_name,
-                    is_test,
-                    data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
-                    pk_path: pk,
-                    proof_path,
-                    proof_type,
-                })
-                .await?;
-            println!(
-                "Proved block {} (gas_used={}, proof={})",
-                log.block_number,
-                log.gas_used,
-                log.proof_path.display()
-            );
+        //     let log = app
+        //         .prove_block(&ProveOptions {
+        //             block_number,
+        //             file_name,
+        //             is_test,
+        //             data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
+        //             pk_path: pk,
+        //             proof_path,
+        //             proof_type,
+        //         })
+        //         .await?;
+        //     println!(
+        //         "Proved block {} (gas_used={}, proof={})",
+        //         log.block_number,
+        //         log.gas_used,
+        //         log.proof_path.display()
+        //     );
         }
         Some(Command::Verify {
             proof_path,
             vk_path,
         }) => {
-            app.verify_proof(VerifyOptions {
-                proof_path,
-                vk_path,
-            })
-            .await?;
+        //     app.verify_proof(VerifyOptions {
+        //         proof_path,
+        //         vk_path,
+        //     })
+        //     .await?;
         }
         None => {
             bail!("no command provided; pass --service or a subcommand");

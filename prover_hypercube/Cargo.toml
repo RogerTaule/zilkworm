@@ -12,6 +12,7 @@ path = "src/main.rs"
 sp1-sdk = { path = "../../sp1-wip/crates/sdk", features = ["profiling"]}
 sp1-prover = { path = "../../sp1-wip/crates/prover" }
 sp1-cuda = { path = "../../sp1-wip/crates/cuda" }
+sp1-core-executor = { path = "../../sp1-wip/crates/core/executor" }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 serde = { version = "1.0.200", default-features = false, features = ["derive"] }
 clap = { version = "4.0", features = ["derive", "env"] }

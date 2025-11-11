@@ -12,6 +12,7 @@ use sp1_cuda::CudaProvingKey;
 use sp1_prover::worker::SP1CoreExecutor;
 use sp1_prover::{SP1CompressWitness, SP1CoreProof, SP1CoreProofData, SP1ProofWithMetadata};
 use sp1_sdk::Executor;
+use sp1_sdk::cuda::builder::CudaProverBuilder;
 use sp1_sdk::{
     cpu::CPUProvingKey, include_elf, CpuProver, CudaProver, Elf, ProveRequest, Prover,
     ProverClient, ProvingKey, SP1Proof, SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin,
@@ -285,36 +286,58 @@ impl Z6mProverService {
         // };
 
         // Lock the client for exclusive proving access
-        let client = self.client.lock().await;
+        // let client = self.client.lock().await;
 
-        let start = Instant::now();
-        let proof_mode = match opts.proof_type.as_str() {
-            "core" => SP1ProofMode::Core,
-            "groth16" => SP1ProofMode::Groth16,
-            "plonk" => SP1ProofMode::Plonk,
-            _ => SP1ProofMode::Compressed,
-        };
+        // let start = Instant::now();
+        // let proof_mode = match opts.proof_type.as_str() {
+        //     "core" => SP1ProofMode::Core,
+        //     "groth16" => SP1ProofMode::Groth16,
+        //     "plonk" => SP1ProofMode::Plonk,
+        //     _ => SP1ProofMode::Compressed,
+        // };
+        println!("=========  SPIDEY SPIEDY prove_block  ============");
 
-        let pk = client.setup(Z6M_ELF).await;
-        let (mut proof, cycle_count) = client.prove(&pk, &stdin, proof_mode).await.unwrap();
-        let proving_millis = start.elapsed().as_millis() as u64;
-        let gas_used = proof.public_values.read::<u64>();
+        let client = ProverClient::builder().cuda().build().await;
+        let pk_res = client.setup(Z6M_ELF).await;
+        match pk_res {
+            Ok(pk) => {let proof = client.prove(&pk, stdin.clone()).compressed().await;}
+            Err(err) => println!("ERROR {err}" )
+        }
+        // let proof = client.core(&pk, stdin.clone(), [0; 4]).await.unwrap();
+        // let _compressed = client.compress(&pk.verifying_key(), proof, vec![]).await.unwrap();
 
-        // Drop the client lock here so other operations can proceed
-        drop(client);
+        // let pk = client.setup(Z6M_ELF).await;
+        // let (mut proof, cycle_count) = client.prove(&pk, &stdin, proof_mode).await.unwrap();
+        // let proving_millis = start.elapsed().as_millis() as u64;
+        // let gas_used = proof.public_values.read::<u64>();
 
-        let proof_path = self.write_proof(&opts, &proof)?;
+        // // Drop the client lock here so other operations can proceed
+        // drop(client);
+
+        // let proof_path = self.write_proof(&opts, &proof)?;
+        // let log = ProvingLog {
+        //     block_number: opts.block_number,
+        //     gas_used,
+        //     cycle_count,
+        //     proof_path: proof_path.clone(),
+        //     proof_type: opts.proof_type.clone(),
+        //     proving_millis,
+        //     message: String::from("Success"),
+        // };
+        // self.persist_proving_logs(&opts.data_dir, &log)?;
+        // Ok(log)
+
         let log = ProvingLog {
             block_number: opts.block_number,
-            gas_used,
-            cycle_count,
-            proof_path: proof_path.clone(),
+            gas_used: 0,
+            cycle_count: 0,
+            proof_path: PathBuf::new(),
             proof_type: opts.proof_type.clone(),
-            proving_millis,
+            proving_millis: 0,
             message: String::from("Success"),
         };
-        self.persist_proving_logs(&opts.data_dir, &log)?;
         Ok(log)
+
     }
 
     // Static version of prove_block that takes client as parameter for concurrent use
@@ -536,15 +559,7 @@ impl Z6mProverService {
         info!("Service starting from block: {}", next_block);
 
         loop {
-            let mut latest = match Self::get_block_number_with_retry(&provider, 3).await {
-                Ok(latest) => latest,
-                Err(err) => {
-                    error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
-                    sleep(Duration::from_secs(30)).await;
-                    continue;
-                }
-            };
-
+            let mut latest = next_block;
             if service.end_block.is_some() {
                 let end = service.end_block.unwrap();
                 if next_block > end {
@@ -553,6 +568,15 @@ impl Z6mProverService {
                 if latest > end {
                     latest = end;
                 }
+            } else {
+                latest = match Self::get_block_number_with_retry(&provider, 3).await {
+                    Ok(latest) => latest,
+                    Err(err) => {
+                        error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
+                        sleep(Duration::from_secs(30)).await;
+                        continue;
+                    }
+                };
             }
 
             // Collect blocks to process
@@ -754,11 +778,10 @@ impl Z6mProverService {
         // Use CPU executor for the service
         // let client = ProverClient::from_env().await;
 
-
         // let mut sp1_core_opts_default = SP1CoreOpts::default();
 
         let client = ProverClient::builder().cpu().build().await;
-        let (mut output, report) = client.execute(Z6M_ELF, stdin.clone()) .await.unwrap();
+        let (mut output, report) = client.execute(Z6M_ELF, stdin.clone()).await.unwrap();
         let gas_used = output.read::<u64>();
         let cycle_count = report.total_instruction_count();
         let prover_gas = report.gas.unwrap_or_default();

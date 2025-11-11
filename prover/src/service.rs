@@ -249,6 +249,8 @@ impl Z6mProverService {
         };
 
         let client = ProverClient::from_env();
+        let client2 = Exe
+    
 
         let (mut output, report) = client.execute(SILK_ST_ELF, &stdin).run().unwrap();
 
@@ -539,14 +541,14 @@ impl Z6mProverService {
         info!("Service starting from block: {}", next_block);
 
         loop {
-            let mut latest = match Self::get_block_number_with_retry(&provider, 3).await {
-                Ok(latest) => latest,
-                Err(err) => {
-                    error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
-                    sleep(Duration::from_secs(30)).await;
-                    continue;
-                }
-            };
+            // let mut latest = match Self::get_block_number_with_retry(&provider, 3).await {
+            //     Ok(latest) => latest,
+            //     Err(err) => {
+            //         error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
+            //         sleep(Duration::from_secs(30)).await;
+            //         continue;
+            //     }
+            // };
 
             if service.end_block.is_some() {
                 let end = service.end_block.unwrap();
