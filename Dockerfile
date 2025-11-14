@@ -1,6 +1,6 @@
 ## This is to be built locally on an environment already working with the build
 
-FROM ubuntu:25.04
+FROM ubuntu:24.04
 RUN apt update 
 RUN apt install -y --no-install-recommends ca-certificates curl gpg
 
@@ -33,6 +33,8 @@ RUN apt install -y \
       nvidia-container-toolkit-base \
       libnvidia-container-tools \
       libnvidia-container1
+
+
 
 COPY ./target/release/z6m_prover /usr/bin/z6m_prover
 COPY ./target/elf-compilation/riscv32im-succinct-zkvm-elf/release/z6m_guest /usr/local/bin/z6m_guest

@@ -155,37 +155,34 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     // // Set up tracing with info level by default
-    // let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
-
-    // fmt().with_env_filter(filter).init();
-
-    // dotenv::dotenv().ok();
-
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
+    fmt().with_env_filter(filter).init();
+    dotenv::dotenv().ok();
     let args = Args::parse();
 
-    // let ethproofs = match (
-    //     args.ethproofs_endpoint.clone(),
-    //     args.ethproofs_token.clone(),
-    //     args.ethproofs_cluster_id,
-    // ) {
-    //     (Some(endpoint), Some(token), Some(cluster_id)) => Some(EthProofsConfig {
-    //         endpoint,
-    //         token,
-    //         cluster_id,
-    //     }),
-    //     _ => None,
-    // };
+    let ethproofs = match (
+        args.ethproofs_endpoint.clone(),
+        args.ethproofs_token.clone(),
+        args.ethproofs_cluster_id,
+    ) {
+        (Some(endpoint), Some(token), Some(cluster_id)) => Some(EthProofsConfig {
+            endpoint,
+            token,
+            cluster_id,
+        }),
+        _ => None,
+    };
 
-    // let app_config = AppConfig {
-    //     data_dir: args.data_dir.clone(),
-    //     rpc_url: args.rpc_url.clone(),
-    //     save_all_responses: args.save_all_responses,
-    //     ethproofs,
-    // };
+    let app_config = AppConfig {
+        data_dir: args.data_dir.clone(),
+        rpc_url: args.rpc_url.clone(),
+        save_all_responses: args.save_all_responses,
+        ethproofs,
+    };
 
 
     // // DEBUGGGG
-    // let app = Z6mProverService::new(app_config).await?;
+    let app = Z6mProverService::new(app_config).await?;
 
 
     // /// ==================
@@ -276,25 +273,25 @@ async fn main() -> Result<()> {
             proof_path,
             proof_type,
         }) => {
-        //     let pk = pk_path.clone();
+            let pk = pk_path.clone();
 
-        //     let log = app
-        //         .prove_block(&ProveOptions {
-        //             block_number,
-        //             file_name,
-        //             is_test,
-        //             data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
-        //             pk_path: pk,
-        //             proof_path,
-        //             proof_type,
-        //         })
-        //         .await?;
-        //     println!(
-        //         "Proved block {} (gas_used={}, proof={})",
-        //         log.block_number,
-        //         log.gas_used,
-        //         log.proof_path.display()
-        //     );
+            let log = app
+                .prove_block(&ProveOptions {
+                    block_number,
+                    file_name,
+                    is_test,
+                    data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
+                    pk_path: pk,
+                    proof_path,
+                    proof_type,
+                })
+                .await?;
+            println!(
+                "Proved block {} (gas_used={}, proof={})",
+                log.block_number,
+                log.gas_used,
+                log.proof_path.display()
+            );
         }
         Some(Command::Verify {
             proof_path,
