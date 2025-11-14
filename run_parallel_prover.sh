@@ -7,7 +7,7 @@
 set -e
 
 # Default configuration
-MAX_JOBS=12
+MAX_JOBS=4
 DATA_DIR="prover/temp"
 # DATA_DIR="/data"
 # PROVER_BIN="docker run -v "$PWD/prover/temp:/data:rw" somnergy/z6m_prover"

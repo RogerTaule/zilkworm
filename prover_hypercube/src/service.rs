@@ -213,12 +213,15 @@ impl Z6mProverService {
     }
 
     pub async fn new(config: AppConfig) -> Result<Self> {
-        let client: Arc<Mutex<DynamicProver>> = Arc::new(Mutex::new(DynamicProver::new().await?));
-        let eth_client = config.ethproofs.clone().map(EthproofsClient::new);
+        // let client: Arc<Mutex<DynamicProver>> = Arc::new(Mutex::new(DynamicProver::new().await?));
+        // let eth_client = config.ethproofs.clone().map(EthproofsClient::new);
         Ok(Self {
-            client,
-            config,
-            eth_client,
+            client: None,
+            config: None,
+            eth_client: None
+            // client,
+            // config,
+            // eth_client,
         })
     }
 
