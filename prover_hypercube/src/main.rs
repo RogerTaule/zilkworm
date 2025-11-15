@@ -181,40 +181,32 @@ async fn main() -> Result<()> {
     };
 
 
-    // // DEBUGGGG
     let app = Z6mProverService::new(app_config).await?;
 
-
-    // /// ==================
-    // /// 
-    // /// 
-    // /// 
-    // /// 
-    // /// 
     
-    // if args.service {
-    //     let rpc_url = args.rpc_url.clone().or_else(|| {
-    //         args.command.as_ref().and_then(|cmd| match cmd {
-    //             Command::Fetch { rpc_url, .. } => rpc_url.clone(),
-    //             _ => None,
-    //         })
-    //     });
-    //     let rpc_url = rpc_url.ok_or_else(|| eyre!("--service requires --rpc-url"))?;
+    if args.service {
+        let rpc_url = args.rpc_url.clone().or_else(|| {
+            args.command.as_ref().and_then(|cmd| match cmd {
+                Command::Fetch { rpc_url, .. } => rpc_url.clone(),
+                _ => None,
+            })
+        });
+        let rpc_url = rpc_url.ok_or_else(|| eyre!("--service requires --rpc-url"))?;
 
-    //     let service_config = ServiceConfig {
-    //         start_block: args.start_block,
-    //         end_block: args.end_block,
-    //         prove_every: args.prove_every,
-    //         execute_every: args.execute_every,
-    //         post_every: args.post_every,
-    //         rpc_url,
-    //         save_all_responses: args.save_all_responses,
-    //         proving_key_path: Some(args.pk_path.clone()),
-    //         proof_type: args.proof_type.clone(),
-    //     };
-    //     app.run_service(service_config).await?;
-    //     return Ok(());
-    // }
+        let service_config = ServiceConfig {
+            start_block: args.start_block,
+            end_block: args.end_block,
+            prove_every: args.prove_every,
+            execute_every: args.execute_every,
+            post_every: args.post_every,
+            rpc_url,
+            save_all_responses: args.save_all_responses,
+            proving_key_path: Some(args.pk_path.clone()),
+            proof_type: args.proof_type.clone(),
+        };
+        app.run_service(service_config).await?;
+        return Ok(());
+    }
 
     match args.command {
         Some(Command::Setup { pk_path, vk_path }) => {
@@ -281,7 +273,6 @@ async fn main() -> Result<()> {
                     file_name,
                     is_test,
                     data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
-                    pk_path: pk,
                     proof_path,
                     proof_type,
                 })

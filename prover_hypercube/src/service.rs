@@ -11,8 +11,8 @@ use serde::Serialize;
 use sp1_cuda::CudaProvingKey;
 use sp1_prover::worker::SP1CoreExecutor;
 use sp1_prover::{SP1CompressWitness, SP1CoreProof, SP1CoreProofData, SP1ProofWithMetadata};
-use sp1_sdk::Executor;
 use sp1_sdk::cuda::builder::CudaProverBuilder;
+use sp1_sdk::Executor;
 use sp1_sdk::{
     cpu::CPUProvingKey, include_elf, CpuProver, CudaProver, Elf, ProveRequest, Prover,
     ProverClient, ProvingKey, SP1Proof, SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin,
@@ -37,6 +37,7 @@ enum DynamicProver {
     Cuda(CudaProver),
 }
 
+#[derive(Clone)]
 enum DynProvingKey {
     Env(CPUProvingKey),
     Cuda(CudaProvingKey),
@@ -167,7 +168,6 @@ pub struct ProveOptions {
     pub file_name: Option<PathBuf>,
     pub is_test: bool,
     pub data_dir: PathBuf,
-    pub pk_path: PathBuf,
     pub proof_path: Option<PathBuf>,
     pub proof_type: String,
 }
@@ -201,6 +201,8 @@ pub struct ProvingLog {
 
 pub struct Z6mProverService {
     client: Arc<Mutex<DynamicProver>>,
+    proving_key: DynProvingKey,
+    verifying_key: SP1VerifyingKey,
     config: AppConfig,
     eth_client: Option<EthproofsClient>,
 }
@@ -213,13 +215,21 @@ impl Z6mProverService {
     }
 
     pub async fn new(config: AppConfig) -> Result<Self> {
-        let client: Arc<Mutex<DynamicProver>> = Arc::new(Mutex::new(DynamicProver::new().await?));
+        let prover_client = DynamicProver::new().await?;
+        let proving_key = prover_client.setup(Z6M_ELF).await;
+        let verifying_key = match &proving_key {
+            DynProvingKey::Env(env_pk) => env_pk.verifying_key().clone(),
+            DynProvingKey::Cuda(cuda_pk) => cuda_pk.verifying_key().clone(),
+        };
         let eth_client = config.ethproofs.clone().map(EthproofsClient::new);
+        let client: Arc<Mutex<DynamicProver>> = Arc::new(Mutex::new(prover_client));
         Ok(Self {
             // client: None,
             // config: None,
             // eth_client: None
             client,
+            proving_key,
+            verifying_key,
             config,
             eth_client,
         })
@@ -303,8 +313,10 @@ impl Z6mProverService {
         let client = ProverClient::builder().cuda().build().await;
         let pk_res = client.setup(Z6M_ELF).await;
         match pk_res {
-            Ok(pk) => {let proof = client.prove(&pk, stdin.clone()).compressed().await;}
-            Err(err) => println!("ERROR {err}" )
+            Ok(pk) => {
+                let proof = client.prove(&pk, stdin.clone()).compressed().await;
+            }
+            Err(err) => println!("ERROR {err}"),
         }
         // let proof = client.core(&pk, stdin.clone(), [0; 4]).await.unwrap();
         // let _compressed = client.compress(&pk.verifying_key(), proof, vec![]).await.unwrap();
@@ -340,7 +352,6 @@ impl Z6mProverService {
             message: String::from("Success"),
         };
         Ok(log)
-
     }
 
     // Static version of prove_block that takes client as parameter for concurrent use
@@ -348,6 +359,8 @@ impl Z6mProverService {
         opts: &ProveOptions,
         client_arc: Arc<Mutex<DynamicProver>>,
         eth_client: Option<&EthproofsClient>,
+        proving_key: DynProvingKey,
+        verifying_key: SP1VerifyingKey,
     ) -> Result<ProvingLog> {
         let input_path = if let Some(file_name) = &opts.file_name {
             file_name.clone()
@@ -377,11 +390,6 @@ impl Z6mProverService {
         };
 
         let cfg = bincode::config::standard();
-        // let pk: DynProvingKey = {
-        //     let mut r = BufReader::new(File::open(&opts.pk_path)?);
-        //     bincode::serde::decode_from_std_read(&mut r, cfg)?
-        // };
-
         // Write proof to file
         let proof_path = opts
             .data_dir
@@ -397,35 +405,26 @@ impl Z6mProverService {
             client.proving(opts.block_number).await;
         }
 
-        let mut start = Instant::now();
-
-        // Get the verifying key first
-        let vk = {
-            let client = client_arc.lock().await;
-            let pk = client.setup(Z6M_ELF).await;
-            match &pk {
-                DynProvingKey::Env(env_pk) => env_pk.verifying_key().clone(),
-                DynProvingKey::Cuda(cuda_pk) => cuda_pk.verifying_key().clone(),
-            }
+        // Lock the client for exclusive proving access
+        let client = client_arc.lock().await;
+        let proof_mode = match opts.proof_type.as_str() {
+            "core" => SP1ProofMode::Core,
+            "groth16" => SP1ProofMode::Groth16,
+            "plonk" => SP1ProofMode::Plonk,
+            _ => SP1ProofMode::Compressed,
         };
 
-        // Lock the client for exclusive proving access and prove with timeout
+        let start = Instant::now();
+
+        // Apply timeout only to the prove operation
         let proof_result = tokio::time::timeout(
             Duration::from_secs(1800), // 30 minutes timeout
-            async {
-                let client = client_arc.lock().await;
-                let pk = client.setup(Z6M_ELF).await;
-                let proof_mode = match opts.proof_type.as_str() {
-                    "core" => SP1ProofMode::Core,
-                    "groth16" => SP1ProofMode::Groth16,
-                    "plonk" => SP1ProofMode::Plonk,
-                    _ => SP1ProofMode::Compressed,
-                };
-                start = Instant::now();
-                client.prove(&pk, &stdin, proof_mode).await
-            },
+            client.prove(&proving_key.clone(), &stdin, proof_mode),
         )
         .await;
+
+        // Explicitly drop the lock before processing results
+        drop(client);
 
         let proving_millis = start.elapsed().as_millis() as u64;
 
@@ -450,7 +449,6 @@ impl Z6mProverService {
                 if let Some(client) = eth_client {
                     // Read proof bytes back from file
                     let proof_bytes = std::fs::read(&proof_path)?;
-                    // Get vk from pk
 
                     client
                         .proved(
@@ -458,7 +456,7 @@ impl Z6mProverService {
                             opts.block_number,
                             cycle_count,
                             proving_millis,
-                            &vk,
+                            &verifying_key.clone(),
                         )
                         .await;
                 }
@@ -589,6 +587,9 @@ impl Z6mProverService {
             let data_dir = self.config.data_dir.clone();
             let client_arc = self.client.clone(); // Clone the Arc<Mutex<DynamicProver>>
             let eth_client = self.eth_client.clone();
+            // Clone owned copies of the proving/verifying keys so the spawned tasks
+            // don't capture a short-lived reference to `self`.
+
             let tasks: Vec<_> = blocks_to_process
                 .into_iter()
                 .map(|block_num| {
@@ -596,17 +597,24 @@ impl Z6mProverService {
                     let data_dir_clone = data_dir.clone();
                     let client_clone = client_arc.clone();
                     let eth_client_clone = eth_client.clone();
-                    tokio::spawn(async move {
-                        if let Err(err) = Self::process_block_static(
-                            block_num,
-                            &service_clone,
-                            &data_dir_clone,
-                            client_clone,
-                            eth_client_clone.as_ref(),
-                        )
-                        .await
-                        {
-                            error!(%block_num, error = %err, "failed to process block");
+                    tokio::spawn({
+                        let proving_key = self.proving_key.clone();
+                        let verifying_key = self.verifying_key.clone();
+
+                        async move {
+                            if let Err(err) = Self::process_block_static(
+                                block_num,
+                                &service_clone,
+                                &data_dir_clone,
+                                client_clone,
+                                eth_client_clone.as_ref(),
+                                proving_key.clone(),
+                                verifying_key.clone(),
+                            )
+                            .await
+                            {
+                                error!(%block_num, error = %err, "failed to process block");
+                            }
                         }
                     })
                 })
@@ -661,6 +669,8 @@ impl Z6mProverService {
         data_dir: &PathBuf,
         client: Arc<Mutex<DynamicProver>>,
         eth_client: Option<&EthproofsClient>,
+        proving_key: DynProvingKey,
+        verifying_key: SP1VerifyingKey,
     ) -> Result<()> {
         println!(
             "[{}] Received block number from RPC {}",
@@ -721,26 +731,24 @@ impl Z6mProverService {
                 client.queued(block_number).await;
             }
 
-            let pk_path = match service.proving_key_path.clone() {
-                Some(path) => path,
-                None => {
-                    warn!(%block_number, "skipping proving because no pk_path provided");
-                    return Ok(());
-                }
-            };
             let prove_opts = ProveOptions {
                 block_number,
                 file_name: Some(unified_path.clone()),
                 is_test: false,
                 data_dir: data_dir.clone(),
-                pk_path: pk_path.clone(),
                 proof_path: None, // Will be generated by prove_block method
                 proof_type: service.proof_type.clone(),
             };
 
             match tokio::time::timeout(
                 Duration::from_secs(1800), // 30 minutes timeout
-                Self::prove_block_with_client(&prove_opts, client.clone(), eth_client),
+                Self::prove_block_with_client(
+                    &prove_opts,
+                    client.clone(),
+                    eth_client,
+                    proving_key,
+                    verifying_key,
+                ),
             )
             .await
             {
