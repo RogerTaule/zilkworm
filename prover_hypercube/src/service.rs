@@ -476,6 +476,20 @@ impl Z6mProverService {
                 Ok(log)
             }
             Ok(Err(err)) => {
+
+                let log = ProvingLog {
+                    block_number: opts.block_number,
+                    gas_used: 0,
+                    cycle_count: 0,
+                    proof_path: proof_path.clone(),
+                    proof_type: opts.proof_type.clone(),
+                    proving_millis: 0,
+                    message: String::from("FAILED"),
+                };
+
+                // Write log to file
+                Self::persist_proving_logs_static(&opts.data_dir, &log)?;
+
                 // Proving operation failed
                 println!(
                     "[{}] Error trying to prove block {}: {}",
@@ -484,35 +498,12 @@ impl Z6mProverService {
                     err
                 );
 
-                let log = ProvingLog {
-                    block_number: opts.block_number,
-                    gas_used: 0,
-                    cycle_count: 0,
-                    proof_path: proof_path.clone(),
-                    proof_type: opts.proof_type.clone(),
-                    proving_millis,
-                    message: err.to_string(),
-                };
-
-                Self::persist_proving_logs_static(&opts.data_dir, &log)?;
                 bail!("Proving failed: {}", err)
             }
             Err(_timeout_err) => {
                 // Timeout occurred
                 let err_msg = format!("Proving timed out after {} seconds", 1800);
                 println!("[{}] {}", Self::format_timestamp(), err_msg);
-
-                let log = ProvingLog {
-                    block_number: opts.block_number,
-                    gas_used: 0,
-                    cycle_count: 0,
-                    proof_path: proof_path.clone(),
-                    proof_type: opts.proof_type.clone(),
-                    proving_millis,
-                    message: err_msg.clone(),
-                };
-
-                Self::persist_proving_logs_static(&opts.data_dir, &log)?;
                 bail!("{}", err_msg)
             }
         }
@@ -570,7 +561,7 @@ impl Z6mProverService {
                     latest = end;
                 }
             } else {
-                latest = match Self::get_block_number_with_retry(&provider, 3).await {
+                latest = match Self::get_block_number_with_retry(&provider, 6).await {
                     Ok(latest) => latest,
                     Err(err) => {
                         error!(error = %err, "Failed to get latest block number after retries, will retry in 30 seconds");
@@ -613,8 +604,7 @@ impl Z6mProverService {
                             )
                             .await
                             {
-                              
- error!(%block_num, error = %err, "failed to process block");
+                                error!(%block_num, error = %err, "failed to process block");
                             }
                         }
                     })
@@ -624,19 +614,29 @@ impl Z6mProverService {
             if !tasks.is_empty() {
                 // Wait for all spawned tasks to complete
                 for task in tasks {
-                    let _ = task.await;
+                    let res = task.await;
+                    if res.is_err() {
+                        let prover_client = DynamicProver::new().await?;
+                        let proving_key = prover_client.setup(Z6M_ELF).await;
+                        let verifying_key = match &proving_key {
+                            DynProvingKey::Env(env_pk) => env_pk.verifying_key().clone(),
+                            DynProvingKey::Cuda(cuda_pk) => cuda_pk.verifying_key().clone(),
+                        };
+                        let client: Arc<Mutex<DynamicProver>> = 
+                        self.client = Arc::new(Mutex::new(prover_client));
+                        error!(res.err());
+                        break;
+                    }
                 }
                 next_block = latest + 1;
             }
 
-            sleep(Duration::from_secs(6)).await;
+            sleep(Duration::from_secs(2)).await;
         }
     }
 
     // Helper method to get block number with retry logic
-    async
-                        error!(res.err());
-                        break; fn get_block_number_with_retry<P>(provider: &P, max_retries: u32) -> Result<u64>
+    async fn get_block_number_with_retry<P>(provider: &P, max_retries: u32) -> Result<u64>
     where
         P: Provider,
     {
@@ -651,7 +651,7 @@ impl Z6mProverService {
                         return Err(err.into());
                     }
 
-                    let delay = Duration::from_secs(2_u64.pow(attempts.min(5))); // Exponential backoff, max 32 seconds
+                    let delay = Duration::from_secs(2);
                     warn!(
                         attempt = attempts,
                         max_retries = max_retries,
