@@ -1,7 +1,4 @@
-TESTS_DIR := ../fixtures/fixtures_develop/fixtures/blockchain_tests
-
-# A tests subdir for filtering tests to run
-TESTS_SUBDIR := prague
+TESTS_DIR := ../fixtures/fixtures_develop/fixtures/blockchain_tests/prague
 
 SHELL = /bin/bash
 .SHELLFLAGS = -o pipefail -c
