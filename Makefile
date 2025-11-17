@@ -1,9 +1,11 @@
-TESTS_DIR := ../silkworm/third_party/ethereum-tests/BlockchainTests
+TESTS_DIR := ../fixtures/fixtures_develop/fixtures/blockchain_tests/prague
 
+SHELL = /bin/bash
+.SHELLFLAGS = -o pipefail -c
 .PHONY: z6m_guest z6m_prover selftest tests
 
 z6m_guest:
-	rm -r target/elf-compilation/riscv32im-succinct-zkvm-elf/release/build/z6m_guest-* || true
+	rm -rf target/elf-compilation/riscv32im-succinct-zkvm-elf/release/build/z6m_guest-* || true
 	(cd guest_program && cargo prove build)
 
 z6m_prover: z6m_guest
@@ -21,6 +23,8 @@ LOGFILES := $(addprefix target/logs/,$(RELTESTS:.json=.log))
 
 tests: $(LOGFILES)
 
+.DELETE_ON_ERROR:
+
 target/logs/%.log: $(TESTS_DIR)/%.json
 	@mkdir -p $(dir $@)
-	target/release/z6m_prover execute --is-test --file-name $< 2>&1 | tee $@
+	target/release/z6m_prover execute --is-test --file-name $< 2>&1 | tee $@ || (echo "CRASHED! $@" && rm $@)
