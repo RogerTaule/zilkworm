@@ -1,4 +1,7 @@
-TESTS_DIR := ../fixtures/fixtures_develop/fixtures/blockchain_tests/prague
+TESTS_DIR := ../fixtures/fixtures_develop/fixtures/blockchain_tests
+
+# A tests subdir for filtering tests to run
+TESTS_SUBDIR := prague
 
 SHELL = /bin/bash
 .SHELLFLAGS = -o pipefail -c
@@ -17,7 +20,7 @@ selftest: z6m_prover
 execute_block: z6m_prover
 	target/release/z6m_prover execute --file-name prover/temp/23442030/unifiedBlockAndStateRlp23442030.json
 
-TESTFILES := $(shell find $(TESTS_DIR) -type f -name '*.json')
+TESTFILES := $(shell find $(TESTS_DIR)/${TESTS_SUBDIR} -type f -name '*.json')
 RELTESTS := $(patsubst $(TESTS_DIR)/%,%,$(TESTFILES))
 LOGFILES := $(addprefix target/logs/,$(RELTESTS:.json=.log))
 
