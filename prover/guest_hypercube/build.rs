@@ -4,15 +4,7 @@ use std::{env, path::Path};
 fn main() {
     // Tell rustc to use our custom linker script.
     let manifest_root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let templib_dir = manifest_root + "/../prelibs64";
-
-    // Add libstdc++.a location for rv64im/lp64
-    // let home_dir = std::env::var("HOME").unwrap();
-    // let libstdcpp_path = format!("{}/.local/xPacks/@xpack-dev-tools/riscv-none-elf-gcc/14.2.0-3.1/.content/riscv-none-elf/lib/rv64im/lp64", home_dir);
-
-    // let libgcc_path = format!("{}/.local/xPacks/@xpack-dev-tools/riscv-none-elf-gcc/14.2.0-3.1/.content/lib/gcc/riscv-none-elf/14.2.0/rv64im/lp64", home_dir);
-    // println!("cargo:rustc-link-search=native={}", libstdcpp_path);
-    // println!("cargo:rustc-link-search=native={}", libgcc_path);
+    let templib_dir = manifest_root.clone() + "/../prelibs64";
 
     // println!("cargo:rustc-link-search=native={templib_dir}");
     println!("cargo:rustc-link-arg=-z");
@@ -33,7 +25,8 @@ fn main() {
 
     // println!("cargo:rustc-link-search=native={templib_dir}");
     let conan_dir = Path::new("build/conan2");
-    let dst = cmake::Config::new("../silkworm")
+    let sp1_include_dir = format!("{}/src/include", manifest_root);
+    let dst = cmake::Config::new("../../silkworm")
         .build_arg("-j16") // Use 4 parallel jobs, adjust as needed
         .define("SP1", "ON")
         .define("CMAKE_BUILD_TYPE", "Release")
@@ -42,7 +35,7 @@ fn main() {
         .define("CMAKE_SYSTEM_PROCESSOR", "riscv64")
         .define("CMAKE_CXX_STANDARD", "20")
         .define("CMAKE_CXX_STANDARD_REQUIRED", "ON")
-        .define("CMAKE_CXX_FLAGS", "-nostdlib -O2 -fno-rtti -ffunction-sections -fdata-sections -fPIC -march=rv64im -mabi=lp64 -fno-threadsafe-statics -DNDEBUG -fno-stack-protector -fno-builtin-trap")
+        .define("CMAKE_CXX_FLAGS", format!("-nostdlib -O2 -fno-rtti -ffunction-sections -fdata-sections -fPIC -march=rv64im -mabi=lp64 -fno-threadsafe-statics -DNDEBUG -fno-stack-protector -fno-builtin-trap -I{sp1_include_dir}"))
         .define(
             "CMAKE_EXE_LINKER_FLAGS",
             format!("-T{templib_dir}/ldscripts/elf64lriscv.xn -z norelro"),
@@ -99,8 +92,8 @@ fn main() {
         .file("src/wrapper.cpp")
         .include("src/include")
         // FIXME: these are needed to build evmone, but silkworm builds fine.
-        .include("../silkworm/third_party/evmone/evmone/lib")
-        .include("../silkworm/third_party/evmone/evmone/lib/evmone_precompiles")
+        .include("../../silkworm/third_party/evmone/evmone/lib")
+        .include("../../silkworm/third_party/evmone/evmone/lib/evmone_precompiles")
         .flag("-nostdlib")
         .flag("-O2")
         .flag("-Wno-unused-parameter")
@@ -139,7 +132,6 @@ fn main() {
         }
     }
 
-    // ── 1. point pkg-config at the .pc files Conan generated ──────────────
     let conan_pc_dir = dst.join("build/conan2"); // <-- adjust if needed
     std::env::set_var("PKG_CONFIG_PATH", &conan_pc_dir);
     std::env::set_var("PKG_CONFIG_ALLOW_CROSS", "1");
@@ -153,7 +145,6 @@ fn main() {
         "cargo:warning=Direct from env - PKG_CONFIG_PATH: {}",
         std::env::var("PKG_CONFIG_PATH").unwrap()
     );
-    // ── 3. pull cflags (include dirs) from the .pc files we care about ────
     for pkg in ["ms-gsl", "nlohmann_json", "magic_enum", "tl-expected"] {
         if let Ok(meta) = pkg_config::Config::new()
             // .statik(true) // ensure −static libs if present

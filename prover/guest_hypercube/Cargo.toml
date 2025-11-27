@@ -12,7 +12,7 @@ version = "0.2.15"
 default-features = false
 
 [dependencies.sp1-zkvm]
-path = "../../sp1-wip/crates/zkvm/entrypoint"
+path = "../../../sp1-wip/crates/zkvm/entrypoint"
 default-features = false
 version = "*"
 features = ["lib"]

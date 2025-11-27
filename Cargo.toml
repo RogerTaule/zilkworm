@@ -1,9 +1,0 @@
-[workspace]
-members = [
-    "guest_hypercube",
-    "prover_hypercube",
-]
-resolver = "2"
-
-[workspace.dependencies]
-alloy-sol-types = "1.0"
