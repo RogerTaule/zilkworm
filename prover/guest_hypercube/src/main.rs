@@ -1,4 +1,4 @@
-//! A simple program that takes sample runs silkworm's state transition
+//! A simple program that takes sample runs zilk_core's state transition
 
 // These two lines are necessary for the program to properly compile.
 //

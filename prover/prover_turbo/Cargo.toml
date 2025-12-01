@@ -1,6 +1,6 @@
 [package]
 version = "0.1.0"
-name = "z6m_prover"
+name = "z6m_prover_turbo"
 edition = "2021"
 default-run = "z6m_prover"
 

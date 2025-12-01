@@ -1,6 +1,6 @@
 [package]
 version = "0.1.0"
-name = "z6m_guest"
+name = "z6m_guest_turbo"
 edition = "2021"
 
 

@@ -19,7 +19,7 @@ test_hc: z6m_prover
 
 z6m_guest_turbo:
 	rm -r prover/target/elf-compilation/riscv32im-succinct-zkvm-elf/release/build/z6m_guest-* || true
-	(cd guest_program && cargo prove build)
+	(cd prover/guest_turbo && cargo prove build)
 
 z6m_prover_turbo: z6m_guest_turbo
 	cargo build --release --manifest-path prover/prover_turbo/Cargo.toml

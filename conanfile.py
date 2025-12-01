@@ -1,3 +1,4 @@
+# Copyright 2025 The Zilkworm Authors
 # Copyright 2025 The Silkworm Authors
 # SPDX-License-Identifier: Apache-2.0
 

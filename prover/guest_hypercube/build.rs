@@ -88,7 +88,7 @@ fn main() {
     let mut builder = binding
         .include(include_dir)
         .cpp(true)
-        .std("c++20")
+        .std("c++23")
         .file("src/wrapper.cpp")
         .include("src/include")
         // FIXME: these are needed to build evmone, but silkworm builds fine.
