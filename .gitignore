@@ -2,7 +2,7 @@
 **/target
 **/prelibs*/**
 # Cargo config
-.cargo
+# .cargo
 **/build
 # Profile-guided optimization
 /tmp
