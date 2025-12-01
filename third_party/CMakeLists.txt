@@ -4,5 +4,7 @@
 # please keep the list sorted
 # add_subdirectory(blst)
 include(evmone/evmone/cmake/blst.cmake)
-add_subdirectory(intx)
+set(INTX_INSTALL TRUE)
+add_subdirectory(intx/intx)
+
 add_subdirectory(evmone) # depends on intx
