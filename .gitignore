@@ -39,4 +39,5 @@ cmake-build-*
 **conan2/
 **build/
 **deps/
-**third_party/**
+third_party/*/*/build/
+third_party/*/*/deps/
