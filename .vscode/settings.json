@@ -1,5 +1,5 @@
 {
-    "cmake.sourceDirectory": "/home/somnath/Documents/code/z6m/silkworm",
+    "cmake.sourceDirectory": "/home/som/Documents/code/z6m",
     "files.associations": {
         "*.S": "c",
         "any": "cpp",

@@ -26,7 +26,7 @@ fn main() {
     // println!("cargo:rustc-link-search=native={templib_dir}");
     let conan_dir = Path::new("build/conan2");
     let sp1_include_dir = format!("{}/src/include", manifest_root);
-    let dst = cmake::Config::new("../../silkworm")
+    let dst = cmake::Config::new("../..")
         .build_arg("-j16") // Use 4 parallel jobs, adjust as needed
         .define("SP1", "ON")
         .define("CMAKE_BUILD_TYPE", "Release")
@@ -53,8 +53,8 @@ fn main() {
     let dst_display = dst.display();
     for subdir in [
         "lib",
-        "build/silkworm/core",
-        "build/silkworm/dev",
+        "build/zilk_core/core",
+        "build/zilk_core/dev",
         "build/third_party/evmone",
         "build/deps/src/blst",
     ] {
@@ -92,8 +92,8 @@ fn main() {
         .file("src/wrapper.cpp")
         .include("src/include")
         // FIXME: these are needed to build evmone, but silkworm builds fine.
-        .include("../../silkworm/third_party/evmone/evmone/lib")
-        .include("../../silkworm/third_party/evmone/evmone/lib/evmone_precompiles")
+        .include("../../zilk_core/third_party/evmone/evmone/lib")
+        .include("../../zilk_core/third_party/evmone/evmone/lib/evmone_precompiles")
         .flag("-nostdlib")
         .flag("-O2")
         .flag("-Wno-unused-parameter")

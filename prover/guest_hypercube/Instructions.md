@@ -8,11 +8,11 @@ source ~/.bashrc
 sp1up --c-toolchain
 ```
 
-### Directory for pre-built libs for riscv32im
+### Directory for pre-built libs for riscv64im
 
 Download the tar
 ```
-wget https://github.com/somnathb1/cppsp1explorations/raw/ebc1da3252da1f6c9547fb99f5029acd0e296567/riscv32im_filtered_gcc_stdcpp_libs.tar.gz
+wget https://github.com/erigontech/z6m/releases/download/prelibs/prelibs64.tar.xz
 ```
 
 Untar the tar containing the libs here in place
