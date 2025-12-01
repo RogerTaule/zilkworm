@@ -8,7 +8,6 @@ find_package(magic_enum REQUIRED)
 find_package(Microsoft.GSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(tl-expected REQUIRED)
-# include(../../third_party/evmone/evmone/cmake/blst.cmake)
 
 
 if(SILKWORM_CORE_ONLY)

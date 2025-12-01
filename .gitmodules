@@ -1,11 +1,11 @@
 [submodule "evmone"]
-	path = third_party/evmone/evmone
+	path = third_party/evmone
 	url = https://github.com/somnathb1/zevmone.git
 	branch = hyper1
 [submodule "intx"]
-	path = third_party/intx/intx
-	url = https://github.com/somnathb1/intx.git
-	branch = som/zz_dirty
+	path = third_party/intx
+	url = https://github.com/chfast/intx.git
+	branch = master
 [submodule "ethereum-tests"]
 	path = third_party/ethereum-tests
 	url = https://github.com/ethereum/tests.git

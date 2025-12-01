@@ -55,7 +55,7 @@ fn main() {
         "lib",
         "build/zilk_core/core",
         "build/zilk_core/dev",
-        "build/third_party/evmone",
+        "build/third_party",
         "build/deps/src/blst",
     ] {
         println!("cargo:rustc-link-search=native={}/{}", dst_display, subdir);
@@ -92,8 +92,8 @@ fn main() {
         .file("src/wrapper.cpp")
         .include("src/include")
         // FIXME: these are needed to build evmone, but silkworm builds fine.
-        .include("../../zilk_core/third_party/evmone/evmone/lib")
-        .include("../../zilk_core/third_party/evmone/evmone/lib/evmone_precompiles")
+        .include("../../zilk_core/third_party/evmone/lib")
+        .include("../../zilk_core/third_party/evmone/lib/evmone_precompiles")
         .flag("-nostdlib")
         .flag("-O2")
         .flag("-Wno-unused-parameter")
