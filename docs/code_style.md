@@ -32,7 +32,6 @@ This is a list of project-specific guidelines that take precedence over the rule
 ### Libraries
 
 1. `<filesystem>` is allowed.
-1. Usage of coroutines is allowed via [task.hpp](../silkworm/infra/concurrency/task.hpp) inclusion.
 1. In addition to the [Boost libraries permitted in the style guide](https://google.github.io/styleguide/cppguide.html#Boost), we allow:
 	* Algorithm
 	* Asio

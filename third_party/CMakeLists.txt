@@ -44,8 +44,6 @@ add_library(
   evmone/lib/evmone/constants.hpp
   evmone/lib/evmone/delegation.cpp
   evmone/lib/evmone/delegation.hpp
-  # evmone/lib/evmone/eof.cpp
-  # evmone/lib/evmone/eof.hpp
   evmone/lib/evmone_precompiles/secp256r1.cpp
   evmone/lib/evmone/execution_state.hpp
   evmone/lib/evmone/instructions_calls.cpp
