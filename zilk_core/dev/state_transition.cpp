@@ -611,10 +611,7 @@ uint64_t StateTransition::run_rlp() {
     // Use Mainnet config.
     // This can be latter extended to public testnets by providing chain id
     // and selecting the appropriate config from kKnownChainConfigs.
-    // const auto config = kMainnetConfig;
-
-    auto config{test::kNetworkConfig.find("Prague")->second};
-    Blockchain blockchain{state, config, genesisBlock};
+    Blockchain blockchain{state, kMainnetConfig, genesisBlock};
 
     if (ValidationResult err{blockchain.insert_block(block, false)}; err != ValidationResult::kOk) {
         std::cout << "Validation error " << magic_enum::enum_name<ValidationResult>(err) << '\n';
