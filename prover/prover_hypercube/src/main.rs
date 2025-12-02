@@ -219,23 +219,23 @@ async fn main() -> Result<()> {
             save_all_responses,
             build_eth_test,
         }) => {
-        //     let rpc = rpc_url
-        //         .or_else(|| args.rpc_url.clone())
-        //         .ok_or_else(|| eyre!("fetch requires --rpc-url"))?;
-        //     let outcome = app
-        //         .fetch_block(FetchOptions {
-        //             block_number,
-        //             rpc_url: rpc,
-        //             save_all_responses: save_all_responses || args.save_all_responses,
-        //             data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
-        //             build_eth_test,
-        //         })
-        //         .await?;
-        //     println!(
-        //         "Fetched block {} into {}",
-        //         outcome.block_number,
-        //         outcome.block_directory.display()
-        //     );
+            let rpc = rpc_url
+                .or_else(|| args.rpc_url.clone())
+                .ok_or_else(|| eyre!("fetch requires --rpc-url"))?;
+            let outcome = app
+                .fetch_block(FetchOptions {
+                    block_number,
+                    rpc_url: rpc,
+                    save_all_responses: save_all_responses || args.save_all_responses,
+                    data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
+                    build_eth_test,
+                })
+                .await?;
+            println!(
+                "Fetched block {} into {}",
+                outcome.block_number,
+                outcome.block_directory.display()
+            );
         }
         Some(Command::Execute {
             block_number,
