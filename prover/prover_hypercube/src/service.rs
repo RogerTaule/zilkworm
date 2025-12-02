@@ -531,7 +531,7 @@ impl Z6mProverService {
         Ok(())
     }
 
-    pub async fn run_service(&self, service: ServiceConfig) -> Result<()> {
+    pub async fn run_service(&mut self, service: ServiceConfig) -> Result<()> {
         info!("starting service mode");
         let url = Url::parse(&service.rpc_url)?;
         let provider = ProviderBuilder::new().connect_http(url);
@@ -615,16 +615,16 @@ impl Z6mProverService {
                 // Wait for all spawned tasks to complete
                 for task in tasks {
                     let res = task.await;
-                    if res.is_err() {
+                    if let Err(err) = res {
+                        // Reset the connection with the GPU prover
                         let prover_client = DynamicProver::new().await?;
                         let proving_key = prover_client.setup(Z6M_ELF).await;
                         let verifying_key = match &proving_key {
                             DynProvingKey::Env(env_pk) => env_pk.verifying_key().clone(),
                             DynProvingKey::Cuda(cuda_pk) => cuda_pk.verifying_key().clone(),
                         };
-                        let client: Arc<Mutex<DynamicProver>> = 
                         self.client = Arc::new(Mutex::new(prover_client));
-                        error!(res.err());
+                        error!("Task failed: {}", err);
                         break;
                     }
                 }

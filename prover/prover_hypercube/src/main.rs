@@ -181,7 +181,7 @@ async fn main() -> Result<()> {
     };
 
 
-    let app = Z6mProverService::new(app_config).await?;
+    let mut app = Z6mProverService::new(app_config).await?;
 
     
     if args.service {
