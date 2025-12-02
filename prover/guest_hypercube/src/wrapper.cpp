@@ -26,6 +26,11 @@ extern "C" uint64_t sample_run_wrapped(bool is_test, rust::Vec<uint8_t> rlp_or_j
     {
         (*p)();
     }
+
+    // Redirect std::cout and std::cerr to out_stream to capture output.
+    std::ostringstream out_stream;
+    std::cout.rdbuf(out_stream.rdbuf());
+    std::cerr.rdbuf(out_stream.rdbuf());
     sys_println("\nZilkworm guest initialized");
     uint64_t res = 0;
     if (is_test)
@@ -42,6 +47,7 @@ extern "C" uint64_t sample_run_wrapped(bool is_test, rust::Vec<uint8_t> rlp_or_j
         auto state_transition = silkworm::cmd::state_transition::StateTransition(view);
         res = state_transition.run_rlp();
     }
+    sys_print(out_stream.str().c_str());
     std::string msg = "[state_transition] run successful, gas used: " + std::to_string(res);
     sys_println(msg.c_str());
     return res;
