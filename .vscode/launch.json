@@ -10,10 +10,26 @@
       "cwd": "${workspaceFolder}/debug_build",
       "MIMode": "gdb",
       "miDebuggerPath": "riscv-none-elf-gdb",
-      "miDebuggerArgs": "-q -x ${workspaceFolder}/debug_build/.gdbinit ${workspaceFolder}/debug_build/build/z6m_debug -nx",             
+      "miDebuggerArgs": "-q -x ${workspaceFolder}/debug_build/.gdbinit ${workspaceFolder}/debug_build/build/z6m_debug -nx",
       "miDebuggerServerAddress": "localhost:1234",
       "stopAtEntry": true,
-      "logging": { "engineLogging": true, "trace": true, "traceResponse": true }
+      "logging": {
+        "engineLogging": true,
+        "trace": true,
+        "traceResponse": true
+      }
+    },
+    {
+      "name": "Native runner",
+      "type": "cppdbg",
+      "request": "launch",
+      "preLaunchTask": "CMake: build",
+      "program": "${workspaceFolder}/build/zilk_core/dev/cli/state_transition",
+      "args": [
+        "$HOME/Documents/code/z6m/temp/blocks/23925902/unifiedBlockAndStateRlp23925902.bin"
+      ],
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb"
     }
   ]
 }

@@ -37,7 +37,6 @@ StateTransition::StateTransition(const std::string& json_str, const bool termina
     blockchain_test_ = true;
     if (blockchain_test_) {
         std::cout << "Blockchain test\n";
-        std::cout << "Blockchain test\n";
     }
     test_data_ = test_object.value();
 }
@@ -51,7 +50,6 @@ StateTransition::StateTransition(const std::string& unified_rlp_str) noexcept {
 
     // Read from binary
     unified_rlp_ = ByteView{reinterpret_cast<const uint8_t*>(unified_rlp_str.data()), unified_rlp_str.size()};
-    std::cout << "in ctor unified_rlp_str RLP length: " << unified_rlp_str.size() << " unified_rlp_ RLP length: " << unified_rlp_.size() << "\n";
     std::cout << "in ctor unified_rlp_str RLP length: " << unified_rlp_str.size() << " unified_rlp_ RLP length: " << unified_rlp_.size() << "\n";
 }
 
