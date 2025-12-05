@@ -1,6 +1,6 @@
 [submodule "evmone"]
 	path = third_party/evmone
-	url = https://github.com/somnathb1/zevmone.git
+	url = https://github.com/erigontech/zevmone.git
 	branch = hyper1
 [submodule "intx"]
 	path = third_party/intx
