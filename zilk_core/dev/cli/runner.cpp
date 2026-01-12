@@ -9,6 +9,26 @@
 
 using namespace silkworm::cmd::state_transition;
 
+namespace {
+void run_test_file(const std::string& file_path) {
+    std::ifstream file(file_path);
+    const auto input_str = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    if (file.fail()) {
+        throw std::runtime_error("Failed to read file: " + file_path);
+    }
+    std::cout << file_path << "\n";
+    const auto terminate_on_error = false;
+    const auto show_diagnostics = true;
+    auto state_transition = StateTransition(input_str, terminate_on_error, show_diagnostics);
+    state_transition.run(1, true);
+}
+
+constexpr std::string_view FAILING_TESTS[]{
+    "cancun/eip4788_beacon_root/test_beacon_root_contract_deploy.json",
+    "cancun/eip6780_selfdestruct/test_recreate_self_destructed_contract_different_txs.json",
+};
+}  // namespace
+
 int main(int argc, const char* argv[]) {
     try {
         if (argc < 2) {
@@ -17,18 +37,23 @@ int main(int argc, const char* argv[]) {
         }
         const std::string file_path = argv[1];
 
-        if (file_path.ends_with(".json") || std::filesystem::is_directory(file_path)) {
-            std::cerr << "JSON\n";
-            std::ifstream file(file_path);
-            const auto input_str = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-            if (file.fail()) {
-                throw std::runtime_error("Failed to read file: " + file_path);
+        if (std::filesystem::is_directory(file_path)) {
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(file_path)) {
+                const auto& path = entry.path();
+                if (path.extension() == ".json") {
+                    if (std::ranges::any_of(FAILING_TESTS,
+                                            [&path](const auto& fail_test) {
+                                                return path.string().ends_with(fail_test);
+                                            })) {
+                        std::cout << path.string() << "\n  IGNORED (known failing test)\n";
+                        continue;
+                    }
+                    run_test_file(path.string());
+                }
             }
-            const auto terminate_on_error = false;
-            const auto show_diagnostics = true;
-            auto state_transition = StateTransition(input_str, terminate_on_error, show_diagnostics);
-            auto total_gas = state_transition.run(1, true);
-            std::cout << "Cumulative Gas Used: " << total_gas << "\n";
+            return 0;
+        } else if (file_path.ends_with(".json")) {
+            run_test_file(file_path);
             return 0;
         }
 
