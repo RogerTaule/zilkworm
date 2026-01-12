@@ -10,7 +10,7 @@
 using namespace silkworm::cmd::state_transition;
 
 namespace {
-void run_test_file(const std::string& file_path) {
+int run_test_file(const std::string& file_path) {
     std::ifstream file(file_path);
     const auto input_str = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     if (file.fail()) {
@@ -20,7 +20,7 @@ void run_test_file(const std::string& file_path) {
     const auto terminate_on_error = false;
     const auto show_diagnostics = true;
     auto state_transition = StateTransition(input_str, terminate_on_error, show_diagnostics);
-    state_transition.run(1, true);
+    return static_cast<int>(state_transition.run(1, true));
 }
 
 constexpr std::string_view FAILING_TESTS[]{
@@ -53,8 +53,7 @@ int main(int argc, const char* argv[]) {
             }
             return 0;
         } else if (file_path.ends_with(".json")) {
-            run_test_file(file_path);
-            return 0;
+            return run_test_file(file_path);
         }
 
         {

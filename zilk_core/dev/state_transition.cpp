@@ -621,17 +621,25 @@ uint64_t StateTransition::run_rlp() {
 
 uint64_t StateTransition::run(uint32_t num_runs, bool is_test) {
     if (is_test) {
+        bool any_failed = false;
+        bool any_skipped = false;
         for (const auto& [name, test] : base_json_.items()) {
             std::cout << "  " << name << ":\n";
             const auto result = blockchain_test(test);
             if (result.failed != 0) {
+                any_failed = true;
                 std::cout << "    FAILED\n";
             } else if (result.skipped != 0) {
                 std::cout << "    SKIPPED\n";
+                any_skipped = true;
             } else {
                 std::cout << "    passed\n";
             }
         }
+        if (any_failed)
+            return 1;
+        if (any_skipped)
+            return 2;
         return 0;
     }
 
