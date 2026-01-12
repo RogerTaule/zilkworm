@@ -22,11 +22,6 @@ int run_test_file(const std::string& file_path) {
     auto state_transition = StateTransition(input_str, terminate_on_error, show_diagnostics);
     return static_cast<int>(state_transition.run(1, true));
 }
-
-constexpr std::string_view FAILING_TESTS[]{
-    "cancun/eip4788_beacon_root/test_beacon_root_contract_deploy.json",
-    "cancun/eip6780_selfdestruct/test_recreate_self_destructed_contract_different_txs.json",
-};
 }  // namespace
 
 int main(int argc, const char* argv[]) {
@@ -41,13 +36,6 @@ int main(int argc, const char* argv[]) {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(file_path)) {
                 const auto& path = entry.path();
                 if (path.extension() == ".json") {
-                    if (std::ranges::any_of(FAILING_TESTS,
-                                            [&path](const auto& fail_test) {
-                                                return path.string().ends_with(fail_test);
-                                            })) {
-                        std::cout << path.string() << "\n  IGNORED (known failing test)\n";
-                        continue;
-                    }
                     run_test_file(path.string());
                 }
             }
