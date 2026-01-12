@@ -35,9 +35,6 @@ StateTransition::StateTransition(const std::string& json_str, const bool termina
     test_name_ = test_object.key();
     // blockchain_test_ = test_object->contains("_info") && test_object->contains("blocks");
     blockchain_test_ = true;
-    if (blockchain_test_) {
-        std::cout << "Blockchain test\n";
-    }
     test_data_ = test_object.value();
 }
 
@@ -625,14 +622,14 @@ uint64_t StateTransition::run_rlp() {
 uint64_t StateTransition::run(uint32_t num_runs, bool is_test) {
     if (is_test) {
         for (const auto& [name, test] : base_json_.items()) {
-            std::cout << name << ":\n";
+            std::cout << "  " << name << ":\n";
             const auto result = blockchain_test(test);
             if (result.failed != 0) {
-                std::cout << " FAILED\n";
+                std::cout << "    FAILED\n";
             } else if (result.skipped != 0) {
-                std::cout << " SKIPPED\n";
+                std::cout << "    SKIPPED\n";
             } else {
-                std::cout << " passed\n";
+                std::cout << "    passed\n";
             }
         }
         return 0;
