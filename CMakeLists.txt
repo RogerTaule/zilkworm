@@ -37,6 +37,7 @@ include(cmake/conan.cmake)
 project(zilkworm)
 set(PROJECT_VERSION 0.1.0-dev)
 
+include(CTest)
 include(CableBuildInfo)
 
 string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _ ${PROJECT_VERSION})
