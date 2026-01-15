@@ -32,6 +32,7 @@ int main(int argc, const char* argv[]) {
         }
         const std::string file_path = argv[1];
 
+        // Handle JSON tests in a directory.
         if (std::filesystem::is_directory(file_path)) {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(file_path)) {
                 const auto& path = entry.path();
@@ -40,21 +41,22 @@ int main(int argc, const char* argv[]) {
                 }
             }
             return 0;
-        } else if (file_path.ends_with(".json")) {
+        }
+
+        // Handle single JSON test file.
+        if (file_path.ends_with(".json")) {
             return run_test_file(file_path);
         }
 
-        {
-            std::ifstream file(file_path, std::ios::binary);
-            const auto input_str = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-            if (file.fail()) {
-                throw std::runtime_error("Failed to read file: " + file_path);
-            }
-            auto state_transition = StateTransition(input_str);
-            auto total_gas = state_transition.run_rlp();
-            std::cout << "Cumulative Gas Used: " << total_gas << "\n";
-            return 0;
+        // Assume binary unified RLP file.
+        std::ifstream file(file_path, std::ios::binary);
+        const auto input_str = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+        if (file.fail()) {
+            throw std::runtime_error("Failed to read file: " + file_path);
         }
+        auto state_transition = StateTransition(input_str);
+        auto total_gas = state_transition.run_rlp();
+        std::cout << "Cumulative Gas Used: " << total_gas << "\n";
         return 0;
     } catch (const std::exception& e) {
         // code to handle exceptions of type std::exception and its derived classes
