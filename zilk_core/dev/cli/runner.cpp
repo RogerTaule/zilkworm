@@ -62,9 +62,11 @@ int main(int argc, const char* argv[]) {
         // code to handle exceptions of type std::exception and its derived classes
         const auto desc = e.what();
         std::cerr << "Exception: " << desc << std::endl;
+        return 3;
     } catch (...) {
         // code to handle any other type of exception
         std::cerr << "An unknown exception occurred" << std::endl;
+        return 4;
     }
     return 0;
 }
