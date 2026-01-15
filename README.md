@@ -122,6 +122,10 @@ SP1_PROVER=cuda RUST_BACKTRACE=full RUST_LOG=info --prove --n 1 --file-name test
    ```bash
    ctest --test-dir build/release --parallel
    ```
+4. Run specific unified RLP-encoded block file:
+    ```bash
+    build/release/zilk_core/dev/cli/state_transition temp/blocks/23519000/unifiedBlockAndStateRlp23519000.bin
+    ```
 
 ## Acknowledgements
 We thank the hard work done by the teams and people behind
