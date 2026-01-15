@@ -10,7 +10,7 @@
 using namespace silkworm::cmd::state_transition;
 
 namespace {
-int run_test_file(const std::string& file_path) {
+int run_json_test_file(const std::string& file_path) {
     std::ifstream file(file_path);
     const auto input_str = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     if (file.fail()) {
@@ -21,6 +21,20 @@ int run_test_file(const std::string& file_path) {
     const auto show_diagnostics = true;
     auto state_transition = StateTransition(input_str, terminate_on_error, show_diagnostics);
     return static_cast<int>(state_transition.run(1, true));
+}
+
+int run_unified_bin_file(const std::string file_path) {
+    std::ifstream file(file_path, std::ios::binary);
+    const auto input_str = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    if (file.fail()) {
+        throw std::runtime_error("Failed to read file: " + file_path);
+    }
+    auto state_transition = StateTransition(input_str);
+    auto total_gas = state_transition.run_rlp();
+    std::cout << "Cumulative Gas Used: " << total_gas << "\n";
+
+    // TODO: Return non-zero on failure.
+    return 0;
 }
 }  // namespace
 
@@ -37,7 +51,7 @@ int main(int argc, const char* argv[]) {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(file_path)) {
                 const auto& path = entry.path();
                 if (path.extension() == ".json") {
-                    run_test_file(path.string());
+                    run_json_test_file(path.string());
                 }
             }
             return 0;
@@ -45,19 +59,11 @@ int main(int argc, const char* argv[]) {
 
         // Handle single JSON test file.
         if (file_path.ends_with(".json")) {
-            return run_test_file(file_path);
+            return run_json_test_file(file_path);
         }
 
         // Assume binary unified RLP file.
-        std::ifstream file(file_path, std::ios::binary);
-        const auto input_str = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-        if (file.fail()) {
-            throw std::runtime_error("Failed to read file: " + file_path);
-        }
-        auto state_transition = StateTransition(input_str);
-        auto total_gas = state_transition.run_rlp();
-        std::cout << "Cumulative Gas Used: " << total_gas << "\n";
-        return 0;
+        return run_unified_bin_file(file_path);
     } catch (const std::exception& e) {
         // code to handle exceptions of type std::exception and its derived classes
         const auto desc = e.what();
