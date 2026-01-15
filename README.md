@@ -108,6 +108,21 @@ root@instance-20250919-091229:/work#
 SP1_PROVER=cuda RUST_BACKTRACE=full RUST_LOG=info --prove --n 1 --file-name test.json
 ```
 
+## Testing
+
+### Native build
+
+1. Download and unpack the latest stable [EEST release](https://github.com/ethereum/execution-spec-tests/releases).
+2. Configure and build the CMake project with the path to the blockchain tests of the EEST:
+   ```bash
+   cmake -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DTESTS_DIR=/path/to/fixtures/blockchain_tests
+   cmake --build build/release
+   ```
+3. Run all tests with CTest:
+   ```bash
+   ctest --test-dir build/release --parallel
+   ```
+
 ## Acknowledgements
 We thank the hard work done by the teams and people behind
 1. Silkworm
