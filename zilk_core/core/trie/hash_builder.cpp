@@ -7,12 +7,11 @@
 #include <cstring>
 #include <span>
 
-#include <ethash/keccak.hpp>
-
-#include <silkworm/core/common/assert.hpp>
-#include <silkworm/core/common/empty_hashes.hpp>
-#include <silkworm/core/common/util.hpp>
-#include <silkworm/core/rlp/encode.hpp>
+#include <evmone_precompiles/keccak.hpp>
+#include <zilk_core/core/common/assert.hpp>
+#include <zilk_core/core/common/empty_hashes.hpp>
+#include <zilk_core/core/common/util.hpp>
+#include <zilk_core/core/rlp/encode.hpp>
 
 namespace silkworm::trie {
 
@@ -154,7 +153,7 @@ void HashBuilder::gen_struct_step(ByteView current, const ByteView succeeding) {
 
         const ByteView short_node_key{current.substr(from)};
         if (!build_extensions) {
-            if (const Bytes * leaf_value{std::get_if<Bytes>(&value_)}) {
+            if (const Bytes* leaf_value{std::get_if<Bytes>(&value_)}) {
                 stack_.push_back(node_ref(leaf_node_rlp(short_node_key, *leaf_value)));
             } else {
                 stack_.push_back(wrap_hash(std::get<evmc::bytes32>(value_).bytes));

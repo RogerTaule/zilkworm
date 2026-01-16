@@ -5,14 +5,13 @@
 
 #include <map>
 
-#include <ethash/keccak.hpp>
-
-#include <silkworm/core/common/empty_hashes.hpp>
-#include <silkworm/core/common/util.hpp>
-#include <silkworm/core/rlp/encode.hpp>
-#include <silkworm/core/trie/hash_builder.hpp>
-#include <silkworm/core/trie/nibbles.hpp>
-#include <silkworm/core/types/evmc_bytes32.hpp>
+#include <evmone_precompiles/keccak.hpp>
+#include <zilk_core/core/common/empty_hashes.hpp>
+#include <zilk_core/core/common/util.hpp>
+#include <zilk_core/core/rlp/encode.hpp>
+#include <zilk_core/core/trie/hash_builder.hpp>
+#include <zilk_core/core/trie/nibbles.hpp>
+#include <zilk_core/core/types/evmc_bytes32.hpp>
 
 namespace silkworm {
 

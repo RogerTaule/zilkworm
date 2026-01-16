@@ -8,8 +8,8 @@
 // #include <boost/asio/any_io_executor.hpp>
 // #include <boost/asio/ip/tcp.hpp>
 
-// #include <silkworm/core/common/base.hpp>
-// #include <silkworm/core/common/bytes.hpp>
+// #include <zilk_core/core/common/base.hpp>
+// #include <zilk_core/core/common/bytes.hpp>
 
 // namespace silkworm::sentry {
 

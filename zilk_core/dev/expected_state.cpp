@@ -6,10 +6,9 @@
 #include <iostream>
 
 #include <nlohmann/json.hpp>
-
-#include <silkworm/core/chain/config.hpp>
-#include <silkworm/core/common/test_util.hpp>
-#include <silkworm/core/types/evmc_bytes32.hpp>
+#include <zilk_core/core/chain/config.hpp>
+#include <zilk_core/core/common/test_util.hpp>
+#include <zilk_core/core/types/evmc_bytes32.hpp>
 
 namespace silkworm::cmd::state_transition {
 

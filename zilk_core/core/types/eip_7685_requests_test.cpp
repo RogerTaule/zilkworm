@@ -5,10 +5,10 @@
 
 // #include <catch2/catch_test_macros.hpp>
 
-// #include <silkworm/core/common/util.hpp>
-// #include <silkworm/core/types/evmc_bytes32.hpp>
+// #include <zilk_core/core/common/util.hpp>
+// #include <zilk_core/core/types/evmc_bytes32.hpp>
 
-// #include "silkworm/core/protocol/param.hpp"
+// #include "zilk_core/core/protocol/param.hpp"
 
 // namespace silkworm {
 

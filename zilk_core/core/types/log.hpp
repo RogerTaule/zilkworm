@@ -6,8 +6,7 @@
 #include <vector>
 
 #include <evmc/evmc.hpp>
-
-#include <silkworm/core/common/bytes.hpp>
+#include <zilk_core/core/common/bytes.hpp>
 
 namespace silkworm {
 

@@ -12,13 +12,12 @@
 
 #include <evmc/evmc.h>
 #include <intx/intx.hpp>
-
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/bytes.hpp>
-#include <silkworm/core/protocol/blockchain.hpp>
-#include <silkworm/core/state/in_memory_state.hpp>
-#include <silkworm/core/types/account.hpp>
-#include <silkworm/core/types/transaction.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/bytes.hpp>
+#include <zilk_core/core/protocol/blockchain.hpp>
+#include <zilk_core/core/state/in_memory_state.hpp>
+#include <zilk_core/core/types/account.hpp>
+#include <zilk_core/core/types/transaction.hpp>
 
 #define SILKWORM_EXPORT __attribute__((visibility("default")))
 

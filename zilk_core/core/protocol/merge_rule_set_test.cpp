@@ -5,8 +5,8 @@
 
 // #include <catch2/catch_test_macros.hpp>
 
-// #include <silkworm/core/common/empty_hashes.hpp>
-// #include <silkworm/core/state/in_memory_state.hpp>
+// #include <zilk_core/core/common/empty_hashes.hpp>
+// #include <zilk_core/core/state/in_memory_state.hpp>
 
 // #include "ethash_rule_set.hpp"
 

@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/bytes.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/bytes.hpp>
 
 namespace silkworm::sentry::crypto {
 

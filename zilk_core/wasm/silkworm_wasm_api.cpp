@@ -5,11 +5,11 @@
 
 #include <cstdlib>
 
-#include <silkworm/core/common/util.hpp>
-#include <silkworm/core/protocol/ethash_rule_set.hpp>
-#include <silkworm/core/protocol/intrinsic_gas.hpp>
-#include <silkworm/core/types/address.hpp>
-#include <silkworm/core/types/evmc_bytes32.hpp>
+#include <zilk_core/core/common/util.hpp>
+#include <zilk_core/core/protocol/ethash_rule_set.hpp>
+#include <zilk_core/core/protocol/intrinsic_gas.hpp>
+#include <zilk_core/core/types/address.hpp>
+#include <zilk_core/core/types/evmc_bytes32.hpp>
 
 void* new_buffer(size_t size) { return std::malloc(size); }
 

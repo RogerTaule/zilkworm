@@ -3,9 +3,8 @@
 
 #include "bloom.hpp"
 
-#include <ethash/keccak.hpp>
-
-#include <silkworm/core/common/util.hpp>
+#include <evmone_precompiles/keccak.hpp>
+#include <zilk_core/core/common/util.hpp>
 
 namespace silkworm {
 

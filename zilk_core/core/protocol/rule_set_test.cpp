@@ -5,8 +5,8 @@
 
 // #include <catch2/catch_test_macros.hpp>
 
-// #include <silkworm/core/common/test_util.hpp>
-// #include <silkworm/core/protocol/param.hpp>
+// #include <zilk_core/core/common/test_util.hpp>
+// #include <zilk_core/core/protocol/param.hpp>
 
 // namespace silkworm::protocol {
 

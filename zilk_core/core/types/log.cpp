@@ -3,9 +3,9 @@
 
 #include "log.hpp"
 
-#include <silkworm/core/rlp/encode_vector.hpp>
-#include <silkworm/core/types/address.hpp>
-#include <silkworm/core/types/evmc_bytes32.hpp>
+#include <zilk_core/core/rlp/encode_vector.hpp>
+#include <zilk_core/core/types/address.hpp>
+#include <zilk_core/core/types/evmc_bytes32.hpp>
 
 namespace silkworm::rlp {
 

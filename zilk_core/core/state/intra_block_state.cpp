@@ -5,8 +5,8 @@
 
 #include <bit>
 
-#include <silkworm/core/common/empty_hashes.hpp>
-#include <silkworm/core/common/util.hpp>
+#include <zilk_core/core/common/empty_hashes.hpp>
+#include <zilk_core/core/common/util.hpp>
 
 namespace silkworm {
 

@@ -4,8 +4,7 @@
 #pragma once
 
 #include <intx/intx.hpp>
-
-#include <silkworm/core/types/transaction.hpp>
+#include <zilk_core/core/types/transaction.hpp>
 
 namespace silkworm {
 

@@ -4,8 +4,7 @@
 #pragma once
 
 #include <intx/intx.hpp>
-
-#include <silkworm/core/common/base.hpp>
+#include <zilk_core/core/common/base.hpp>
 
 #include "block_id.hpp"
 #include "hash.hpp"

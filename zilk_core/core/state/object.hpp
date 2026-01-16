@@ -5,9 +5,9 @@
 
 #include <optional>
 
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/hash_maps.hpp>
-#include <silkworm/core/types/account.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/hash_maps.hpp>
+#include <zilk_core/core/types/account.hpp>
 
 namespace silkworm::state {
 

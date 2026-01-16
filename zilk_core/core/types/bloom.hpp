@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <vector>
 
-#include <silkworm/core/types/log.hpp>
+#include <zilk_core/core/types/log.hpp>
 
 namespace silkworm {
 

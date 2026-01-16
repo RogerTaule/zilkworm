@@ -8,7 +8,7 @@
 // #include <boost/asio/use_awaitable.hpp>
 // #include <boost/asio/write.hpp>
 
-// #include <silkworm/core/common/endian.hpp>
+// #include <zilk_core/core/common/endian.hpp>
 
 // namespace silkworm::sentry {
 
