@@ -8,9 +8,8 @@
 #include <evmone/baseline_instruction_table.hpp>
 #include <evmone/execution_state.hpp>
 #include <evmone/instructions.hpp>
-
-#include <silkworm/core/protocol/intrinsic_gas.hpp>
-#include <silkworm/core/types/address.hpp>
+#include <zilk_core/core/protocol/intrinsic_gas.hpp>
+#include <zilk_core/core/types/address.hpp>
 
 using namespace evmone;
 using namespace evmone::baseline;
@@ -108,7 +107,7 @@ inline bool check_memory_gas(int64_t& gas_left, Memory& memory, const uint256& o
 template <Opcode Op>
 inline evmc_status_code check_preconditions(const intx::uint256* stack_top, int stack_height, int64_t gas,
                                             const evmone::ExecutionState& state) noexcept {
-    const auto& cost_table{get_baseline_cost_table(state.rev, state.analysis.baseline->eof_header().version)};
+    const auto& cost_table{get_baseline_cost_table(state.rev)};
     return check_requirements<Op>(cost_table, gas, stack_top, stack_top - stack_height);
 }
 
@@ -168,7 +167,7 @@ void on_create_start(const intx::uint256* stack_top, int stack_height, int64_t g
         // SILKWORM_ASSERT(Op == Opcode::OP_CREATE2);
         const evmc::bytes32 salt2{intx::be::store<evmc::bytes32>(stack[3])};
         auto init_code_hash{
-            init_code_size > 0 ? ethash::keccak256(&state.memory.data()[init_code_offset], init_code_size) : ethash_hash256{}};
+            init_code_size > 0 ? ethash::keccak256(&state.memory[init_code_offset], init_code_size) : ethash_hash256{}};
         contract_address = create2_address(state.msg->recipient, salt2, init_code_hash.bytes);
     }
     traces.senders.insert(state.msg->recipient);

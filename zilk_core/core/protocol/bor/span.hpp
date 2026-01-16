@@ -5,8 +5,8 @@
 
 #include <optional>
 
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/execution/evm.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/execution/evm.hpp>
 
 namespace silkworm::protocol::bor {
 

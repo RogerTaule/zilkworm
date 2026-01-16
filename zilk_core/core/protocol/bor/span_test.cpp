@@ -5,8 +5,8 @@
 
 // #include <catch2/catch_test_macros.hpp>
 
-// #include <silkworm/core/common/bytes_to_string.hpp>
-// #include <silkworm/core/common/util.hpp>
+// #include <zilk_core/core/common/bytes_to_string.hpp>
+// #include <zilk_core/core/common/util.hpp>
 
 // namespace silkworm::protocol::bor {
 

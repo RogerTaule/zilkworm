@@ -7,11 +7,10 @@
 #include <vector>
 
 #include <evmc/evmc.h>
-
-#include <silkworm/core/execution/evm.hpp>
-#include <silkworm/core/protocol/rule_set.hpp>
-#include <silkworm/core/state/state.hpp>
-#include <silkworm/core/types/receipt.hpp>
+#include <zilk_core/core/execution/evm.hpp>
+#include <zilk_core/core/protocol/rule_set.hpp>
+#include <zilk_core/core/state/state.hpp>
+#include <zilk_core/core/types/receipt.hpp>
 
 namespace silkworm::protocol {
 

@@ -3,7 +3,7 @@
 
 #include "span.hpp"
 
-#include <silkworm/core/protocol/param.hpp>
+#include <zilk_core/core/protocol/param.hpp>
 
 namespace silkworm::protocol::bor {
 

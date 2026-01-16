@@ -5,8 +5,8 @@
 
 #include <tuple>
 
-#include <silkworm/core/common/assert.hpp>
-#include <silkworm/core/common/endian.hpp>
+#include <zilk_core/core/common/assert.hpp>
+#include <zilk_core/core/common/endian.hpp>
 
 namespace silkworm::rlp {
 

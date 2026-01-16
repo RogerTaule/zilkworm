@@ -12,11 +12,10 @@
 #include <string_view>
 #include <vector>
 
-#include <ethash/keccak.hpp>
+#include <evmone_precompiles/keccak.hpp>
 #include <intx/intx.hpp>
-
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/bytes.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/bytes.hpp>
 
 // intx does not include operator<< overloading for uint<N>
 namespace intx {

@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include <silkworm/core/chain/config.hpp>
-#include <silkworm/core/types/block.hpp>
-#include <silkworm/core/types/receipt.hpp>
-#include <silkworm/core/types/transaction.hpp>
+#include <zilk_core/core/chain/config.hpp>
+#include <zilk_core/core/types/block.hpp>
+#include <zilk_core/core/types/receipt.hpp>
+#include <zilk_core/core/types/transaction.hpp>
 
 namespace silkworm::test {
 

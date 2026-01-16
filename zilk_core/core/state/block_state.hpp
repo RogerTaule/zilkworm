@@ -6,9 +6,8 @@
 #include <optional>
 
 #include <intx/intx.hpp>
-
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/types/block.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/types/block.hpp>
 
 namespace silkworm {
 

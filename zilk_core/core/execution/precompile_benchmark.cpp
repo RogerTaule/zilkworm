@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <benchmark/benchmark.h>
-
-#include <silkworm/core/common/util.hpp>
-#include <silkworm/core/execution/precompile.hpp>
+#include <zilk_core/core/common/util.hpp>
+#include <zilk_core/core/execution/precompile.hpp>
 
 static void ec_recovery(benchmark::State& state) {
     using namespace silkworm;

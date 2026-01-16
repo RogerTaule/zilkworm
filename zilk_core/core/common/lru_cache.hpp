@@ -44,7 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <optional>
 #include <unordered_map>
 
-#include <silkworm/core/common/assert.hpp>
+#include <zilk_core/core/common/assert.hpp>
 
 namespace silkworm {
 

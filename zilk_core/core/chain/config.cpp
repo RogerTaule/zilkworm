@@ -8,9 +8,9 @@
 #include <set>
 #include <string>
 
-#include <silkworm/core/common/overloaded.hpp>
-#include <silkworm/core/types/address.hpp>
-#include <silkworm/core/types/evmc_bytes32.hpp>
+#include <zilk_core/core/common/overloaded.hpp>
+#include <zilk_core/core/types/address.hpp>
+#include <zilk_core/core/types/evmc_bytes32.hpp>
 
 namespace silkworm {
 
@@ -181,6 +181,7 @@ bool ChainConfig::is_prague(BlockNum block_num, BlockTime block_time) const noex
 }
 
 evmc_revision ChainConfig::revision(uint64_t block_num, uint64_t block_time) const noexcept {
+    if (osaka_time && block_time >= osaka_time) return EVMC_OSAKA;
     if (prague_time && block_time >= prague_time) return EVMC_PRAGUE;
     if (cancun_time && block_time >= cancun_time) return EVMC_CANCUN;
     if (shanghai_time && block_time >= shanghai_time) return EVMC_SHANGHAI;
@@ -199,6 +200,31 @@ evmc_revision ChainConfig::revision(uint64_t block_num, uint64_t block_time) con
     if (homestead_block && block_num >= homestead_block) return EVMC_HOMESTEAD;
 
     return EVMC_FRONTIER;
+}
+
+BlobParams ChainConfig::blob_params(uint64_t block_time) const noexcept {
+    if (bpo4_time && block_time >= bpo4_time) {
+        return {14, 21, 13739630};
+    }
+    if (bpo3_time && block_time >= bpo3_time) {
+        return {21, 32, 20609697};
+    }
+    if (bpo2_time && block_time >= bpo2_time) {
+        return {14, 21, 11684671};
+    }
+    if (bpo1_time && block_time >= bpo1_time) {
+        return {10, 15, 8346193};
+    }
+    if (osaka_time && block_time >= osaka_time) {
+        return {6, 9, 5007716};
+    }
+    if (prague_time && block_time >= prague_time) {
+        return {6, 9, 5007716};
+    }
+    if (cancun_time && block_time >= cancun_time) {
+        return {3, 6, 3338477};
+    }
+    return {};
 }
 
 std::vector<BlockNum> ChainConfig::distinct_fork_block_nums() const {
@@ -272,6 +298,10 @@ constinit const ChainConfig kMainnetConfig{
     .terminal_total_difficulty = intx::from_string<intx::uint256>("58750000000000000000000"),
     .shanghai_time = 1681338455,
     .cancun_time = 1710338135,
+    .prague_time = 1746612311,
+    .osaka_time = 1764798551,
+    .bpo1_time = 1765290071,
+    .bpo2_time = 1767747671,
     .rule_set_config = protocol::EthashConfig{},
 };
 
@@ -290,6 +320,9 @@ constinit const ChainConfig kHoleskyConfig{
     .shanghai_time = 1696000704,
     .cancun_time = 1707305664,
     .prague_time = 1740434112,
+    .osaka_time = 1759308480,
+    .bpo1_time = 1759800000,
+    .bpo2_time = 1760389824,
     .rule_set_config = protocol::NoPreMergeConfig{},
 };
 
@@ -310,6 +343,9 @@ constinit const ChainConfig kSepoliaConfig{
     .shanghai_time = 1677557088,
     .cancun_time = 1706655072,
     .prague_time = 1741159776,
+    .osaka_time = 1760427360,
+    .bpo1_time = 1761017184,
+    .bpo2_time = 1761607008,
     .rule_set_config = protocol::EthashConfig{},
 };
 

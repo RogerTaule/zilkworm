@@ -5,10 +5,10 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"
-#include <silkworm/core/execution/evm.hpp>
+#include <zilk_core/core/execution/evm.hpp>
 #pragma GCC diagnostic pop
 
-#include <silkworm/core/types/call_traces.hpp>
+#include <zilk_core/core/types/call_traces.hpp>
 
 namespace silkworm {
 

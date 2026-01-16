@@ -11,11 +11,10 @@
 #include <span>
 
 #include <intx/intx.hpp>
-
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/bytes.hpp>
-#include <silkworm/core/common/decoding_result.hpp>
-#include <silkworm/core/rlp/encode.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/bytes.hpp>
+#include <zilk_core/core/common/decoding_result.hpp>
+#include <zilk_core/core/rlp/encode.hpp>
 
 namespace silkworm::rlp {
 

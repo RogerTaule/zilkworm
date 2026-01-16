@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <regex>
 
-#include <silkworm/core/common/assert.hpp>
+#include <zilk_core/core/common/assert.hpp>
 
 namespace silkworm {
 

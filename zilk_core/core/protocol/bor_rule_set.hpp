@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <silkworm/core/protocol/rule_set.hpp>
+#include <zilk_core/core/protocol/rule_set.hpp>
 
 namespace silkworm::protocol {
 

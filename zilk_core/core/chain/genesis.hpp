@@ -6,10 +6,9 @@
 #include <string_view>
 
 #include <nlohmann/json.hpp>
-
-#include <silkworm/core/chain/config.hpp>
-#include <silkworm/core/state/in_memory_state.hpp>
-#include <silkworm/core/types/block.hpp>
+#include <zilk_core/core/chain/config.hpp>
+#include <zilk_core/core/state/in_memory_state.hpp>
+#include <zilk_core/core/types/block.hpp>
 
 // See https://arvanaghi.com/blog/explaining-the-genesis-block-in-ethereum/
 

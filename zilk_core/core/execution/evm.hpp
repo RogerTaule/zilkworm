@@ -12,17 +12,16 @@
 #include <evmone/vm.hpp>
 #include <gsl/pointers>
 #include <intx/intx.hpp>
+#include <zilk_core/core/chain/config.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/lru_cache.hpp>
+#include <zilk_core/core/common/object_pool.hpp>
+#include <zilk_core/core/common/util.hpp>
+#include <zilk_core/core/protocol/validation.hpp>
+#include <zilk_core/core/state/intra_block_state.hpp>
+#include <zilk_core/core/types/block.hpp>
 
-#include <silkworm/core/chain/config.hpp>
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/lru_cache.hpp>
-#include <silkworm/core/common/object_pool.hpp>
-#include <silkworm/core/common/util.hpp>
-#include <silkworm/core/protocol/validation.hpp>
-#include <silkworm/core/state/intra_block_state.hpp>
-#include <silkworm/core/types/block.hpp>
-
-#include "silkworm/core/types/address.hpp"
+#include "zilk_core/core/types/address.hpp"
 
 namespace silkworm {
 
@@ -145,8 +144,7 @@ class EVM {
     std::vector<evmc::bytes32> block_hashes_{};
     // EvmTracers tracers_;
 
-    evmc::VM evm1_;  
-
+    evmc::VM evm1_;
 };
 
 class EvmHost : public evmc::Host {

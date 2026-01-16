@@ -7,7 +7,7 @@
 #include <span>
 #include <vector>
 
-#include <silkworm/core/rlp/encode.hpp>
+#include <zilk_core/core/rlp/encode.hpp>
 
 namespace silkworm::rlp {
 

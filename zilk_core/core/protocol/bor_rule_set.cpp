@@ -3,10 +3,10 @@
 
 #include "bor_rule_set.hpp"
 
-#include <silkworm/core/common/assert.hpp>
-#include <silkworm/core/common/bytes_to_string.hpp>
-#include <silkworm/core/crypto/ecdsa.h>
-#include <silkworm/core/types/evmc_bytes32.hpp>
+#include <zilk_core/core/common/assert.hpp>
+#include <zilk_core/core/common/bytes_to_string.hpp>
+#include <zilk_core/core/crypto/ecdsa.h>
+#include <zilk_core/core/types/evmc_bytes32.hpp>
 
 #include "param.hpp"
 
@@ -84,9 +84,8 @@ static std::optional<evmc::address> ecrecover(const BlockHeader& header, const B
     ByteView signature{&header.extra_data[header.extra_data.size() - kExtraSealSize], kExtraSealSize - 1};
     uint8_t recovery_id{header.extra_data[header.extra_data.size() - 1]};
 
-    static secp256k1_context* context{secp256k1_context_create(SILKWORM_SECP256K1_CONTEXT_FLAGS)};
     evmc::address beneficiary;
-    if (!silkworm_recover_address(beneficiary.bytes, seal_hash.bytes, signature.data(), recovery_id, context)) {
+    if (!silkworm_recover_address(beneficiary.bytes, seal_hash.bytes, signature.data(), recovery_id)) {
         return std::nullopt;
     }
     return beneficiary;

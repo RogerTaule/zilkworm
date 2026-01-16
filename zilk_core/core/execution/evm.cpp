@@ -12,12 +12,12 @@
 #include <ethash/keccak.hpp>
 #include <evmone/evmone.h>
 #include <evmone/tracing.hpp>
-
-#include <silkworm/core/common/assert.hpp>
-#include <silkworm/core/common/empty_hashes.hpp>
-#include <silkworm/core/execution/precompile.hpp>
-#include <silkworm/core/protocol/param.hpp>
-#include <silkworm/core/types/address.hpp>
+#include <evmone_precompiles/keccak.hpp>
+#include <zilk_core/core/common/assert.hpp>
+#include <zilk_core/core/common/empty_hashes.hpp>
+#include <zilk_core/core/execution/precompile.hpp>
+#include <zilk_core/core/protocol/param.hpp>
+#include <zilk_core/core/types/address.hpp>
 
 namespace silkworm {
 
@@ -282,8 +282,7 @@ evmc_result EVM::execute_with_baseline_interpreter(evmc_revision rev, const evmc
         }
     }
     if (!analysis) {
-        // EOF is disabled although evmone supports it. This will be needed as early as Prague, maybe later.
-        analysis = std::make_shared<evmone::baseline::CodeAnalysis>(evmone::baseline::analyze(code, /*eof_enabled=*/false));
+        analysis = std::make_shared<evmone::baseline::CodeAnalysis>(evmone::baseline::analyze(code));
         if (use_cache) {
             analysis_cache->put(*code_hash, analysis);
         }
@@ -464,7 +463,7 @@ evmc_tx_context EvmHost::get_tx_context() const noexcept {
     }
     intx::be::store(context.chain_id.bytes, intx::uint256{evm_.config().chain_id});
     intx::be::store(context.block_base_fee.bytes, base_fee_per_gas);
-    const intx::uint256 blob_gas_price{header.blob_gas_price().value_or(0)};
+    const intx::uint256 blob_gas_price{header.blob_gas_price(evm_.config()).value_or(0)};
     intx::be::store(context.blob_base_fee.bytes, blob_gas_price);
     context.blob_hashes = evm_.txn_->blob_versioned_hashes.data();
     context.blob_hashes_count = evm_.txn_->blob_versioned_hashes.size();

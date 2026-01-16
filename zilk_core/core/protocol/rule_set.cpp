@@ -6,8 +6,8 @@
 #include <algorithm>
 #include <sstream>
 
-#include <silkworm/core/common/empty_hashes.hpp>
-#include <silkworm/core/common/overloaded.hpp>
+#include <zilk_core/core/common/empty_hashes.hpp>
+#include <zilk_core/core/common/overloaded.hpp>
 
 #include "bor_rule_set.hpp"
 #include "ethash_rule_set.hpp"

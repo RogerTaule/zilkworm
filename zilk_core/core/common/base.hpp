@@ -12,8 +12,7 @@
 #include <tuple>
 
 #include <intx/intx.hpp>
-
-#include <silkworm/core/common/assert.hpp>
+#include <zilk_core/core/common/assert.hpp>
 
 // #if defined(__wasm__)
 // #define SILKWORM_THREAD_LOCAL static

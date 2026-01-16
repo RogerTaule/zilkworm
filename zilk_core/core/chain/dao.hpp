@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <silkworm/core/state/intra_block_state.hpp>
+#include <zilk_core/core/state/intra_block_state.hpp>
 
 namespace silkworm {
 

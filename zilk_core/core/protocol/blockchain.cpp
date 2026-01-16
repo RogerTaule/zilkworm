@@ -3,10 +3,10 @@
 
 #include "blockchain.hpp"
 
-#include <silkworm/core/common/assert.hpp>
-#include <silkworm/core/execution/processor.hpp>
+#include <zilk_core/core/common/assert.hpp>
+#include <zilk_core/core/execution/processor.hpp>
 
-#include "silkworm/core/state/in_memory_state.hpp"
+#include "zilk_core/core/state/in_memory_state.hpp"
 
 namespace silkworm::protocol {
 

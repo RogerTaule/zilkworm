@@ -12,10 +12,9 @@ See https://en.wikipedia.org/wiki/Endianness
 #include <cstring>
 
 #include <intx/intx.hpp>
-
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/bytes.hpp>
-#include <silkworm/core/common/decoding_result.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/bytes.hpp>
+#include <zilk_core/core/common/decoding_result.hpp>
 
 namespace silkworm::endian {
 

@@ -8,9 +8,8 @@
 
 #include <evmc/evmc.hpp>
 #include <nlohmann/json.hpp>
-
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/small_map.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/small_map.hpp>
 
 namespace silkworm::protocol::bor {
 

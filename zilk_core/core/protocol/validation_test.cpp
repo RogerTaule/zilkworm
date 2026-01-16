@@ -5,11 +5,11 @@
 
 // #include <catch2/catch_test_macros.hpp>
 
-// #include <silkworm/core/common/empty_hashes.hpp>
-// #include <silkworm/core/common/test_util.hpp>
-// #include <silkworm/core/state/in_memory_state.hpp>
+// #include <zilk_core/core/common/empty_hashes.hpp>
+// #include <zilk_core/core/common/test_util.hpp>
+// #include <zilk_core/core/state/in_memory_state.hpp>
 
-// #include "silkworm/core/crypto/secp256k1n.hpp"
+// #include "zilk_core/core/crypto/secp256k1n.hpp"
 
 // namespace silkworm::protocol {
 

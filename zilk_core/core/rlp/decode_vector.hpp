@@ -5,8 +5,8 @@
 
 #include <vector>
 
-#include <silkworm/core/rlp/decode.hpp>
-#include <silkworm/core/rlp/encode_vector.hpp>
+#include <zilk_core/core/rlp/decode.hpp>
+#include <zilk_core/core/rlp/encode_vector.hpp>
 
 namespace silkworm::rlp {
 

@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/state/object.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/state/object.hpp>
 
 namespace silkworm {
 

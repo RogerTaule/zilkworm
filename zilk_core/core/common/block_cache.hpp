@@ -7,10 +7,9 @@
 #include <memory>
 
 #include <evmc/evmc.hpp>
-
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/lru_cache.hpp>
-#include <silkworm/core/types/block.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/lru_cache.hpp>
+#include <zilk_core/core/types/block.hpp>
 
 namespace silkworm {
 

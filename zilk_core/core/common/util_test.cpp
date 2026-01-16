@@ -5,8 +5,8 @@
 
 // #include <catch2/catch_test_macros.hpp>
 
-// #include <silkworm/core/test_util/null_stream.hpp>
-// #include <silkworm/core/types/evmc_bytes32.hpp>
+// #include <zilk_core/core/test_util/null_stream.hpp>
+// #include <zilk_core/core/types/evmc_bytes32.hpp>
 
 // namespace silkworm {
 
