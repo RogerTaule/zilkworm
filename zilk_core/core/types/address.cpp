@@ -3,11 +3,10 @@
 
 #include "address.hpp"
 
-#include <ethash/keccak.hpp>
-
-#include <silkworm/core/common/assert.hpp>
-#include <silkworm/core/common/util.hpp>
-#include <silkworm/core/rlp/encode.hpp>
+#include <evmone_precompiles/keccak.hpp>
+#include <zilk_core/core/common/assert.hpp>
+#include <zilk_core/core/common/util.hpp>
+#include <zilk_core/core/rlp/encode.hpp>
 
 namespace silkworm {
 

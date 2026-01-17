@@ -5,15 +5,17 @@
 
 #include <bit>
 
-#include <silkworm/core/common/empty_hashes.hpp>
-#include <silkworm/core/crypto/secp256k1n.hpp>
-#include <silkworm/core/execution/evm.hpp>
-#include <silkworm/core/rlp/encode_vector.hpp>
-#include <silkworm/core/trie/vector_root.hpp>
+#include <zilk_core/core/common/empty_hashes.hpp>
+#include <zilk_core/core/crypto/secp256k1n.hpp>
+#include <zilk_core/core/execution/evm.hpp>
+#include <zilk_core/core/rlp/encode_vector.hpp>
+#include <zilk_core/core/trie/vector_root.hpp>
+
+#include <zilk_core/print.hpp>
 
 #include "intrinsic_gas.hpp"
 #include "param.hpp"
-#include "silkworm/core/types/eip_7685_requests.hpp"
+#include "zilk_core/core/types/eip_7685_requests.hpp"
 
 namespace silkworm::protocol {
 
@@ -96,7 +98,7 @@ ValidationResult validate_transaction(const Transaction& txn, const IntraBlockSt
 ValidationResult pre_validate_transactions(const Block& block, const ChainConfig& config) {
     const BlockHeader& header{block.header};
     const evmc_revision rev{config.revision(header.number, header.timestamp)};
-    const std::optional<intx::uint256> blob_gas_price{header.blob_gas_price()};
+    const std::optional<intx::uint256> blob_gas_price{header.blob_gas_price(config)};
 
     for (const Transaction& txn : block.transactions) {
         ValidationResult err{pre_validate_transaction(txn, rev, config.chain_id,
@@ -131,7 +133,7 @@ ValidationResult validate_call_precheck(const Transaction& txn, const EVM& evm) 
         }
     }
 
-    if (const auto forks_check = pre_validate_common_forks(txn, evm.revision(), evm.block().header.blob_gas_price()); forks_check != ValidationResult::kOk) {
+    if (const auto forks_check = pre_validate_common_forks(txn, evm.revision(), evm.block().header.blob_gas_price(evm.config())); forks_check != ValidationResult::kOk) {
         return forks_check;
     }
 
@@ -215,6 +217,18 @@ ValidationResult pre_validate_common_forks(const Transaction& txn, const evmc_re
             return ValidationResult::kFloorCost;
         }
     }
+
+    if (rev >= EVMC_OSAKA) {
+        /// The maximum allowed gas limit for a transaction (EIP-7825).
+        constexpr auto MAX_TX_GAS_LIMIT = 0x1000000;  // 2**24
+        if (txn.gas_limit > MAX_TX_GAS_LIMIT) {
+            return ValidationResult::kMaxTransactionGasLimitExceeded;
+        }
+        if (txn.blob_versioned_hashes.size() > 6) {
+            return ValidationResult::kTooManyBlobs;
+        }
+    }
+
     return ValidationResult::kOk;
 }
 
@@ -250,7 +264,7 @@ intx::uint256 compute_call_cost(const Transaction& txn, const intx::uint256& eff
     // EIP-4844 blob gas cost (calc_data_fee)
     if (evm.block().header.blob_gas_used && evm.revision() >= EVMC_CANCUN) {
         // compute blob fee for eip-4844 data blobs if any
-        const intx::uint256 blob_gas_price{evm.block().header.blob_gas_price().value_or(0)};
+        const intx::uint256 blob_gas_price{evm.block().header.blob_gas_price(evm.config()).value_or(0)};
         required_funds += txn.total_blob_gas() * blob_gas_price;
     }
 
@@ -288,16 +302,28 @@ intx::uint256 expected_base_fee_per_gas(const BlockHeader& parent) {
     return 0;
 }
 
-uint64_t calc_excess_blob_gas(const BlockHeader& parent, evmc_revision revision) {
+uint64_t calc_excess_blob_gas(const BlockHeader& header, const BlockHeader& parent, const ChainConfig& chain_config) {
     const uint64_t parent_excess_blob_gas{parent.excess_blob_gas.value_or(0)};
-    const uint64_t consumed_blob_gas{parent.blob_gas_used.value_or(0)};
+    const uint64_t parent_blob_gas_used{parent.blob_gas_used.value_or(0)};
+    const intx::uint256 parent_base_fee{parent.base_fee_per_gas.value_or(0)};
 
-    // EIP-7691: Blob throughput increase
-    const auto target_block_gas_per_block = revision >= EVMC_PRAGUE ? kTargetBlobGasPerBlockPrague : kTargetBlobGasPerBlock;
-    if (parent_excess_blob_gas + consumed_blob_gas < target_block_gas_per_block) {
+    const auto rev = chain_config.revision(header.number, header.timestamp);
+
+    /// The base cost of a blob (EIP-7918).
+    static constexpr auto BLOB_BASE_COST = 0x2000;
+
+    const auto blob_params = chain_config.blob_params(header.timestamp);
+    const intx::uint256 parent_blob_base_fee = calc_blob_gas_price(parent.excess_blob_gas.value_or(0), blob_params);
+
+    const auto target_blob_gas_per_block = uint64_t{blob_params.target} * kGasPerBlob;
+    if (parent_excess_blob_gas + parent_blob_gas_used < target_blob_gas_per_block)
         return 0;
-    }
-    return parent_excess_blob_gas + consumed_blob_gas - target_block_gas_per_block;
+
+    if (rev >= EVMC_OSAKA && BLOB_BASE_COST * parent_base_fee > kGasPerBlob * parent_blob_base_fee)
+        return parent_excess_blob_gas +
+               parent_blob_gas_used * (blob_params.max - blob_params.target) / blob_params.max;
+
+    return parent_excess_blob_gas + parent_blob_gas_used - target_blob_gas_per_block;
 }
 
 evmc::bytes32 compute_transaction_root(const BlockBody& body) {
@@ -332,10 +358,15 @@ ValidationResult validate_requests_root(const BlockHeader& header, const std::ve
     FlatRequests requests;
 
     // Dequeue deposit requests by parsing logs
-    requests.extract_deposits_from_logs(logs);
+    if (!requests.extract_deposits_from_logs(logs)) {
+        return ValidationResult::kRequestsProcessingFailure;
+    }
 
     // Withdrawal requests
     {
+        if (evm.state().get_code(kWithdrawalRequestAddress).empty()) {
+            return ValidationResult::kRequestsProcessingFailure;
+        }
         Transaction system_txn{};
         system_txn.type = TransactionType::kSystem;
         system_txn.to = kWithdrawalRequestAddress;
@@ -343,11 +374,16 @@ ValidationResult validate_requests_root(const BlockHeader& header, const std::ve
         system_txn.set_sender(kSystemAddress);
         const auto withdrawals = evm.execute(system_txn, kSystemCallGasLimit);
         evm.state().destruct_touched_dead();
+        if (withdrawals.status != EVMC_SUCCESS) {
+            return ValidationResult::kRequestsProcessingFailure;
+        }
         requests.add_request(FlatRequestType::kWithdrawalRequest, withdrawals.data);
     }
-
     // Consolidation requests
     {
+        if (evm.state().get_code(kConsolidationRequestAddress).empty()) {
+            return ValidationResult::kRequestsProcessingFailure;
+        }
         Transaction system_txn{};
         system_txn.type = TransactionType::kSystem;
         system_txn.to = kConsolidationRequestAddress;
@@ -355,6 +391,9 @@ ValidationResult validate_requests_root(const BlockHeader& header, const std::ve
         system_txn.set_sender(kSystemAddress);
         const auto consolidations = evm.execute(system_txn, kSystemCallGasLimit);
         evm.state().destruct_touched_dead();
+        if (consolidations.status != EVMC_SUCCESS) {
+            return ValidationResult::kRequestsProcessingFailure;
+        }
         requests.add_request(FlatRequestType::kConsolidationRequest, consolidations.data);
     }
 

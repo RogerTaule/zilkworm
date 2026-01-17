@@ -4,11 +4,10 @@
 #pragma once
 
 #include <magic_enum.hpp>
-
-#include <silkworm/core/common/bytes.hpp>
-#include <silkworm/core/rlp/decode.hpp>
-#include <silkworm/core/types/hash.hpp>
-#include <silkworm/core/types/receipt.hpp>
+#include <zilk_core/core/common/bytes.hpp>
+#include <zilk_core/core/rlp/decode.hpp>
+#include <zilk_core/core/types/hash.hpp>
+#include <zilk_core/core/types/receipt.hpp>
 
 namespace silkworm {
 
@@ -25,7 +24,7 @@ enum class FlatRequestType : uint8_t {
 };
 
 struct FlatRequests {
-    void extract_deposits_from_logs(const std::vector<Log>& logs);
+    bool extract_deposits_from_logs(const std::vector<Log>& logs);
     void add_request(FlatRequestType type, Bytes data);
     Hash calculate_sha256() const;
     ByteView preview_data_by_type(FlatRequestType type) const;

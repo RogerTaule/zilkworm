@@ -4,10 +4,9 @@
 #pragma once
 
 #include <intx/intx.hpp>
-
-#include <silkworm/core/common/bytes.hpp>
-#include <silkworm/core/common/empty_hashes.hpp>
-#include <silkworm/core/types/evmc_bytes32.hpp>
+#include <zilk_core/core/common/bytes.hpp>
+#include <zilk_core/core/common/empty_hashes.hpp>
+#include <zilk_core/core/types/evmc_bytes32.hpp>
 
 namespace silkworm {
 
@@ -20,6 +19,7 @@ struct Account {
     uint64_t nonce{0};
     intx::uint256 balance;
     evmc::bytes32 code_hash{kEmptyHash};
+    evmc::bytes32 storage_root_{kEmptyHash};
     uint64_t incarnation{0};
     uint64_t previous_incarnation{0};
 

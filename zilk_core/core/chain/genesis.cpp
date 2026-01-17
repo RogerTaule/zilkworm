@@ -19,6 +19,7 @@
 #include <zilk_core/core/types/address.hpp>
 #include <zilk_core/core/types/evmc_bytes32.hpp>
 
+#include <zilk_core/print.hpp>
 namespace silkworm {
 
 std::string_view read_genesis_data(ChainId chain_id) {

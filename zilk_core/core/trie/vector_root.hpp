@@ -6,9 +6,9 @@
 #include <concepts>
 #include <functional>
 
-#include <silkworm/core/rlp/encode.hpp>
-#include <silkworm/core/trie/hash_builder.hpp>
-#include <silkworm/core/trie/nibbles.hpp>
+#include <zilk_core/core/rlp/encode.hpp>
+#include <zilk_core/core/trie/hash_builder.hpp>
+#include <zilk_core/core/trie/nibbles.hpp>
 
 namespace silkworm::trie {
 

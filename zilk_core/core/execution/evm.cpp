@@ -9,7 +9,6 @@
 #include <memory>
 #include <utility>
 
-#include <ethash/keccak.hpp>
 #include <evmone/evmone.h>
 #include <evmone/tracing.hpp>
 #include <evmone_precompiles/keccak.hpp>

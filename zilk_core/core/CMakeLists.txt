@@ -9,6 +9,7 @@ find_package(Microsoft.GSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(tl-expected REQUIRED)
 
+
 if(SILKWORM_CORE_ONLY)
   if(MSVC)
     add_compile_options(/EHsc)
@@ -18,17 +19,16 @@ if(SILKWORM_CORE_ONLY)
 endif()
 
 set(SILKWORM_CORE_PUBLIC_LIBS
-    ethash::ethash
     evmc
     evmone
     intx::intx
     magic_enum::magic_enum
     Microsoft.GSL::GSL
     nlohmann_json::nlohmann_json
-    secp256k1
+    # secp256k1
     tl::expected
 )
-set(SILKWORM_CORE_PRIVATE_LIBS ff blst::blst)
+set(SILKWORM_CORE_PRIVATE_LIBS blst::blst)
 
 silkworm_library(
   silkworm_core

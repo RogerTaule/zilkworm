@@ -7,9 +7,8 @@
 #include <vector>
 
 #include <evmc/evmc.hpp>
-
-#include <silkworm/core/common/bytes.hpp>
-#include <silkworm/core/common/decoding_result.hpp>
+#include <zilk_core/core/common/bytes.hpp>
+#include <zilk_core/core/common/decoding_result.hpp>
 
 namespace silkworm::trie {
 

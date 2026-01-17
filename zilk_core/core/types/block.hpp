@@ -8,22 +8,21 @@
 #include <optional>
 #include <vector>
 
-#include <ethash/hash_types.hpp>
+#include <evmone_precompiles/hash_types.h>
 #include <intx/intx.hpp>
-
-#include <silkworm/core/chain/config.hpp>
-#include <silkworm/core/common/util.hpp>
-#include <silkworm/core/rlp/decode.hpp>
-#include <silkworm/core/types/bloom.hpp>
-#include <silkworm/core/types/hash.hpp>
-#include <silkworm/core/types/transaction.hpp>
-#include <silkworm/core/types/withdrawal.hpp>
+#include <zilk_core/core/chain/config.hpp>
+#include <zilk_core/core/common/util.hpp>
+#include <zilk_core/core/rlp/decode.hpp>
+#include <zilk_core/core/types/bloom.hpp>
+#include <zilk_core/core/types/hash.hpp>
+#include <zilk_core/core/types/transaction.hpp>
+#include <zilk_core/core/types/withdrawal.hpp>
 
 namespace silkworm {
 
 using TotalDifficulty = intx::uint256;
 
-intx::uint256 calc_blob_gas_price(uint64_t excess_blob_gas, evmc_revision revision);
+intx::uint256 calc_blob_gas_price(uint64_t excess_blob_gas, BlobParams blob_params);
 
 struct BlockHeader {
     using NonceType = std::array<uint8_t, 8>;
@@ -67,7 +66,7 @@ struct BlockHeader {
     ethash::hash256 boundary() const;
 
     //! \see https://eips.ethereum.org/EIPS/eip-4844#gas-accounting
-    std::optional<intx::uint256> blob_gas_price() const;
+    std::optional<intx::uint256> blob_gas_price(const ChainConfig& config) const;
 
     friend bool operator==(const BlockHeader&, const BlockHeader&) = default;
 };

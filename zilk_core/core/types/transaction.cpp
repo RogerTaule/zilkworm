@@ -5,18 +5,17 @@
 
 #include <bit>
 
-#include <ethash/keccak.hpp>
+#include <evmone_precompiles/keccak.hpp>
+#include <zilk_core/core/common/util.hpp>
+#include <zilk_core/core/crypto/ecdsa.h>
+#include <zilk_core/core/protocol/param.hpp>
+#include <zilk_core/core/rlp/decode_vector.hpp>
+#include <zilk_core/core/rlp/encode_vector.hpp>
+#include <zilk_core/core/types/address.hpp>
+#include <zilk_core/core/types/evmc_bytes32.hpp>
 
-#include <silkworm/core/common/util.hpp>
-#include <silkworm/core/crypto/ecdsa.h>
-#include <silkworm/core/protocol/param.hpp>
-#include <silkworm/core/rlp/decode_vector.hpp>
-#include <silkworm/core/rlp/encode_vector.hpp>
-#include <silkworm/core/types/address.hpp>
-#include <silkworm/core/types/evmc_bytes32.hpp>
-
-#include "silkworm/core/crypto/secp256k1n.hpp"
 #include "y_parity_and_chain_id.hpp"
+#include "zilk_core/core/crypto/secp256k1n.hpp"
 
 namespace silkworm {
 
@@ -46,8 +45,7 @@ std::optional<evmc::address> Authorization::recover_authority(const Transaction&
     intx::be::unsafe::store(signature + 2 * kHashLength, y_parity);
 
     std::optional recovered_authority = evmc::address{};
-    static secp256k1_context* context{secp256k1_context_create(SILKWORM_SECP256K1_CONTEXT_FLAGS)};
-    if (!silkworm_recover_address(recovered_authority->bytes, hash.bytes, signature, y_parity, context)) {
+    if (!silkworm_recover_address(recovered_authority->bytes, hash.bytes, signature, y_parity)) {
         recovered_authority = std::nullopt;
     }
     return recovered_authority;
@@ -501,7 +499,7 @@ std::optional<evmc::address> Transaction::sender() const {
         intx::be::unsafe::store(signature + kHashLength, s);
 
         sender_ = evmc::address{};
-        if (!silkworm_recover_address(sender_->bytes, hash.bytes, signature, odd_y_parity, secp256k1_context_static)) {
+        if (!silkworm_recover_address(sender_->bytes, hash.bytes, signature, odd_y_parity)) {
             sender_ = std::nullopt;
         }
     }
@@ -509,7 +507,7 @@ std::optional<evmc::address> Transaction::sender() const {
 }
 
 void Transaction::set_sender(const evmc::address& sender) {
-    sender_recovered_ = false;
+    sender_recovered_ = true;
     sender_ = sender;
 }
 

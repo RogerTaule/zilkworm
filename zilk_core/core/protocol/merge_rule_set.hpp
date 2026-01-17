@@ -5,7 +5,7 @@
 
 #include <memory>
 
-#include <silkworm/core/protocol/rule_set.hpp>
+#include <zilk_core/core/protocol/rule_set.hpp>
 
 namespace silkworm::protocol {
 
@@ -17,7 +17,7 @@ class MergeRuleSet : public RuleSet {
 
     ValidationResult pre_validate_block_body(const Block& block, const BlockState& state) override;
 
-    ValidationResult validate_block_header(const BlockHeader& header, const BlockState& state,
+    inline ValidationResult validate_block_header(const BlockHeader& header, const BlockState& state,
                                            bool with_future_timestamp_check) override;
 
     ValidationResult validate_ommers(const Block& block, const BlockState& state) override;

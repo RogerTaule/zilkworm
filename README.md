@@ -18,6 +18,13 @@
 Zilkworm is a prototype implementation of a ZKEVM building on past works within Silkworm and EVMOne to run on ZKVM provers with native support for RISC-V targets (e.g. rv32im). 
 At the moment the ZKVM integrated is Succint's SP1 Turbo.
 
+## Testing
+
+### Native build
+Make sure to install applicable build tools and ctest before running the tests:
+```
+make eest-blockchain-tests
+```
 ## Acknowledgements
 We thank the hard work done by the teams and people behind
 1. Silkworm

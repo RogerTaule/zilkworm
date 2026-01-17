@@ -7,18 +7,16 @@
 #include <utility>
 
 #include <nlohmann/json.hpp>
-
-#include <silkworm/core/common/test_util.hpp>
+#include <zilk_core/core/common/test_util.hpp>
 
 namespace silkworm::cmd::state_transition {
 
 class ExpectedSubState {
-  nlohmann::json& sub_state_data_;
+    nlohmann::json& sub_state_data_;
 
   public:
     ExpectedSubState(
-      nlohmann::json& sub_state_data
-    ) : sub_state_data_(sub_state_data) {}
+        nlohmann::json& sub_state_data) : sub_state_data_(sub_state_data) {}
     // std::move(sub_state_data)
     unsigned index{};
     evmc::bytes32 stateHash;

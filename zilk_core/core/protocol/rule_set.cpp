@@ -50,7 +50,8 @@ ValidationResult RuleSet::pre_validate_block_body(const Block& block, const Bloc
         for (const Transaction& tx : block.transactions) {
             *blob_gas_used += tx.total_blob_gas();
         }
-        const auto max_blob_gas_per_block = rev >= EVMC_PRAGUE ? kMaxBlobGasPerBlockPrague : kMaxBlobGasPerBlock;
+        const auto blob_params = chain_config_->blob_params(header.timestamp);
+        const auto max_blob_gas_per_block = blob_params.max * kGasPerBlob;
         if (blob_gas_used > max_blob_gas_per_block) {
             return ValidationResult::kTooManyBlobs;
         }
@@ -186,7 +187,7 @@ ValidationResult RuleSet::validate_block_header(const BlockHeader& header, const
         if (!header.blob_gas_used || !header.excess_blob_gas || !header.parent_beacon_block_root) {
             return ValidationResult::kMissingField;
         }
-        if (header.excess_blob_gas != calc_excess_blob_gas(*parent, rev)) {
+        if (header.excess_blob_gas != calc_excess_blob_gas(header, *parent, *chain_config_)) {
             return ValidationResult::kWrongExcessBlobGas;
         }
     }
@@ -271,7 +272,6 @@ RuleSetPtr rule_set_factory(const ChainConfig& chain_config) {
     // }
     // return rule_set;
     return std::make_unique<MergeRuleSet>(std::make_unique<EthashRuleSet>(chain_config), chain_config);
-
 }
 
 std::ostream& operator<<(std::ostream& out, const BlockReward& reward) {

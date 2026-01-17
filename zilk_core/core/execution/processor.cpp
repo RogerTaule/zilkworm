@@ -4,11 +4,10 @@
 #include "processor.hpp"
 
 #include <evmone/test/state/state.hpp>
-
-#include <silkworm/core/common/assert.hpp>
-#include <silkworm/core/protocol/intrinsic_gas.hpp>
-#include <silkworm/core/protocol/param.hpp>
-#include <silkworm/core/trie/vector_root.hpp>
+#include <zilk_core/core/common/assert.hpp>
+#include <zilk_core/core/protocol/intrinsic_gas.hpp>
+#include <zilk_core/core/protocol/param.hpp>
+#include <zilk_core/core/trie/vector_root.hpp>
 
 namespace silkworm {
 class StateView final : public evmone::state::StateView {
@@ -72,7 +71,7 @@ namespace {
             }
         }
         // for (const auto& a : state_diff.deleted_accounts) {
-            // SILKWORM_ASSERT(!state.exists(a));
+        // SILKWORM_ASSERT(!state.exists(a));
         // }
         for (const auto& m : state_diff.modified_accounts) {
             if (std::ranges::find(state_diff.deleted_accounts, m.addr) != state_diff.deleted_accounts.end()) {
@@ -108,7 +107,7 @@ ExecutionProcessor::ExecutionProcessor(const Block& block, protocol::RuleSet& ru
         .prev_randao = block.header.difficulty == 0 ? block.header.prev_randao : intx::be::store<evmone::state::bytes32>(intx::uint256{block.header.difficulty}),
         .base_fee = static_cast<uint64_t>(block.header.base_fee_per_gas.value_or(0)),
         .excess_blob_gas = block.header.excess_blob_gas.value_or(0),
-        .blob_base_fee = block.header.blob_gas_price().value_or(0),
+        .blob_base_fee = block.header.blob_gas_price(config).value_or(0),
     };
     for (const auto& o : block.ommers)
         evm1_block_.ommers.emplace_back(evmone::state::Ommer{o.beneficiary, static_cast<uint32_t>(block.header.number - o.number)});
@@ -155,16 +154,12 @@ void ExecutionProcessor::execute_transaction(const Transaction& txn, Receipt& re
                                                .v = authorization.v()});
     }
 
-
-
     const auto rev = evm_.revision();
     const auto g0 = protocol::intrinsic_gas(txn, rev);
     if (g0 > 1000) {
-
     }
     // // SILKWORM_ASSERT(g0 <= INT64_MAX);  // true due to the precondition (transaction must be valid)
     const auto execution_gas_limit = txn.gas_limit - static_cast<uint64_t>(g0);
-
 
     // // Execute transaction with evmone APIv2.
     // // This must be done before the Silkworm execution so that the state is unmodified.
@@ -174,8 +169,7 @@ void ExecutionProcessor::execute_transaction(const Transaction& txn, Receipt& re
     // // EIP-7623: Increase calldata cost
     const int64_t floor_cost = rev >= EVMC_PRAGUE ? static_cast<int64_t>(protocol::floor_cost(txn)) : 0;
 
-    if(execution_gas_limit > 10000 || floor_cost > 120302) {
-
+    if (execution_gas_limit > 10000 || floor_cost > 120302) {
     }
     auto evm1_receipt = evmone::state::transition(
         evm1_state_view, evm1_block_, evm1_block_hashes, evm1_txn, rev, evm_.vm(), {.execution_gas_limit = static_cast<int64_t>(execution_gas_limit), .min_gas_cost = floor_cost});
@@ -240,7 +234,7 @@ void ExecutionProcessor::execute_transaction(const Transaction& txn, Receipt& re
     state_.subtract_from_balance(*sender, txn.gas_limit * effective_gas_price);
 
     // EIP-4844 blob gas cost (calc_data_fee)
-    const intx::uint256 blob_gas_price{header.blob_gas_price().value_or(0)};
+    const intx::uint256 blob_gas_price{header.blob_gas_price(evm_.config()).value_or(0)};
     state_.subtract_from_balance(*sender, txn.total_blob_gas() * blob_gas_price);
 
     const CallResult vm_res = evm_.execute(txn, execution_gas_limit);

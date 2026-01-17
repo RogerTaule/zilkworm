@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/bytes.hpp>
-#include <silkworm/dev/common/ecc_public_key.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/bytes.hpp>
+#include <zilk_core/dev/common/ecc_public_key.hpp>
 
 namespace silkworm::sentry::crypto::ecdsa_signature {
 

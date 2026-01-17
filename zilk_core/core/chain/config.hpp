@@ -14,12 +14,11 @@
 #include <evmc/evmc.h>
 #include <intx/intx.hpp>
 #include <nlohmann/json.hpp>
-
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/small_map.hpp>
-#include <silkworm/core/common/util.hpp>
-#include <silkworm/core/protocol/bor/config.hpp>
-#include <silkworm/core/protocol/ethash_config.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/small_map.hpp>
+#include <zilk_core/core/common/util.hpp>
+#include <zilk_core/core/protocol/bor/config.hpp>
+#include <zilk_core/core/protocol/ethash_config.hpp>
 
 namespace silkworm {
 
@@ -36,6 +35,12 @@ namespace protocol {
 }  // namespace protocol
 
 using ChainId = uint64_t;
+
+struct BlobParams {
+    uint16_t target{0};
+    uint16_t max{0};
+    uint32_t base_fee_update_fraction{0};
+};
 
 struct ChainConfig {
     //! \brief Returns the chain identifier
@@ -73,6 +78,11 @@ struct ChainConfig {
     std::optional<BlockTime> shanghai_time{std::nullopt};
     std::optional<BlockTime> cancun_time{std::nullopt};
     std::optional<BlockTime> prague_time{std::nullopt};
+    std::optional<BlockTime> osaka_time{std::nullopt};
+    std::optional<BlockTime> bpo1_time{std::nullopt};
+    std::optional<BlockTime> bpo2_time{std::nullopt};
+    std::optional<BlockTime> bpo3_time{std::nullopt};
+    std::optional<BlockTime> bpo4_time{std::nullopt};
 
     //! \brief Returns the config of the (pre-Merge) protocol rule set
     protocol::PreMergeRuleSetConfig rule_set_config{protocol::NoPreMergeConfig{}};
@@ -86,6 +96,9 @@ struct ChainConfig {
     //! \details In other words, on behalf of Json chain config data
     //! returns whether specific HF have occurred
     evmc_revision revision(BlockNum block_num, uint64_t block_time) const noexcept;
+
+    /// Returns the blob parameters for a given block time.
+    BlobParams blob_params(uint64_t block_time) const noexcept;
 
     std::vector<BlockNum> distinct_fork_block_nums() const;
     std::vector<BlockTime> distinct_fork_times() const;

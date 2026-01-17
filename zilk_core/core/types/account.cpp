@@ -5,7 +5,7 @@
 
 #include <sstream>
 
-#include <silkworm/core/rlp/encode.hpp>
+#include <zilk_core/core/rlp/encode.hpp>
 
 namespace silkworm {
 

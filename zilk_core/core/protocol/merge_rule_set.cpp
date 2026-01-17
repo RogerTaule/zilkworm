@@ -6,16 +6,16 @@
 #include <optional>
 #include <utility>
 
-#include <silkworm/core/common/assert.hpp>
+#include <zilk_core/core/common/assert.hpp>
 
 #include "param.hpp"
-#include "silkworm/core/types/eip_7685_requests.hpp"
+#include "zilk_core/core/types/eip_7685_requests.hpp"
 
 namespace silkworm::protocol {
 
 MergeRuleSet::MergeRuleSet(RuleSetPtr pre_merge_rule_set, const ChainConfig& chain_config)
     : RuleSet{chain_config, /*prohibit_ommers=*/true},
-      terminal_total_difficulty_{*chain_config.terminal_total_difficulty},
+      terminal_total_difficulty_{chain_config.terminal_total_difficulty.value_or(intx::uint256{0})},
       pre_merge_rule_set_{std::move(pre_merge_rule_set)} {}
 
 ValidationResult MergeRuleSet::pre_validate_block_body(const Block& block, const BlockState& state) {
@@ -28,36 +28,8 @@ ValidationResult MergeRuleSet::pre_validate_block_body(const Block& block, const
     return RuleSet::pre_validate_block_body(block, state);
 }
 
-ValidationResult MergeRuleSet::validate_block_header(const BlockHeader& header, const BlockState& state,
+inline ValidationResult MergeRuleSet::validate_block_header(const BlockHeader& header, const BlockState& state,
                                                      bool with_future_timestamp_check) {
-    // TODO(yperbasis) how will all this work with backwards sync?
-
-    const std::optional<BlockHeader> parent{RuleSet::get_parent_header(state, header)};
-    if (!parent) {
-        return ValidationResult::kUnknownParent;
-    }
-
-    const std::optional<intx::uint256> parent_total_difficulty{
-        state.total_difficulty(parent->number, header.parent_hash)};
-    if (!parent_total_difficulty) {
-        return ValidationResult::kUnknownParentTotalDifficulty;
-    }
-    const bool ttd_reached{parent_total_difficulty >= terminal_total_difficulty_};
-
-    if (header.difficulty != 0) {
-        // if (ttd_reached) {
-        //     // return ValidationResult::kPoWBlockAfterMerge;
-        // }
-        // if (!pre_merge_rule_set_) {
-        //     return ValidationResult::kUnknownProtocolRuleSet;
-        // }
-        // return pre_merge_rule_set_->validate_block_header(header, state, with_future_timestamp_check);
-    }
-
-    // PoS block
-    if (!ttd_reached) {
-        return ValidationResult::kPoSBlockBeforeMerge;
-    }
     return RuleSet::validate_block_header(header, state, with_future_timestamp_check);
 }
 

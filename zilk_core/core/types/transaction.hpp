@@ -7,13 +7,12 @@
 #include <vector>
 
 #include <intx/intx.hpp>
-
-#include <silkworm/core/chain/config.hpp>
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/bytes.hpp>
-#include <silkworm/core/concurrency/resettable_once_flag.hpp>
-#include <silkworm/core/rlp/decode.hpp>
-#include <silkworm/core/types/hash.hpp>
+#include <zilk_core/core/chain/config.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/bytes.hpp>
+#include <zilk_core/core/concurrency/resettable_once_flag.hpp>
+#include <zilk_core/core/rlp/decode.hpp>
+#include <zilk_core/core/types/hash.hpp>
 
 namespace silkworm {
 
@@ -99,7 +98,6 @@ struct UnsignedTransaction {
     friend bool operator==(const UnsignedTransaction&, const UnsignedTransaction&) = default;
 };
 
-
 struct UnsignedTransaction2 {
     TransactionType type{TransactionType::kLegacy};
     // int myStuff;
@@ -112,7 +110,6 @@ struct UnsignedTransaction2 {
     std::optional<evmc::address> to{std::nullopt};
     intx::uint256 value{0};
     Bytes data{};
-
 
     // ======================================
     std::vector<AccessListEntry> access_list{};  // EIP-2930
@@ -136,7 +133,6 @@ struct UnsignedTransaction2 {
 
     // friend bool operator==(const UnsignedTransaction&, const UnsignedTransaction&) = default;
 };
-
 
 class Transaction : public UnsignedTransaction {
   public:
@@ -171,41 +167,38 @@ class Transaction : public UnsignedTransaction {
     mutable ResettableOnceFlag hash_computed_;
 };
 
-
-
 class Transaction2 : public UnsignedTransaction2 {
-//   public:
-//     bool odd_y_parity{false};
-//     intx::uint256 r{0}, s{0};  // signature
+    //   public:
+    //     bool odd_y_parity{false};
+    //     intx::uint256 r{0}, s{0};  // signature
 
-//     intx::uint256 v() const;  // EIP-155
+    //     intx::uint256 v() const;  // EIP-155
 
-//     //! \brief Returns false if v is not acceptable (v != 27 && v != 28 && v < 35, see EIP-155)
-//     bool set_v(const intx::uint256& v);
+    //     //! \brief Returns false if v is not acceptable (v != 27 && v != 28 && v < 35, see EIP-155)
+    //     bool set_v(const intx::uint256& v);
 
-//     //! \brief Sender recovered from the signature.
-//     //! \see Yellow Paper, Appendix F "Signing Transactions",
-//     //! EIP-2: Homestead Hard-fork Changes and
-//     //! EIP-155: Simple replay attack protection.
-//     //! If recovery fails std::nullopt is returned.
-//     std::optional<evmc::address> sender() const;
+    //     //! \brief Sender recovered from the signature.
+    //     //! \see Yellow Paper, Appendix F "Signing Transactions",
+    //     //! EIP-2: Homestead Hard-fork Changes and
+    //     //! EIP-155: Simple replay attack protection.
+    //     //! If recovery fails std::nullopt is returned.
+    //     std::optional<evmc::address> sender() const;
 
-//     void set_sender(const evmc::address& sender);
+    //     void set_sender(const evmc::address& sender);
 
-//     evmc::bytes32 hash() const;
+    //     evmc::bytes32 hash() const;
 
-//     //! Reset the computed values
-//     void reset();
+    //     //! Reset the computed values
+    //     void reset();
 
-//   private:
-//     mutable std::optional<evmc::address> sender_{std::nullopt};
-//     mutable ResettableOnceFlag sender_recovered_;
+    //   private:
+    //     mutable std::optional<evmc::address> sender_{std::nullopt};
+    //     mutable ResettableOnceFlag sender_recovered_;
 
-//     // cached value for hash if already computed
-//     mutable evmc::bytes32 cached_hash_;
-//     mutable ResettableOnceFlag hash_computed_;
+    //     // cached value for hash if already computed
+    //     mutable evmc::bytes32 cached_hash_;
+    //     mutable ResettableOnceFlag hash_computed_;
 };
-
 
 namespace rlp {
     void encode(Bytes& to, const AccessListEntry&);

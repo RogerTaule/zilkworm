@@ -8,9 +8,9 @@
 #include <variant>
 #include <vector>
 
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/common/bytes.hpp>
-#include <silkworm/core/trie/node.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/common/bytes.hpp>
+#include <zilk_core/core/trie/node.hpp>
 
 namespace silkworm::trie {
 

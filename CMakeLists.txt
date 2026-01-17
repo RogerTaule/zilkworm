@@ -1,43 +1,43 @@
-# Copyright 2025 The Silkworm/Zilkworm Authors
+# Copyright 2025 Modifications: The Zilkworm Authors
+
+# Copyright 2025 The Silkworm Authors
 # SPDX-License-Identifier: Apache-2.0
 
 cmake_minimum_required(VERSION 3.24.0)
 
-if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/evmone/evmone/evmc/.git)
+if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/evmone/evmc/.git)
   message(FATAL_ERROR "Git submodules not initialized, execute:\n  git submodule update --init --recursive")
 endif()
 
-get_directory_property(SILKWORM_HAS_PARENT PARENT_DIRECTORY)
-if(NOT SILKWORM_HAS_PARENT)
-  # reduce the log verbosity of evmone/cmake/cable
-  if(NOT CMAKE_MESSAGE_LOG_LEVEL)
-    set(CMAKE_MESSAGE_LOG_LEVEL_EMPTY YES)
-    set(CMAKE_MESSAGE_LOG_LEVEL NOTICE)
-  endif()
-
-  include(${CMAKE_CURRENT_SOURCE_DIR}/third_party/evmone/evmone/cmake/cable/bootstrap.cmake)
-  include(CableBuildType)
-  cable_set_build_type(DEFAULT Release CONFIGURATION_TYPES Release Debug)
-
-  # restore the log verbosity
-  if(CMAKE_MESSAGE_LOG_LEVEL_EMPTY)
-    unset(CMAKE_MESSAGE_LOG_LEVEL)
-  endif()
-
-  if(NOT CMAKE_TOOLCHAIN_FILE)
-    set(CMAKE_TOOLCHAIN_FILE
-        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain/cxx20.cmake
-        CACHE FILEPATH "" FORCE
-    )
-    include("${CMAKE_TOOLCHAIN_FILE}")
-  endif()
-
-  include(cmake/conan.cmake)
+# reduce the log verbosity of evmone/cmake/cable
+if(NOT CMAKE_MESSAGE_LOG_LEVEL)
+  set(CMAKE_MESSAGE_LOG_LEVEL_EMPTY YES)
+  set(CMAKE_MESSAGE_LOG_LEVEL NOTICE)
 endif()
 
-project(silkworm)
+include(${CMAKE_CURRENT_SOURCE_DIR}/third_party/evmone/cmake/cable/bootstrap.cmake)
+include(CableBuildType)
+cable_set_build_type(DEFAULT Release CONFIGURATION_TYPES Release Debug)
+
+# restore the log verbosity
+if(CMAKE_MESSAGE_LOG_LEVEL_EMPTY)
+  unset(CMAKE_MESSAGE_LOG_LEVEL)
+endif()
+
+if(NOT CMAKE_TOOLCHAIN_FILE)
+  set(CMAKE_TOOLCHAIN_FILE
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain/cxx20.cmake
+      CACHE FILEPATH "" FORCE
+  )
+  include("${CMAKE_TOOLCHAIN_FILE}")
+endif()
+
+include(cmake/conan.cmake)
+
+project(zilkworm)
 set(PROJECT_VERSION 0.1.0-dev)
 
+include(CTest)
 include(CableBuildInfo)
 
 string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _ ${PROJECT_VERSION})
@@ -77,10 +77,9 @@ set_property(
 )
 
 get_filename_component(SILKWORM_MAIN_DIR . ABSOLUTE)
-set(SILKWORM_MAIN_SRC_DIR "${SILKWORM_MAIN_DIR}/silkworm")
+set(SILKWORM_MAIN_SRC_DIR "${SILKWORM_MAIN_DIR}/zilk_core")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/compiler_settings.cmake)
-
 
 add_subdirectory(third_party)
 
@@ -92,13 +91,7 @@ if(SILKWORM_CLANG_TIDY)
   set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY}")
 endif()
 
-# Silkworm itself
-add_subdirectory(silkworm)
-
-if(NOT SILKWORM_HAS_PARENT)
-  # add_subdirectory(cmd)
-  # add_subdirectory(examples)
-endif()
+add_subdirectory(zilk_core)
 
 # All unit tests target
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/get_all_targets.cmake)
@@ -113,7 +106,7 @@ message(VERBOSE "UNIT_TEST_TARGETS: ${UNIT_TEST_TARGETS}")
 add_custom_target(all_unit_tests DEPENDS ${UNIT_TEST_TARGETS})
 
 
-include(GNUInstallDirs)
+include(GNUInstallDirs)        # <-- for CMAKE_INSTALL_INCLUDEDIR, LIBDIR, BINDIR …
 
 install(
     DIRECTORY

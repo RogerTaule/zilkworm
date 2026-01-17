@@ -1,11 +1,17 @@
+# Copyright 2025 The Zilkworm Authors
 # Copyright 2025 The Silkworm Authors
 # SPDX-License-Identifier: Apache-2.0
 
 # project(silkworm LANGUAGES CXX)
 
+if(SP1TURBO)
+    add_compile_definitions(-DSP1)
+    include_directories(${CMAKE_SOURCE_DIR}/../prover/guest_program/src/include)
+endif()
+
 if(SP1)
     add_compile_definitions(-DSP1)
-    include_directories(${CMAKE_SOURCE_DIR}/../guest_program/src/include)
+    include_directories(${CMAKE_SOURCE_DIR}/../prover/guest_hypercube/src/include)
 endif()
 
 if(QEMU_DEBUG)
@@ -13,11 +19,10 @@ if(QEMU_DEBUG)
     include_directories(${CMAKE_SOURCE_DIR}/../debug_build/src/include)
 endif()
 
-
-# Silkworm itself
 add_subdirectory(core)
 add_subdirectory(dev)
 
 if(SILKWORM_WASM_API)
     add_subdirectory(wasm)
 endif()
+ 

@@ -251,7 +251,6 @@ evmc::bytes32 InMemoryState::state_root_hash() const {
         account_rlp[to_bytes32(hash.bytes)] = account.rlp(storage_root);
     }
 
-
     // std::cout << "\n" << " Hash: acc_rlp\n";
 
     trie::HashBuilder hb;

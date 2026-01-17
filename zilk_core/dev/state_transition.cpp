@@ -8,22 +8,21 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <magic_enum.hpp>
 #include <nlohmann/json.hpp>
+#include <zilk_core/core/chain/genesis.hpp>
+#include <zilk_core/core/common/empty_hashes.hpp>
+#include <zilk_core/core/common/util.hpp>
+#include <zilk_core/core/execution/execution.hpp>
+#include <zilk_core/core/protocol/blockchain.hpp>
+#include <zilk_core/core/protocol/param.hpp>
+#include <zilk_core/core/protocol/rule_set.hpp>
+#include <zilk_core/core/rlp/encode_vector.hpp>
+#include <zilk_core/core/state/in_memory_state.hpp>
+#include <zilk_core/core/types/address.hpp>
+#include <zilk_core/core/types/evmc_bytes32.hpp>
+#include <zilk_core/dev/common/ecc_key_pair.hpp>
 
-#include <silkworm/core/chain/genesis.hpp>
-#include <silkworm/core/common/empty_hashes.hpp>
-#include <silkworm/core/common/util.hpp>
-#include <silkworm/core/execution/execution.hpp>
-#include <silkworm/core/protocol/blockchain.hpp>
-#include <silkworm/core/protocol/param.hpp>
-#include <silkworm/core/protocol/rule_set.hpp>
-#include <silkworm/core/rlp/encode_vector.hpp>
-#include <silkworm/core/state/in_memory_state.hpp>
-#include <silkworm/core/types/address.hpp>
-#include <silkworm/core/types/evmc_bytes32.hpp>
-#include <silkworm/dev/common/ecc_key_pair.hpp>
-
-#include "../print.hpp"
 #include "expected_state.hpp"
 
 namespace silkworm::cmd::state_transition {
@@ -31,29 +30,24 @@ namespace silkworm::cmd::state_transition {
 StateTransition::StateTransition(const std::string& json_str, const bool terminate_on_error, const bool show_diagnostics) noexcept
     : terminate_on_error_{terminate_on_error},
       show_diagnostics_{show_diagnostics} {
-    sys_println("StateTransition::StateTransition");
-
-    // Redirect std::cout and std::cerr to out_stream_ for capturing output.
-    std::cout.rdbuf(out_stream_.rdbuf());
-    std::cerr.rdbuf(out_stream_.rdbuf());
-
-    std::cout << "Test std::cout\n";
-    sys_println("std::cout tested");
-    std::cerr << "Test std::cerr\n";
-    sys_println("std::cerr tested");
-
-    // Test the captured output dump.
-    sys_println("OUT dump:");
-    sys_println(out_stream_.str().c_str());
-
     base_json_ = nlohmann::json::parse(json_str);
     auto test_object = base_json_.begin();
     test_name_ = test_object.key();
-    blockchain_test_ = test_object->contains("_info") && test_object->contains("blocks");
-    if (blockchain_test_) {
-        sys_println("Blockchain test detected");
-    }
+    // blockchain_test_ = test_object->contains("_info") && test_object->contains("blocks");
+    blockchain_test_ = true;
     test_data_ = test_object.value();
+}
+
+StateTransition::StateTransition(ByteView& unified_rlp) noexcept
+    : unified_rlp_{unified_rlp} {
+}
+
+StateTransition::StateTransition(const std::string& unified_rlp_str) noexcept {
+    // unified_rlp_ = from_hex(unified_rlp_str).value_or(Bytes{});
+
+    // Read from binary
+    unified_rlp_ = ByteView{reinterpret_cast<const uint8_t*>(unified_rlp_str.data()), unified_rlp_str.size()};
+    std::cout << "in ctor unified_rlp_str RLP length: " << unified_rlp_str.size() << " unified_rlp_ RLP length: " << unified_rlp_.size() << "\n";
 }
 
 StateTransition::StateTransition(const bool terminate_on_error, const bool show_diagnostics) noexcept
@@ -205,28 +199,28 @@ Block StateTransition::get_block(InMemoryState& state, ChainConfig& chain_config
     return block;
 }
 
-std::unique_ptr<evmc::address> StateTransition::private_key_to_address(const std::string& private_key) {
-    /// Example
-    // private key: 0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8
-    // public key : 043a514176466fa815ed481ffad09110a2d344f6c9b78c1d14afc351c3a51be33d8072e77939dc03ba44790779b7a1025baf3003f6732430e20cd9b76d953391b3
-    // address    : 0xa94f5374Fce5edBC8E2a8697C15331677e6EbF0B
+// std::unique_ptr<evmc::address> StateTransition::private_key_to_address(const std::string& private_key) {
+//     /// Example
+//     // private key: 0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8
+//     // public key : 043a514176466fa815ed481ffad09110a2d344f6c9b78c1d14afc351c3a51be33d8072e77939dc03ba44790779b7a1025baf3003f6732430e20cd9b76d953391b3
+//     // address    : 0xa94f5374Fce5edBC8E2a8697C15331677e6EbF0B
 
-    auto private_key_bytes = from_hex(private_key).value();
+//     auto private_key_bytes = from_hex(private_key).value();
 
-    if (private_key_bytes.length() == 32) {
-        auto pair = sentry::EccKeyPair(private_key_bytes);
-        uint8_t out[kAddressLength];
-        auto public_key_hash = keccak256(pair.public_key().serialized());
-        std::memcpy(out, public_key_hash.bytes + 12, sizeof(out));
-        return std::make_unique<evmc::address>(bytes_to_address(out));
-    }
+//     if (private_key_bytes.length() == 32) {
+//         auto pair = sentry::EccKeyPair(private_key_bytes);
+//         uint8_t out[kAddressLength];
+//         auto public_key_hash = keccak256(pair.public_key().serialized());
+//         std::memcpy(out, public_key_hash.bytes + 12, sizeof(out));
+//         return std::make_unique<evmc::address>(bytes_to_address(out));
+//     }
 
-    uint8_t out[kAddressLength];
-    // auto public_key_hash = keccak256(pair.public_key().serialized());
-    // std::memcpy(out, public_key_hash.bytes + 12, sizeof(out));
+//     uint8_t out[kAddressLength];
+//     // auto public_key_hash = keccak256(pair.public_key().serialized());
+//     // std::memcpy(out, public_key_hash.bytes + 12, sizeof(out));
 
-    return std::make_unique<evmc::address>(bytes_to_address(out));
-}
+//     return std::make_unique<evmc::address>(bytes_to_address(out));
+// }
 
 std::unique_ptr<evmc::address> StateTransition::sender_to_address(const std::string& sender) {
     return std::make_unique<evmc::address>(hex_to_address(sender));
@@ -334,9 +328,8 @@ namespace {
         kSkipped
     };
 
-    Status run_block(const nlohmann::json& json_block, Blockchain& blockchain) {
+    Status run_json_block(const nlohmann::json& json_block, Blockchain& blockchain) {
         bool invalid{json_block.contains("expectException")};
-
         std::optional<Bytes> rlp{from_hex(json_block["rlp"].get<std::string>())};
         if (!rlp) {
             if (invalid) {
@@ -348,6 +341,22 @@ namespace {
 
         Block block;
         ByteView view{*rlp};
+
+        /// The CL gossip protocol constraint of the maximum block size (EIP-7934).
+        constexpr size_t MAX_BLOCK_SIZE = 10 * 1024 * 1024;
+        /// The safety margin for beacon block content (EIP-7934).
+        constexpr size_t SAFETY_MARGIN = 2 * 1024 * 1024;
+        /// The maximum EL block size when RLP encoded (EIP-7934).
+        constexpr size_t MAX_RLP_BLOCK_SIZE = MAX_BLOCK_SIZE - SAFETY_MARGIN;
+
+        if (view.size() > MAX_RLP_BLOCK_SIZE) {
+            if (invalid)
+                return Status::kPassed;
+
+            // TODO: Ignore big blocks before Osaka because we don't have fork config here.
+            return Status::kSkipped;
+        }
+
         if (!rlp::decode(view, block)) {
             if (invalid) {
                 return Status::kPassed;
@@ -361,7 +370,7 @@ namespace {
             if (invalid) {
                 return Status::kPassed;
             }
-            std::cout << "Validation error " << static_cast<int>(err) << std::endl;
+            std::cout << "Validation error " << magic_enum::enum_name<ValidationResult>(err) << std::endl;
             return Status::kFailed;
         }
 
@@ -481,8 +490,8 @@ namespace {
             std::cout << "unknown network " << network << std::endl;
             return Status::kSkipped;
         }
-
-        Bytes genesis_rlp{from_hex(json_test["genesisRLP"].get<std::string>()).value()};
+        auto genesisRLPStr = json_test["genesisRLP"].get<std::string>();
+        Bytes genesis_rlp{from_hex(genesisRLPStr).value()};
         ByteView genesis_view{genesis_rlp};
         Block genesis_block;
         if (!rlp::decode(genesis_view, genesis_block)) {
@@ -495,7 +504,7 @@ namespace {
         // blockchain.exo_evm = exo_evm;
 
         for (const auto& json_block : json_test["blocks"]) {
-            Status status{run_block(json_block, blockchain)};
+            Status status{run_json_block(json_block, blockchain)};
             if (status != Status::kPassed) {
                 return status;
             }
@@ -519,27 +528,36 @@ namespace {
     }
 }  // namespace
 
-uint64_t StateTransition::run(uint32_t num_runs) {
-    if (blockchain_test_) {
-        sys_println("Running blockchain test");
+uint64_t StateTransition::run_rlp() {
+    // TODO: REIMPLEMENT
+    return 0;
+}
 
+uint64_t StateTransition::run(uint32_t num_runs, bool is_test) {
+    if (is_test) {
+        bool any_failed = false;
+        bool any_skipped = false;
         for (const auto& [name, test] : base_json_.items()) {
-            sys_print(name.c_str());
+            std::cout << "  " << name << ":\n";
             const auto result = blockchain_test(test);
             if (result.failed != 0) {
-                sys_println(" FAILED");
-                // TODO: Use panic, because syscall_halt() doesn't link.
-                __builtin_trap();
+                any_failed = true;
+                std::cout << "    FAILED\n";
             } else if (result.skipped != 0) {
-                sys_println(" SKIPPED");
+                std::cout << "    SKIPPED\n";
+                any_skipped = true;
             } else {
-                sys_println(" passed");
+                std::cout << "    passed\n";
             }
         }
+        if (any_failed)
+            return 1;
+        if (any_skipped)
+            return 2;
         return 0;
     }
 
-    sys_println("Running State transition");
+    std::cout << "Running State transition. num_runs=" << num_runs << "\n";
     failed_count_ = 0;
     total_count_ = 0;
     uint64_t total_gas = 0;
@@ -564,7 +582,7 @@ uint64_t StateTransition::run(uint32_t num_runs) {
 
         Receipt receipt;
         const evmc_revision rev{config.revision(block.header.number, block.header.timestamp)};
-        auto pre_txn_validation = protocol::pre_validate_transaction(txn, rev, config.chain_id, block.header.base_fee_per_gas, block.header.blob_gas_price());
+        auto pre_txn_validation = protocol::pre_validate_transaction(txn, rev, config.chain_id, block.header.base_fee_per_gas, block.header.blob_gas_price(config));
         auto txn_validation = protocol::validate_transaction(txn, processor.evm().state(), processor.available_gas());
 
         if (pre_block_validation == ValidationResult::kOk &&
@@ -573,7 +591,7 @@ uint64_t StateTransition::run(uint32_t num_runs) {
             txn_validation == ValidationResult::kOk) {
             //============== [TESTING ONLY] SIMULATING MULTIPLE RUNS=====
             for (uint32_t i = 0; i < num_runs; i++) {
-                sys_println("Inside multiple runs loop");
+                std::cout << "Inside multiple runs loop\n";
 
                 auto state_cp = read_genesis_allocation(test_data_["pre"]);
                 ExecutionProcessor ccprocessor{block, *rule_set, state_cp, config, true};

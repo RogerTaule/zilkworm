@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <silkworm/core/common/base.hpp>
-#include <silkworm/core/types/hash.hpp>
+#include <zilk_core/core/common/base.hpp>
+#include <zilk_core/core/types/hash.hpp>
 
 namespace silkworm {
 

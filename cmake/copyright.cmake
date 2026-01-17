@@ -1,21 +1,23 @@
+# Copyright 2026 The Zilkworm Authors
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2025 The Silkworm Authors
 # SPDX-License-Identifier: Apache-2.0
 
 set(COPYRIGHT_HEADER_TEMPLATE_C
-    "// Copyright YYYY The Silkworm Authors
+    "// Copyright YYYY The Zilkworm Authors
 // SPDX-License-Identifier: Apache-2.0
 
 "
 )
 
 set(COPYRIGHT_HEADER_TEMPLATE_SH
-    "# Copyright YYYY The Silkworm Authors
+    "# Copyright YYYY The Zilkworm Authors
 # SPDX-License-Identifier: Apache-2.0
 
 "
 )
 
-set(SILKWORM_COPYRIGHT_YEARS "2025")
+set(SILKWORM_COPYRIGHT_YEARS "2026")
 
 function(check file_path template)
   string(LENGTH "${template}" header_len)
@@ -38,9 +40,9 @@ file(
   LIST_DIRECTORIES false
   "cmd/*.?pp" "examples/*.?pp" "silkworm/*.?pp"
 )
-list(FILTER SRC EXCLUDE REGEX [[silkworm/core/chain/genesis_[a-z_]+\.cpp$]])
-list(FILTER SRC EXCLUDE REGEX [[silkworm/core/common/lru_cache(_test)?\..pp$]])
-list(FILTER SRC EXCLUDE REGEX [[silkworm/core/crypto/kzg\.cpp$]])
+list(FILTER SRC EXCLUDE REGEX [[zilk_core/core/chain/genesis_[a-z_]+\.cpp$]])
+list(FILTER SRC EXCLUDE REGEX [[zilk_core/core/common/lru_cache(_test)?\..pp$]])
+list(FILTER SRC EXCLUDE REGEX [[zilk_core/core/crypto/kzg\.cpp$]])
 list(FILTER SRC EXCLUDE REGEX [[silkworm/infra/concurrency/thread_pool\.hpp$]])
 list(FILTER SRC EXCLUDE REGEX [[silkworm/interfaces/]])
 list(FILTER SRC EXCLUDE REGEX [[silkworm/db/datastore/snapshots/config/chains/[a-z_]+\.hpp$]])
