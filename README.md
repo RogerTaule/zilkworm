@@ -21,7 +21,7 @@ At the moment the ZKVM integrated is Succint's SP1 Turbo.
 ## Testing
 
 ### Native build
-Make sure to install applicable build tools and ctest before running the tests:
+Make sure to install applicable tools (g++ 15.2.x, CMAKE, git, git-lfs) and ctest before running the tests:
 ```
 make eest-blockchain-tests
 ```
