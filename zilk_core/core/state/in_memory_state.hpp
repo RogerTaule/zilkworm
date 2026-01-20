@@ -73,7 +73,7 @@ class InMemoryState : public State {
     const FlatHashMap<BlockNum, AccountChanges>& account_changes() const { return account_changes_; }
     const FlatHashMap<evmc::address, Account>& accounts() const { return accounts_; }
 
-    size_t storage_size(const evmc::address& address, uint64_t incarnation) const;
+    size_t storage_size(const evmc::address& address, uint64_t incarnation) const override;
     const Storage& storage() const { return storage_; }
 
   private:
