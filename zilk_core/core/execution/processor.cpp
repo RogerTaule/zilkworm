@@ -19,19 +19,19 @@ class StateView final : public evmone::state::StateView {
     std::optional<Account> get_account(const evmc::address& addr) const noexcept override {
         const auto* obj = state_.get_object(addr);
         if (obj == nullptr || !obj->current.has_value())
-            return std::nullopt;
-
+        return std::nullopt;
+        
         const auto& cur = *obj->current;
+        bool has_storage = state_.db().storage_size(addr, cur.incarnation) > 0;
         return Account{
             .nonce = cur.nonce,
             .balance = cur.balance,
             .code_hash = cur.code_hash,
 
-            // This information is only needed to implement EIP-7610 (create address collision).
-            // Proper way of doing so is to inspect the account's storage root hash,
-            // but this information is currently unavailable to EVM.
-            // The false value is safe "do nothing" option.
-            .has_storage = false,
+            // The change to include the storage size 
+            // as an indication of storage presence works with EESTs, but haven't investigated ALL
+            // edge cases (TODO)
+            .has_storage = has_storage
         };
     }
 

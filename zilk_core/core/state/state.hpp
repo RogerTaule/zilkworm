@@ -31,6 +31,11 @@ class State : public BlockState {
         const evmc::address& address,
         uint64_t incarnation,
         const evmc::bytes32& location) const noexcept = 0;
+    
+    virtual size_t storage_size(
+        const evmc::address& address,
+        uint64_t incarnation
+    ) const = 0;
 
     /** Previous non-zero incarnation of an account; 0 if none exists. */
     virtual uint64_t previous_incarnation(const evmc::address& address) const noexcept = 0;
