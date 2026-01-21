@@ -30,6 +30,18 @@
       ],
       "cwd": "${workspaceFolder}",
       "MIMode": "gdb"
+    },
+    {
+      "name": "EEST Debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "preLaunchTask": "CMake: build",
+      "program": "${workspaceFolder}/build/zilk_core/dev/cli/state_transition",
+      "args": [
+        "$HOME/Documents/code/z6m/third_party/eest-fixtures/blockchain_tests/paris/eip7610_create_collision/test_init_collision_create_opcode_copy.json"
+      ],
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb"
     }
   ]
 }
