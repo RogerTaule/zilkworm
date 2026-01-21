@@ -122,3 +122,32 @@ target_link_libraries(z6m_debug PRIVATE
   "${CMAKE_BINARY_DIR}/zilkworm/third_party/libevmone.a"
   "${CMAKE_BINARY_DIR}/zilkworm/deps/src/blst/libblst.a"
 )
+
+
+set(TESTS_DIR "" CACHE PATH "Directory containing external Execution Spec tests (JSON)")
+if(TESTS_DIR)
+    if(NOT BUILD_TESTING)
+        message(FATAL_ERROR "To enable state transition tests, please enable testing (e.g., -DBUILD_TESTING=ON)")
+    endif()
+
+    include(CTest)
+
+    file(GLOB_RECURSE STATE_TRANSITION_TESTS CONFIGURE_DEPENDS "${TESTS_DIR}/*.json")
+
+    foreach(TEST_JSON ${STATE_TRANSITION_TESTS})
+        file(RELATIVE_PATH TEST_REL_PATH "${TESTS_DIR}" "${TEST_JSON}")
+        set(TEST_NAME "state_transition/${TEST_REL_PATH}")
+        add_test(
+            NAME ${TEST_NAME}
+            COMMAND bash -c "N=`wc -c <'${TEST_JSON}'`; \
+                { printf '123456789_123456789_123456789_123'; printf '1 %u\\n' $N; cat '${TEST_JSON}'; } | \
+                qemu-system-riscv32 -M virt -m 2G -nographic \
+                    -bios '$<TARGET_FILE:z6m_debug>' \
+                    -chardev stdio,mux=on,id=stdio0 \
+                    -serial chardev:stdio0 \
+                    -semihosting-config enable=on,chardev=stdio0 \
+                    -mon chardev=stdio0,mode=readline"
+        )
+        set_tests_properties(${TEST_NAME} PROPERTIES SKIP_RETURN_CODE 2)
+    endforeach()
+endif()

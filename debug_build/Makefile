@@ -68,7 +68,6 @@ xpack-zilkworm-eest:
 		-DCMAKE_VERBOSE_MAKEFILE=ON \
 		-DCMAKE_INSTALL_PREFIX=$(BUILD_DIR)/zilkworm-install \
 	    -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-		-DTESTS_DIR=third_party/eest-fixtures/blockchain_tests \
 		-G "Unix Makefiles" \
 		-DQEMU_DEBUG=ON \
 		-Wno-dev
@@ -85,6 +84,8 @@ xpack-elf-eest: xpack-zilkworm-eest
 		-DCMAKE_VERBOSE_MAKEFILE=ON \
 		-G "Unix Makefiles" \
 		-DCMAKE_EXE_LINKER_FLAGS="-T$(CURDIR)/qemu-xpack.ld -z norelro" \
+		-DBUILD_TESTING=ON \
+		-DTESTS_DIR=$(CURDIR)/../third_party/eest-fixtures/blockchain_tests \
 		-Wno-dev
 	cmake --build $(BUILD_DIR) -j --verbose
 
@@ -100,6 +101,9 @@ qemu-eest: xpack-elf-eest
 		-serial chardev:stdio0 \
 		-semihosting-config enable=on,chardev=stdio0 \
 		-mon chardev=stdio0,mode=readline
+
+rv32im_eest_blockchain_tests: xpack-elf-eest
+	ctest --test-dir build --parallel
 
 
 # qemu: xpack-elf
