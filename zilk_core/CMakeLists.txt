@@ -16,7 +16,7 @@ endif()
 
 if(QEMU_DEBUG)
     add_compile_definitions(-DQEMU_DEBUG)
-    include_directories(${CMAKE_SOURCE_DIR}/../debug_build/src/include)
+    include_directories(${CMAKE_SOURCE_DIR}/debug_build/src/include)
 endif()
 
 add_subdirectory(core)

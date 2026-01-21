@@ -4,8 +4,8 @@
 #include "state_transition.hpp"
 
 #include <bit>
+#include <format>
 #include <fstream>
-#include <iostream>
 #include <stdexcept>
 
 #include <magic_enum.hpp>
@@ -22,6 +22,7 @@
 #include <zilk_core/core/types/address.hpp>
 #include <zilk_core/core/types/evmc_bytes32.hpp>
 #include <zilk_core/dev/common/ecc_key_pair.hpp>
+#include <zilk_core/print.hpp>
 
 #include "expected_state.hpp"
 
@@ -47,7 +48,7 @@ StateTransition::StateTransition(const std::string& unified_rlp_str) noexcept {
 
     // Read from binary
     unified_rlp_ = ByteView{reinterpret_cast<const uint8_t*>(unified_rlp_str.data()), unified_rlp_str.size()};
-    std::cout << "in ctor unified_rlp_str RLP length: " << unified_rlp_str.size() << " unified_rlp_ RLP length: " << unified_rlp_.size() << "\n";
+    sys_println(std::format("in ctor unified_rlp_str RLP length: {} unified_rlp_ RLP length: {}", unified_rlp_str.size(), unified_rlp_.size()).c_str());
 }
 
 StateTransition::StateTransition(const bool terminate_on_error, const bool show_diagnostics) noexcept
@@ -335,7 +336,7 @@ namespace {
             if (invalid) {
                 return Status::kPassed;
             }
-            std::cout << "Failure to read hex" << std::endl;
+            sys_println("Failure to read hex");
             return Status::kFailed;
         }
 
@@ -361,7 +362,7 @@ namespace {
             if (invalid) {
                 return Status::kPassed;
             }
-            std::cout << "Failure to decode RLP" << std::endl;
+            sys_println("Failure to decode RLP");
             return Status::kFailed;
         }
 
@@ -370,13 +371,13 @@ namespace {
             if (invalid) {
                 return Status::kPassed;
             }
-            std::cout << "Validation error " << magic_enum::enum_name<ValidationResult>(err) << std::endl;
+            sys_println(std::format("Validation error {}", magic_enum::enum_name<ValidationResult>(err)).c_str());
             return Status::kFailed;
         }
 
         if (invalid) {
-            std::cout << "Invalid block executed successfully\n";
-            std::cout << "Expected: " << json_block["expectException"] << std::endl;
+            sys_println("Invalid block executed successfully");
+            sys_println(std::format("Expected: {}", json_block["expectException"].dump()).c_str());
             return Status::kFailed;
         }
 
@@ -385,13 +386,12 @@ namespace {
 
     bool post_check(const InMemoryState& state, const nlohmann::json& expected) {
         if (state.accounts().size() != expected.size()) {
-            std::cout << "Account number mismatch: " << state.accounts().size() << " != " << expected.size()
-                      << std::endl;
+            sys_println(std::format("Account number mismatch: {} != {}", state.accounts().size(), expected.size()).c_str());
 
             // Find and report accounts missing from the expected set.
             for (const auto& [addr, _] : state.accounts()) {
                 if (const auto addr_hex = "0x" + hex(addr); !expected.contains(addr_hex)) {
-                    std::cout << "Unexpected account: " << addr_hex << std::endl;
+                    sys_println(std::format("Unexpected account: {}", addr_hex).c_str());
                 }
             }
 
@@ -404,36 +404,32 @@ namespace {
 
             std::optional<Account> account{state.read_account(address)};
             if (!account) {
-                std::cout << "Missing account " << entry.key() << std::endl;
+                sys_println(std::format("Missing account {}", entry.key()).c_str());
                 return false;
             }
 
             const auto expected_balance{intx::from_string<intx::uint256>(j["balance"].get<std::string>())};
             if (account->balance != expected_balance) {
-                std::cout << "Balance mismatch for " << entry.key() << ":\n"
-                          << to_string(account->balance, 16) << " != " << j["balance"] << std::endl;
+                sys_println(std::format("Balance mismatch for {}:\n{} != {}", entry.key(), to_string(account->balance, 16), j["balance"].get<std::string>()).c_str());
                 return false;
             }
 
             const auto expected_nonce{intx::from_string<intx::uint256>(j["nonce"].get<std::string>())};
             if (account->nonce != expected_nonce) {
-                std::cout << "Nonce mismatch for " << entry.key() << ":\n"
-                          << account->nonce << " != " << j["nonce"] << std::endl;
+                sys_println(std::format("Nonce mismatch for {}:\n{} != {}", entry.key(), account->nonce, j["nonce"].get<std::string>()).c_str());
                 return false;
             }
 
             auto expected_code{j["code"].get<std::string>()};
             Bytes actual_code{state.read_code(address, account->code_hash)};
             if (actual_code != from_hex(expected_code)) {
-                std::cout << "Code mismatch for " << entry.key() << ":\n"
-                          << to_hex(actual_code) << " != " << expected_code << std::endl;
+                sys_println(std::format("Code mismatch for {}:\n{} != {}", entry.key(), to_hex(actual_code), expected_code).c_str());
                 return false;
             }
 
             size_t storage_size{state.storage_size(address, account->incarnation)};
             if (storage_size != j["storage"].size()) {
-                std::cout << "Storage size mismatch for " << entry.key() << ":\n"
-                          << storage_size << " != " << j["storage"].size() << std::endl;
+                sys_println(std::format("Storage size mismatch for {}:\n{} != {}", entry.key(), storage_size, j["storage"].size()).c_str());
                 return false;
             }
 
@@ -442,8 +438,7 @@ namespace {
                 Bytes expected_value{from_hex(storage.value().get<std::string>()).value()};
                 evmc::bytes32 actual_value{state.read_storage(address, account->incarnation, to_bytes32(key))};
                 if (actual_value != to_bytes32(expected_value)) {
-                    std::cout << "Storage mismatch for " << entry.key() << " at " << storage.key() << ":\n"
-                              << to_hex(actual_value) << " != " << to_hex(expected_value) << std::endl;
+                    sys_println(std::format("Storage mismatch for {} at {}:\n{} != {}", entry.key(), storage.key(), to_hex(actual_value), to_hex(expected_value)).c_str());
                     return false;
                 }
             }
@@ -487,7 +482,7 @@ namespace {
         const auto network{json_test["network"].get<std::string>()};
         const auto config_it{test::kNetworkConfig.find(network)};
         if (config_it == test::kNetworkConfig.end()) {
-            std::cout << "unknown network " << network << std::endl;
+            sys_println(std::format("unknown network {}", network).c_str());
             return Status::kSkipped;
         }
         auto genesisRLPStr = json_test["genesisRLP"].get<std::string>();
@@ -495,7 +490,7 @@ namespace {
         ByteView genesis_view{genesis_rlp};
         Block genesis_block;
         if (!rlp::decode(genesis_view, genesis_block)) {
-            std::cout << "Failure to decode genesisRLP" << std::endl;
+            sys_println("Failure to decode genesisRLP");
             return Status::kFailed;
         }
 
@@ -514,8 +509,7 @@ namespace {
             evmc::bytes32 state_root{state.state_root_hash()};
             std::string expected_hex{json_test["postStateHash"].get<std::string>()};
             if (state_root != to_bytes32(from_hex(expected_hex).value())) {
-                std::cout << "postStateHash mismatch:\n"
-                          << to_hex(state_root) << " != " << expected_hex << std::endl;
+                sys_println(std::format("postStateHash mismatch:\n{} != {}", to_hex(state_root), expected_hex).c_str());
                 return Status::kFailed;
             }
             return Status::kPassed;
@@ -529,58 +523,58 @@ namespace {
 }  // namespace
 
 uint64_t StateTransition::run_rlp() {
-    std::cout << "run_rlp: Unified RLP length: " << unified_rlp_.size() << "\n";
+    sys_println(std::format("run_rlp: Unified RLP length: {}", unified_rlp_.size()).c_str());
 
     Block genesisBlock, block;
     ByteView pre_state_rlp;
 
     const auto rlp_head{rlp::decode_header(unified_rlp_)};
     if (!rlp_head) {
-        std::cout << "ERROR: Failed to Decode unified_rlp overall header\n";
+        sys_println("ERROR: Failed to Decode unified_rlp overall header");
         return 0;
     }
     if (!rlp_head->list) {
-        std::cout << "ERROR: Failed to Decode unified_rlp: Not list. Payload length: " << rlp_head->payload_length << "\n";
+        sys_println(std::format("ERROR: Failed to Decode unified_rlp: Not list. Payload length: {}", rlp_head->payload_length).c_str());
         return 0;
     }
 
     // Decode Genesis Block
     ByteView payload_view = unified_rlp_.substr(0, rlp_head->payload_length);
     if (payload_view.empty()) {
-        std::cout << "ERROR: Failed to Decode unified_rlp payload view\n";
+        sys_println("ERROR: Failed to Decode unified_rlp payload view");
         return 0;
     }
     auto genesis_header = rlp::decode_header(payload_view);
     if (!genesis_header) {
-        std::cout << "ERROR: Failed to Decode Genesis Block RLP\n";
+        sys_println("ERROR: Failed to Decode Genesis Block RLP");
         return 0;
     }
     ByteView genesis_payload = payload_view.substr(0, genesis_header->payload_length);
     if (!rlp::decode(genesis_payload, genesisBlock)) {
-        std::cout << "ERROR: Failed to Decode Genesis Block RLP\n";
+        sys_println("ERROR: Failed to Decode Genesis Block RLP");
         return 0;
     }
     payload_view.remove_prefix(genesis_header->payload_length);
 
     if (payload_view.empty()) {
-        std::cout << "ERROR: Failed to Decode Block RLP\n";
+        sys_println("ERROR: Failed to Decode Block RLP");
         return 0;
     }
     auto block_header = rlp::decode_header(payload_view);
     if (!block_header) {
-        std::cout << "ERROR: Failed to Decode Block RLP\n";
+        sys_println("ERROR: Failed to Decode Block RLP");
         return 0;
     }
     ByteView block_payload = payload_view.substr(0, block_header->payload_length);
     if (!rlp::decode(block_payload, block)) {
-        std::cout << "ERROR: Failed to Decode Genesis Block RLP\n";
+        sys_println("ERROR: Failed to Decode Genesis Block RLP");
         return 0;
     }
     payload_view.remove_prefix(block_header->payload_length);
 
     auto pre_rlp_head = rlp::decode_header(payload_view);
     if (!pre_rlp_head) {
-        std::cout << "ERROR: Failed to Decode Pre-State RLP\n";
+        sys_println("ERROR: Failed to Decode Pre-State RLP");
         return 0;
     }
     ByteView pre_rlp_payload = payload_view.substr(0, pre_rlp_head->payload_length);
@@ -591,7 +585,7 @@ uint64_t StateTransition::run_rlp() {
     if (headers_overall_rlp_header) {  // Skip invalid headers list rlp
         auto headers_list_header = rlp::decode_header(payload_view);
         if (!headers_list_header || !headers_list_header->list) {
-            std::cout << "Invalid headers list entry\n";
+            sys_println("Invalid headers list entry");
         } else {
             ByteView headers_list_view = payload_view.substr(0, headers_list_header->payload_length);
             while (!headers_list_view.empty()) {
@@ -611,8 +605,8 @@ uint64_t StateTransition::run_rlp() {
     Blockchain blockchain{state, kMainnetConfig, genesisBlock};
 
     if (ValidationResult err{blockchain.insert_block(block, false)}; err != ValidationResult::kOk) {
-        std::cout << "Validation error " << magic_enum::enum_name<ValidationResult>(err) << '\n';
-        
+        sys_println(std::format("Validation error {}", magic_enum::enum_name<ValidationResult>(err)).c_str());
+
         return 0;
     }
 
@@ -624,16 +618,16 @@ uint64_t StateTransition::run(uint32_t num_runs, bool is_test) {
         bool any_failed = false;
         bool any_skipped = false;
         for (const auto& [name, test] : base_json_.items()) {
-            std::cout << "  " << name << ":\n";
+            sys_println(std::format("  {}:", name).c_str());
             const auto result = blockchain_test(test);
             if (result.failed != 0) {
                 any_failed = true;
-                std::cout << "    FAILED\n";
+                sys_println("    FAILED");
             } else if (result.skipped != 0) {
-                std::cout << "    SKIPPED\n";
+                sys_println("    SKIPPED");
                 any_skipped = true;
             } else {
-                std::cout << "    passed\n";
+                sys_println("    passed");
             }
         }
         if (any_failed)
@@ -643,7 +637,7 @@ uint64_t StateTransition::run(uint32_t num_runs, bool is_test) {
         return 0;
     }
 
-    std::cout << "Running State transition. num_runs=" << num_runs << "\n";
+    sys_println(std::format("Running State transition. num_runs={}", num_runs).c_str());
     failed_count_ = 0;
     total_count_ = 0;
     uint64_t total_gas = 0;
@@ -677,7 +671,7 @@ uint64_t StateTransition::run(uint32_t num_runs, bool is_test) {
             txn_validation == ValidationResult::kOk) {
             //============== [TESTING ONLY] SIMULATING MULTIPLE RUNS=====
             for (uint32_t i = 0; i < num_runs; i++) {
-                std::cout << "Inside multiple runs loop\n";
+                sys_println("Inside multiple runs loop");
 
                 auto state_cp = read_genesis_allocation(test_data_["pre"]);
                 ExecutionProcessor ccprocessor{block, *rule_set, state_cp, config, true};

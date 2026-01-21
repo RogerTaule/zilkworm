@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 project(SilkwormRV32Demo C CXX ASM)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 
-set(SW_INSTALL_DIR ${CMAKE_BINARY_DIR}/silkworm-install CACHE PATH "")
+set(SW_INSTALL_DIR ${CMAKE_BINARY_DIR}/zilkworm-install CACHE PATH "")
 
 # include(ExternalProject)
 # ExternalProject_Add(silkworm_ep
@@ -27,17 +27,18 @@ set(SW_INSTALL_DIR ${CMAKE_BINARY_DIR}/silkworm-install CACHE PATH "")
 set(SW_INCLUDE_DIR ${SW_INSTALL_DIR}/include)
 
 # ExternalProject_Get_Property(silkworm_ep BINARY_DIR)
-set(SW_BIN         "${CMAKE_BINARY_DIR}/silkworm")
+set(SW_BIN         "${CMAKE_BINARY_DIR}/zilkworm")
 set(SW_CONAN_DIR   "${SW_BIN}/conan2")
-set(SW_INC_FALLBACK "${CMAKE_SOURCE_DIR}/../silkworm")
-set(SW_INC_INSTALL  "${CMAKE_BINARY_DIR}/silkworm-install/include")
+set(SW_INC_FALLBACK "${CMAKE_SOURCE_DIR}/..")
+set(SW_INC_INSTALL  "${CMAKE_BINARY_DIR}/zilkworm-install/include")
 
 
 
 # Make Conan package configs from the external build visible here
 if (EXISTS "${SW_CONAN_DIR}/conandeps_legacy.cmake")
-  include("${SW_CONAN_DIR}/conandeps_legacy.cmake")
+  list(APPEND CMAKE_MODULE_PATH "${SW_CONAN_DIR}")
   list(APPEND CMAKE_PREFIX_PATH "${SW_CONAN_DIR}")
+  include("${SW_CONAN_DIR}/conandeps_legacy.cmake")
 endif()
 
 add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp src/start.S src/sys_sbrk_wrap.c)
@@ -45,13 +46,13 @@ add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp src
 
 add_library(silkworm_core STATIC IMPORTED GLOBAL)
 set_target_properties(silkworm_core PROPERTIES
-  IMPORTED_LOCATION "${SW_BIN}/silkworm/core/libsilkworm_core.a"
+  IMPORTED_LOCATION "${SW_BIN}/zilk_core/core/libsilkworm_core.a"
 )
 add_dependencies(z6m_debug silkworm_core )
 
 add_library(silkworm_dev STATIC IMPORTED GLOBAL)
 set_target_properties(silkworm_dev PROPERTIES
-  IMPORTED_LOCATION "${SW_BIN}/silkworm/dev/libsilkworm_dev.a"
+  IMPORTED_LOCATION "${SW_BIN}/zilk_core/dev/libsilkworm_dev.a"
 )
 add_dependencies(z6m_debug silkworm_dev )
 
@@ -114,10 +115,10 @@ target_link_libraries(z6m_debug PRIVATE tl::expected)
 
 # If you later see unresolved symbols from 3rd-party .a’s, also add:
 target_link_libraries(z6m_debug PRIVATE
-  "${CMAKE_BINARY_DIR}/silkworm-install/lib/libethash.a"
-  "${CMAKE_BINARY_DIR}/silkworm-install/lib/libkeccak.a"
-  "${CMAKE_BINARY_DIR}/silkworm-install/lib/libevmc-loader.a"
-  "${CMAKE_BINARY_DIR}/silkworm-install/lib/libevmc-instructions.a"
-  "${CMAKE_BINARY_DIR}/silkworm/third_party/evmone/libevmone.a"
-  "${CMAKE_BINARY_DIR}/silkworm/deps/src/blst/libblst.a"
+  # "${CMAKE_BINARY_DIR}/zilkworm-install/lib/libethash.a"
+  # "${CMAKE_BINARY_DIR}/zilkworm-install/lib/libkeccak.a"
+  "${CMAKE_BINARY_DIR}/zilkworm-install/lib/libevmc-loader.a"
+  "${CMAKE_BINARY_DIR}/zilkworm-install/lib/libevmc-instructions.a"
+  "${CMAKE_BINARY_DIR}/zilkworm/third_party/libevmone.a"
+  "${CMAKE_BINARY_DIR}/zilkworm/deps/src/blst/libblst.a"
 )
