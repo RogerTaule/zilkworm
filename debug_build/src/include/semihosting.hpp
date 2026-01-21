@@ -2,10 +2,10 @@
 #include <cstddef>
 #include <cstdint>
 
-static inline void sys_print(const char *s)
+static inline void sys_print(const char* s)
 {
     register long a0 asm("a0") = 0x04;     // SYS_WRITE0
-    register const char *a1 asm("a1") = s; // pointer to 0-terminated string
+    register const char* a1 asm("a1") = s; // pointer to 0-terminated string
     asm volatile(
         ".option push       \n"
         ".option norvc      \n" // avoid C extension in the magic sequence
@@ -16,8 +16,8 @@ static inline void sys_print(const char *s)
         : "+r"(a0) : "r"(a1) : "memory");
 }
 
-static inline void sys_println(const char *s)
-{   
+static inline void sys_println(const char* s)
+{
     sys_print(s);
     sys_print("\n");
 }
@@ -29,12 +29,14 @@ namespace sh
     constexpr int SYS_READ = 0x06;
     constexpr int SYS_READC = 0x07;
     constexpr int SYS_OPEN = 0x01;
+    // constexpr int SYS_EXIT = 0x18;      // Not used as it always returns code 1 on exit
+    constexpr int SYS_EXIT_EXTENDED = 0x20;
 
     // RISC-V semihosting call: a0=reason, a1=argptr, magic EBREAK sequence.
-    inline long call(int reason, void *arg)
+    inline long call(int reason, void* arg)
     {
         register long a0 asm("a0") = reason;
-        register void *a1 asm("a1") = arg;
+        register void* a1 asm("a1") = arg;
         asm volatile(
             " .option push      \n"
             " .option norvc     \n"
@@ -46,6 +48,25 @@ namespace sh
         return a0; // return value in a0
     }
 
+
+    // Exit codes for SYS_EXIT / SYS_EXIT_EXTENDED
+    constexpr uint32_t ADP_Stopped_ApplicationExit = 0x20026;
+
+    // Terminate the QEMU emulator with an exit code
+    // Uses SYS_EXIT_EXTENDED (0x20) which accepts a two-word argument block
+    // on 32-bit systems to pass both reason code and exit status.
+    // See: https://github.com/ARM-software/abi-aa/blob/main/semihosting/semihosting.rst
+    [[noreturn]] inline void exit(int code)
+    {
+        // SYS_EXIT_EXTENDED argument block:
+        // field 1: reason code (ADP_Stopped_ApplicationExit for normal exit)
+        // field 2: exit status code
+        uint32_t args[2] = { ADP_Stopped_ApplicationExit, static_cast<uint32_t>(code) };
+        call(SYS_EXIT_EXTENDED, args);
+        __builtin_unreachable();
+    }
+
+
     // Blocking getchar() from host stdin
     inline int readc()
     {
@@ -54,9 +75,9 @@ namespace sh
 
 
 
-    inline bool read_exact(void *buf, std::size_t n)
+    inline bool read_exact(void* buf, std::size_t n)
     {
-        char *p = static_cast<char *>(buf);
+        char* p = static_cast<char*>(buf);
         for (std::size_t i = 0; i < n; ++i)
         {
             int c = readc(); // blocks until a char is available
@@ -69,7 +90,7 @@ namespace sh
 
     // Parse unsigned decimal uint32 from stdin; skips leading whitespace.
     // Stops at first non-digit. Returns true on success.
-    inline std::size_t read_u32_from_stdin(std::uint32_t &out)
+    inline std::size_t read_u32_from_stdin(std::uint32_t& out)
     {
         int c;
         std::size_t len = 0;
@@ -103,10 +124,10 @@ namespace sh
     {
         struct Args
         {
-            const char *name;
+            const char* name;
             int mode;
             int name_len;
-        } a{":tt", 0, 3};
+        } a{ ":tt", 0, 3 };
         long h = call(SYS_OPEN, &a);
         return static_cast<int>(h); // -1 on failure
     }
@@ -124,27 +145,27 @@ namespace sh
     // =======================================================
 
     // Read up to len from a semihosting handle; returns bytes actually read.
-    inline std::size_t read_handle(int handle, void *buf, std::size_t len)
+    inline std::size_t read_handle(int handle, void* buf, std::size_t len)
     {
         struct Args
         {
             int fd;
-            void *buf;
+            void* buf;
             std::size_t len;
-        } a{handle, buf, len};
+        } a{ handle, buf, len };
         long not_read = call(SYS_READ, &a); // returns bytes NOT read
         return len - static_cast<std::size_t>(not_read);
     }
 
     // Read EXACTLY n bytes from :tt
-    inline std::size_t read_exact_handle(int handle, void *buf, std::size_t n)
-    {   
+    inline std::size_t read_exact_handle(int handle, void* buf, std::size_t n)
+    {
         std::size_t off = 0;
         std::size_t block_size = 4096;
         while (off < n)
         {
-            std::size_t len = (n-off) >= block_size ? block_size: (n-off);
-            std::size_t got = read_handle(handle, static_cast<char *>(buf) + off, len);
+            std::size_t len = (n - off) >= block_size ? block_size : (n - off);
+            std::size_t got = read_handle(handle, static_cast<char*>(buf) + off, len);
             // if (got == 0)
             // {
             //     sys_println("read_exact_tty - got 0, probable EOF");

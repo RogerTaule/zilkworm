@@ -6,7 +6,7 @@
 // Keep a static buffer big enough for your JSON payloads.
 static char JSON_BUF[64 * 1024 * 1024];
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     // Read the entire input at once using SYS_READ on stdin (fd=0)
     std::uint32_t n = 0;
@@ -31,17 +31,17 @@ int main(int argc, char *argv[])
 
     //Skip blanks
     while (i < num_len && (num_buf[i] == ' ' || num_buf[i] == '\t' ||
-                           num_buf[i] == '\r' || num_buf[i] == '\n'))
+        num_buf[i] == '\r' || num_buf[i] == '\n'))
     {
         i++;
     }
     // Read is_test
-    if(i < num_len && num_buf[i] == '0' || num_buf[i] == '1'){
+    if (i < num_len && num_buf[i] == '0' || num_buf[i] == '1') {
         is_test = num_buf[i] - '0';
         i++;
         // Skip blanks
         while (i < num_len && (num_buf[i] == ' ' || num_buf[i] == '\t' ||
-                           num_buf[i] == '\r' || num_buf[i] == '\n'))
+            num_buf[i] == '\r' || num_buf[i] == '\n'))
         {
             i++;
         }
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 
     // Skip blanks
     while (i < num_len && (num_buf[i] == ' ' || num_buf[i] == '\t' ||
-                           num_buf[i] == '\r' || num_buf[i] == '\n'))
+        num_buf[i] == '\r' || num_buf[i] == '\n'))
     {
         i++;
     }
@@ -87,21 +87,12 @@ int main(int argc, char *argv[])
         }
     }
     copied += got;
-
-    // JSON_BUF[n] = '\0'; // null-terminate for convenience
     std::string jsonStr(JSON_BUF, JSON_BUF + n);
     char buf[64];
     std::snprintf(buf, sizeof(buf), "Input file read length: %zu", jsonStr.size());
     sys_println(buf);
-
-    // sys_println(jsonStr.c_str());
     const uint64_t res = sample_run_wrapped(is_test, jsonStr);
-    // char buf[64];
-    std::snprintf(buf, sizeof(buf), "State transition result: %llu", res);
-    sys_println(buf);
-    // printf("State transition result: %d\n", res);
-    while (1)
-    {
-    } // loop indefinitely (no OS to return to)
-    // return 0;   // Don't
+
+    // Exit QEMU with the result code
+    sh::exit(static_cast<int>(res));
 }
