@@ -11,7 +11,7 @@ jobs:
   eest-blockchain-tests:
     name: Run EEST Blockchain Tests
     runs-on: ubuntu-latest
-
+    container: ubuntu:25.10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,7 +27,7 @@ jobs:
           apt update
           apt install -y \
             build-essential \
-            g++ \
+            g++-15 \
             cmake \
             ninja-build \
             git \
@@ -92,7 +92,6 @@ jobs:
           name: eest-test-logs
           path: |
             output.log
-            test_summary.log
             build/eest/Testing/Temporary/LastTest.log
           retention-days: 30
 
