@@ -76,6 +76,8 @@ jobs:
           fi
 
       - name: Print test summary
+        if: always()
+        shell: bash
         run: |
           echo "========================================"
           echo "         EEST TEST SUMMARY"
@@ -95,6 +97,8 @@ jobs:
           retention-days: 30
 
       - name: Check failure threshold
+        if: always()
+        shell: bash
         run: |
           failed=${{ steps.run_tests.outputs.failed }}
           total=${{ steps.run_tests.outputs.total }}
