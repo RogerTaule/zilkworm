@@ -13,12 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     container: ubuntu:25.10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          lfs: true
-
       - name: Install system dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
@@ -49,6 +43,12 @@ jobs:
           git lfs version
           python3 --version
           ctest --version
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
 
       - name: Run EEST blockchain tests
         id: run_tests
