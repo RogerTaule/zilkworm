@@ -32,7 +32,6 @@ jobs:
           pipx install conan 
           pipx ensurepath
 
-
       - name: Verify tool versions
         run: |
           gcc --version
@@ -52,6 +51,7 @@ jobs:
 
       - name: Run EEST blockchain tests
         id: run_tests
+        shell: bash
         run: |
           set +e
           make eest-blockchain-tests 2>&1 | tee output.log
@@ -100,21 +100,20 @@ jobs:
           failed=${{ steps.run_tests.outputs.failed }}
           total=${{ steps.run_tests.outputs.total }}
           exit_code=${{ steps.run_tests.outputs.exit_code }}
-          
+
           if [[ "$failed" == "-1" ]]; then
             echo "ERROR: Could not parse test results"
             exit 1
           fi
-          
+
           if (( failed > 5 )); then
             echo "Too many failures - ${failed} failed out of ${total}"
             echo "failed" > failed.log
             exit 1
           fi
-          
+
           if (( failed > 0 )); then
             echo "WARNING: ${failed} test(s) failed, but within acceptable threshold (<=5)"
           else
             echo "SUCCESS: All ${total} tests passed!"
           fi
-
