@@ -1,6 +1,4 @@
 BUILD_DIR :=  $(CURDIR)/build
-CONAN_PROFILE  := conan/profiles/rv32im.sp1.profile
-CMAKE_TOOLCHAIN := cmake/rv32im.sp1.cmake
 ELF := $(BUILD_DIR)/z6m_debug
 
 CONAN_PROFILE  = $(CURDIR)/conan/profiles/riscv32im.conan.profile

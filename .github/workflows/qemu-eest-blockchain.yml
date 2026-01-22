@@ -1,0 +1,118 @@
+name: Qemu EESTs on RV32IM
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  qemu-eest-blockchain:
+    name: EEST Blockchain Tests via Qemu(riscv32)
+    runs-on: ubuntu-latest
+    container: ubuntu:25.10
+    steps:
+      - name: Install system dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: Etc/UTC
+        run: |
+          apt update
+          apt install -y \
+            build-essential cmake ninja-build \
+            git git-lfs \
+            python3 python3-pip pipx \
+            qemu-system-riscv \
+            nodejs npm
+          pipx install conan
+          pipx ensurepath
+          npm i -g xpm
+          xpm install @xpack-dev-tools/riscv-none-elf-gcc@latest --global --verbose
+          echo 'export PATH=$HOME/.local/xPacks/@xpack-dev-tools/riscv-none-elf-gcc/15.2.0-1.1/.content/bin:$PATH' >> ~/.bashrc
+          echo "PATH=$HOME/.local/xPacks/@xpack-dev-tools/riscv-none-elf-gcc/15.2.0-1.1/.content/bin:$PATH" >> $GITHUB_ENV
+      - name: Verify tool versions
+        run: |
+          riscv-none-elf-gcc --version
+          riscv-none-elf-g++ --version
+          cmake --version
+          ninja --version
+          git --version
+          git lfs version
+          python3 --version
+          ctest --version
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Run EEST blockchain tests
+        id: run_tests
+        shell: bash
+        run: |
+          set +e
+          cd qemu_runner && make rv32im_eest_blockchain_tests 2>&1 | tee output.log
+          exit_code=${PIPESTATUS[0]}
+
+          # Parse test results
+          if grep -q "tests passed" output.log; then
+            result_line=$(grep "tests passed" output.log | tail -1)
+            # Extract numbers: "X% tests passed, Y tests failed out of Z"
+            passed=$(echo "$result_line" | grep -oP '\d+(?=% tests passed)')
+            failed=$(echo "$result_line" | grep -oP '\d+(?= tests failed)')
+            total=$(echo "$result_line" | grep -oP '(?<=out of )\d+')
+            
+            echo "passed_percent=$passed" >> $GITHUB_OUTPUT
+            echo "failed=$failed" >> $GITHUB_OUTPUT
+            echo "total=$total" >> $GITHUB_OUTPUT
+            echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          else
+            echo "passed_percent=0" >> $GITHUB_OUTPUT
+            echo "failed=-1" >> $GITHUB_OUTPUT
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Print test summary
+        run: |
+          echo "========================================"
+          echo "         EEST TEST SUMMARY"
+          echo "========================================"
+          echo ""
+          echo "Results: ${{ steps.run_tests.outputs.passed_percent }}% passed, ${{ steps.run_tests.outputs.failed }} failed out of ${{ steps.run_tests.outputs.total }}"
+          echo "========================================"
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eest-test-logs
+          path: |
+            output.log
+            build/eest/Testing/Temporary/LastTest.log
+          retention-days: 30
+
+      - name: Check failure threshold
+        run: |
+          failed=${{ steps.run_tests.outputs.failed }}
+          total=${{ steps.run_tests.outputs.total }}
+          exit_code=${{ steps.run_tests.outputs.exit_code }}
+
+          if [[ "$failed" == "-1" ]]; then
+            echo "ERROR: Could not parse test results"
+            exit 1
+          fi
+
+          if (( failed > 5 )); then
+            echo "Too many failures - ${failed} failed out of ${total}"
+            echo "failed" > failed.log
+            exit 1
+          fi
+
+          if (( failed > 0 )); then
+            echo "WARNING: ${failed} test(s) failed, but within acceptable threshold (<=5)"
+          else
+            echo "SUCCESS: All ${total} tests passed!"
+          fi

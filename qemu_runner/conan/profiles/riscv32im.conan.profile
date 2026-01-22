@@ -1,7 +1,7 @@
 [settings]
 os=baremetal
 arch=riscv32
-compiler=gcc
+compiler=riscv-none-elf-gcc
 compiler.version=15
 compiler.libcxx=libstdc++11
 compiler.cppstd=gnu23
