@@ -76,6 +76,12 @@ jobs:
         with:
           name: eest-build-artifacts
 
+      - name: Fix CMake paths for native runner
+        run: |
+          # Replace container paths with native runner paths in CMake/CTest config files
+          find qemu_runner/build -type f \( -name "*.cmake" -o -name "*.tcl" -o -name "CMakeCache.txt" \) \
+            -exec sed -i 's|/__w/|/home/runner/work/|g' {} \;
+
       - name: Run EEST blockchain tests
         id: run_tests
         shell: bash
