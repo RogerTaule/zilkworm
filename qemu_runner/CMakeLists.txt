@@ -101,21 +101,26 @@ if(TESTS_DIR)
 
     include(CTest)
 
+    # Get paths relative to build directory for relocatable tests
+    file(RELATIVE_PATH TESTS_DIR_REL "${CMAKE_CURRENT_BINARY_DIR}" "${TESTS_DIR}")
+    
     file(GLOB_RECURSE STATE_TRANSITION_TESTS CONFIGURE_DEPENDS "${TESTS_DIR}/*.json")
 
     foreach(TEST_JSON ${STATE_TRANSITION_TESTS})
         file(RELATIVE_PATH TEST_REL_PATH "${TESTS_DIR}" "${TEST_JSON}")
+        file(RELATIVE_PATH TEST_JSON_REL "${CMAKE_CURRENT_BINARY_DIR}" "${TEST_JSON}")
         set(TEST_NAME "state_transition/${TEST_REL_PATH}")
         add_test(
             NAME ${TEST_NAME}
-            COMMAND bash -c "N=`wc -c <'${TEST_JSON}'`; \
-                { printf '123456789_123456789_123456789_123'; printf '1 %u\\n' $N; cat '${TEST_JSON}'; } | \
+            COMMAND bash -c "N=`wc -c <'${TEST_JSON_REL}'`; \
+                { printf '123456789_123456789_123456789_123'; printf '1 %u\\n' $N; cat '${TEST_JSON_REL}'; } | \
                 qemu-system-riscv32 -M virt -m 2G -nographic \
-                    -bios '$<TARGET_FILE:z6m_debug>' \
+                    -bios './z6m_debug' \
                     -chardev stdio,mux=on,id=stdio0 \
                     -serial chardev:stdio0 \
                     -semihosting-config enable=on,chardev=stdio0 \
                     -mon chardev=stdio0,mode=readline"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         )
         set_tests_properties(${TEST_NAME} PROPERTIES SKIP_RETURN_CODE 2)
     endforeach()
