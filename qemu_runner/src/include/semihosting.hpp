@@ -132,6 +132,19 @@ namespace sh
         return static_cast<int>(h); // -1 on failure
     }
 
+    inline int open_file_read(std::string path)
+    {
+        struct Args
+        {
+            const char* name;
+            int mode;
+            int name_len;
+        } a{ path.c_str(), 0, static_cast<int>(path.size()) };
+
+        long h = call(SYS_OPEN, &a);
+        return static_cast<int>(h);
+    }
+
     // =================  SYS_READ ==========================
     // SYS_READ (0x06) = “read N bytes from a file handle”
     // NOTE: Does not work without opening a file handle
@@ -166,6 +179,7 @@ namespace sh
         {
             std::size_t len = (n - off) >= block_size ? block_size : (n - off);
             std::size_t got = read_handle(handle, static_cast<char*>(buf) + off, len);
+
             // if (got == 0)
             // {
             //     sys_println("read_exact_tty - got 0, probable EOF");

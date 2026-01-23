@@ -118,21 +118,45 @@ rerun_ctest:
 # 		-monitor none \
 #   		-qmp unix:/tmp/qmp.sock,server=on,wait=off
 
+# rerun-qemu-eest:
+# 	which script;
+# 	@if [ -z "$(file-name)" ]; then echo "Usage: make rerun-qemu-eest file-name=path/to.json"; exit 1; fi
+# 	@N=$$(wc -c <"$(file-name)"); \
+# 	rm -f semihost.log; \
+# 	script -qefc "{ printf '123456789_123456789_123456789_123'; printf '1 %u\n' $$N; cat '$(file-name)'; } | \
+# 		qemu-system-riscv32 -M virt -m 2G -nographic \
+# 			-bios $(BUILD_DIR)/z6m_debug \
+# 			-chardev stdio,mux=on,id=stdio0,signal=off \
+# 			-serial chardev:stdio0 \
+# 			-semihosting-config enable=on,chardev=stdio0,target=native \
+# 			-monitor none" semihost.log
+
+# rerun-qemu-eest:
+# 	@if [ -z "$(file-name)" ]; then echo "Usage: make rerun-qemu-eest file-name=path/to.json"; exit 1; fi
+# 	@N=$$(wc -c <"$(file-name)"); \
+# 	rm -f semihost.log serial.log; \
+# 	{ printf "123456789_123456789_123456789_123"; printf "1 %u\n" $$N; cat "$(file-name)"; } | \
+# 	qemu-system-riscv32 -M virt -m 2G -display none \
+# 		-bios $(BUILD_DIR)/z6m_debug \
+# 		-chardev stdio,id=sh0,signal=off \
+# 		-semihosting-config enable=on,target=native,chardev=sh0 \
+# 		-serial none \
+# 		-monitor none 
+
+
 rerun-qemu-eest:
 	@if [ -z "$(file-name)" ]; then echo "Usage: make rerun-qemu-eest file-name=path/to.json"; exit 1; fi
 	@N=$$(wc -c <"$(file-name)"); \
-	set -e; \
-	rm -f semihost.log serial.log stdin_payload.bin; \
-	{ printf "123456789_123456789_123456789_123"; printf "1 %u\n" $$N; cat "$(file-name)"; } > stdin_payload.bin; \
-	script -qec "cat stdin_payload.bin | \
-		qemu-system-riscv32 -M virt -m 2G -nographic \
-			-bios $(BUILD_DIR)/z6m_debug \
-			-chardev stdio,mux=on,id=stdio0 \
-			-serial chardev:stdio0 \
-			-semihosting-config enable=on,chardev=stdio0 \
-			-monitor none" semihost.log
+	rm -f semihost.log serial.log; \
+	{ printf "1 %u\n" $$N; cat "$(file-name)"; } > stdin_payload.bin; \
+	qemu-system-riscv32 -M virt -m 2G -display none \
+		-bios $(BUILD_DIR)/z6m_debug \
+		-chardev stdio,id=sh0,signal=off \
+		-semihosting-config enable=on,target=native,chardev=sh0 \
+		-serial none \
+		-monitor none
 
-# Clean build artifacts
+# # Clean build artifacts
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)

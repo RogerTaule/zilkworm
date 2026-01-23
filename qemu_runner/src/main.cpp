@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
     std::uint32_t n = 0;
 
     // Open a handle
-    int h = sh::open_tty_read();
+    int h = sh::open_file_read("stdin_payload.bin");
     if (h < 0)
     {
         sys_println("Failed to open tty_read");
