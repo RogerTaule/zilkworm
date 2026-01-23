@@ -103,6 +103,10 @@ qemu-eest: xpack-elf-eest
 rv32im_eest_blockchain_tests: xpack-elf-eest
 	ctest --test-dir build --parallel
 
+rerun_ctest:
+	ctest --test-dir build --parallel
+
+
 # Clean build artifacts
 .PHONY: clean
 clean:
