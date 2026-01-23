@@ -106,6 +106,31 @@ rv32im_eest_blockchain_tests: xpack-elf-eest
 rerun_ctest:
 	ctest --test-dir build --parallel --output-on-failure -V --timeout 7200
 
+# rerun-qemu-eest:
+# 	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu-eest file-name=path/to.json"; exit 1; fi
+# 	@N=$$(wc -c <"$(file-name)"); \
+# 	{ printf "123456789_123456789_123456789_123"; printf "1 %u\n" $$N; cat "$(file-name)"; } | \
+# 	qemu-system-riscv32 -M virt -m 2G -nographic \
+# 		-bios $(BUILD_DIR)/z6m_debug \
+# 		-chardev stdio,mux=on,id=stdio0 \
+# 		-serial chardev:stdio0 \
+# 		-semihosting-config enable=on,target=native,chardev=stdio0 \
+# 		-monitor none \
+#   		-qmp unix:/tmp/qmp.sock,server=on,wait=off
+
+rerun-qemu-eest:
+	@if [ -z "$(file-name)" ]; then echo "Usage: make rerun-qemu-eest file-name=path/to.json"; exit 1; fi
+	@N=$$(wc -c <"$(file-name)"); \
+	set -e; \
+	rm -f semihost.log serial.log stdin_payload.bin; \
+	{ printf "123456789_123456789_123456789_123"; printf "1 %u\n" $$N; cat "$(file-name)"; } > stdin_payload.bin; \
+	script -qec "cat stdin_payload.bin | \
+		qemu-system-riscv32 -M virt -m 2G -nographic \
+			-bios $(BUILD_DIR)/z6m_debug \
+			-chardev stdio,mux=on,id=stdio0 \
+			-serial chardev:stdio0 \
+			-semihosting-config enable=on,chardev=stdio0 \
+			-monitor none" semihost.log
 
 # Clean build artifacts
 .PHONY: clean
