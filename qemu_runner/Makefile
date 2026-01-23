@@ -101,10 +101,10 @@ qemu-eest: xpack-elf-eest
 		-mon chardev=stdio0,mode=readline
 
 rv32im_eest_blockchain_tests: xpack-elf-eest
-	ctest --test-dir build --parallel
+	ctest --test-dir build --parallel --output-on-failure
 
 rerun_ctest:
-	ctest --test-dir build --parallel
+	ctest --test-dir build --parallel --output-on-failure -V --timeout 7200
 
 
 # Clean build artifacts

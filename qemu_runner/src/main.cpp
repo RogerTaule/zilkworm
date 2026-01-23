@@ -3,8 +3,8 @@
 #include <string>
 #include "./include/semihosting.hpp"
 
-// Keep a static buffer big enough for your JSON payloads.
-static char JSON_BUF[64 * 1024 * 1024];
+// Static buffer big enough for all the JSON payloads.
+static char JSON_BUF[200 * 1024 * 1024];
 
 int main(int argc, char* argv[])
 {
