@@ -15,10 +15,9 @@ int main(int argc, char* argv[])
     int h = sh::open_file_read("stdin_payload.bin");
     if (h < 0)
     {
-        sys_println("Failed to open tty_read");
-        for (;;)
-        {
-        }
+        sys_println("Failed to open file stdin_payload");
+        // sys_println("Failed to open tty_read");
+        sh::exit(1);
     }
     // int h = 0;
 
@@ -58,9 +57,7 @@ int main(int argc, char* argv[])
     if (n >= sizeof(JSON_BUF))
     {
         sys_println("File too large for JSON_BUF");
-        for (;;)
-        {
-        }
+        sh::exit(1);
     }
 
     // Skip blanks
@@ -82,9 +79,7 @@ int main(int argc, char* argv[])
     if (got == 0)
     {
         sys_println("Unexpected EOF");
-        for (;;)
-        {
-        }
+        sh::exit(1);
     }
     copied += got;
     std::string jsonStr(JSON_BUF, JSON_BUF + n);

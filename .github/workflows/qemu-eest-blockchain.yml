@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-qemu-rv32im:
-    name: Build rv32im Binary (Ubuntu 25.10)
+  build-and-run-rv32im:
+    name: Build and Run EEST Tests (Ubuntu 25.10)
     runs-on: ubuntu-latest
     container: ubuntu:25.10
     steps:
@@ -23,7 +23,8 @@ jobs:
             build-essential cmake ninja-build \
             git git-lfs \
             python3 python3-pip pipx \
-            nodejs npm
+            nodejs npm \
+            qemu-system-misc
           pipx install conan
           pipx ensurepath
           npm i -g xpm
@@ -41,6 +42,7 @@ jobs:
           git lfs version
           python3 --version
           ctest --version
+          qemu-system-riscv32 --version
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -52,65 +54,35 @@ jobs:
         run: |
           cd qemu_runner && make xpack-elf-eest
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: eest-build-artifacts
-          path: |
-            qemu_runner/
-            third_party/eest-fixtures/
-          retention-days: 1
-
-  run-rv32im-blockchain-tests:
-    name: Run EEST Tests via QEMU
-    runs-on: ubuntu-latest
-    needs: build-qemu-rv32im
-    steps:
-      - name: Install QEMU
-        run: |
-          sudo apt update
-          sudo apt install -y qemu-system-misc cmake
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: eest-build-artifacts
-
-      - name: Fix CMake paths for native runner
-        run: |
-          # Replace container paths with native runner paths in CMake/CTest config files
-          find qemu_runner/build -type f \( -name "*.cmake" -o -name "*.tcl" -o -name "CMakeCache.txt" \) \
-            -exec sed -i 's|/__w/|/home/runner/work/|g' {} \;
-
       - name: Run EEST blockchain tests
         id: run_tests
         shell: bash
         run: |
           set +e
           cd qemu_runner
-          make rerun-qemu-eest file-name=../third_party/eest-fixtures/blockchain_tests/osaka/eip7883_modexp_gas_increase/test_contract_initcode.json
+          make rerun_ctest
+          # 2>&1 | tee output.log
 
-    # cd qemu_runner && make rerun_ctest 2>&1 | tee output.log
-    # exit_code=${PIPESTATUS[0]}
+          exit_code=${PIPESTATUS[0]}
 
-    # # Parse test results
-    # if grep -q "tests passed" output.log; then
-    #   result_line=$(grep "tests passed" output.log | tail -1)
-    #   # Extract numbers: "X% tests passed, Y tests failed out of Z"
-    #   passed=$(echo "$result_line" | grep -oP '\d+(?=% tests passed)')
-    #   failed=$(echo "$result_line" | grep -oP '\d+(?= tests failed)')
-    #   total=$(echo "$result_line" | grep -oP '(?<=out of )\d+')
-      
-    #   echo "passed_percent=$passed" >> $GITHUB_OUTPUT
-    #   echo "failed=$failed" >> $GITHUB_OUTPUT
-    #   echo "total=$total" >> $GITHUB_OUTPUT
-    #   echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-    # else
-    #   echo "passed_percent=0" >> $GITHUB_OUTPUT
-    #   echo "failed=-1" >> $GITHUB_OUTPUT
-    #   echo "total=0" >> $GITHUB_OUTPUT
-    #   echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-    # fi
+          # Parse test results
+          # if grep -q "tests passed" output.log; then
+          #   result_line=$(grep "tests passed" output.log | tail -1)
+          #   # Extract numbers: "X% tests passed, Y tests failed out of Z"
+          #   passed=$(echo "$result_line" | grep -oP '\d+(?=% tests passed)')
+          #   failed=$(echo "$result_line" | grep -oP '\d+(?= tests failed)')
+          #   total=$(echo "$result_line" | grep -oP '(?<=out of )\d+')
+            
+          #   echo "passed_percent=$passed" >> $GITHUB_OUTPUT
+          #   echo "failed=$failed" >> $GITHUB_OUTPUT
+          #   echo "total=$total" >> $GITHUB_OUTPUT
+          #   echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          # else
+          #   echo "passed_percent=0" >> $GITHUB_OUTPUT
+          #   echo "failed=-1" >> $GITHUB_OUTPUT
+          #   echo "total=0" >> $GITHUB_OUTPUT
+          #   echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          # fi
 
       - name: Print test summary
         if: always()

@@ -151,10 +151,11 @@ rerun-qemu-eest:
 	{ printf "1 %u\n" $$N; cat "$(file-name)"; } > stdin_payload.bin; \
 	qemu-system-riscv32 -M virt -m 2G -display none \
 		-bios $(BUILD_DIR)/z6m_debug \
-		-chardev stdio,id=sh0,signal=off \
-		-semihosting-config enable=on,target=native,chardev=sh0 \
+		-monitor none \
 		-serial none \
-		-monitor none
+		-chardev file,id=shlog,path=semihost.log \
+		-semihosting-config enable=on,target=native,chardev=shlog
+
 
 # # Clean build artifacts
 .PHONY: clean
