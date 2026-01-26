@@ -3,8 +3,8 @@
 #include <string>
 #include "./include/semihosting.hpp"
 
-// Keep a static buffer big enough for your JSON payloads.
-static char JSON_BUF[64 * 1024 * 1024];
+// Static buffer big enough for all the JSON payloads.
+static char JSON_BUF[200 * 1024 * 1024];
 
 int main(int argc, char* argv[])
 {
@@ -12,13 +12,12 @@ int main(int argc, char* argv[])
     std::uint32_t n = 0;
 
     // Open a handle
-    int h = sh::open_tty_read();
+    int h = sh::open_file_read("stdin_payload.bin");
     if (h < 0)
     {
-        sys_println("Failed to open tty_read");
-        for (;;)
-        {
-        }
+        sys_println("Failed to open file stdin_payload");
+        // sys_println("Failed to open tty_read");
+        sh::exit(1);
     }
     // int h = 0;
 
@@ -58,9 +57,7 @@ int main(int argc, char* argv[])
     if (n >= sizeof(JSON_BUF))
     {
         sys_println("File too large for JSON_BUF");
-        for (;;)
-        {
-        }
+        sh::exit(1);
     }
 
     // Skip blanks
@@ -82,9 +79,7 @@ int main(int argc, char* argv[])
     if (got == 0)
     {
         sys_println("Unexpected EOF");
-        for (;;)
-        {
-        }
+        sh::exit(1);
     }
     copied += got;
     std::string jsonStr(JSON_BUF, JSON_BUF + n);

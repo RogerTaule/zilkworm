@@ -101,21 +101,39 @@ if(TESTS_DIR)
 
     include(CTest)
 
+    # Get paths relative to build directory for relocatable tests
+    file(RELATIVE_PATH TESTS_DIR_REL "${CMAKE_CURRENT_BINARY_DIR}" "${TESTS_DIR}")
+    
     file(GLOB_RECURSE STATE_TRANSITION_TESTS CONFIGURE_DEPENDS "${TESTS_DIR}/*.json")
 
     foreach(TEST_JSON ${STATE_TRANSITION_TESTS})
         file(RELATIVE_PATH TEST_REL_PATH "${TESTS_DIR}" "${TEST_JSON}")
+        file(RELATIVE_PATH TEST_JSON_REL "${CMAKE_CURRENT_BINARY_DIR}" "${TEST_JSON}")
         set(TEST_NAME "state_transition/${TEST_REL_PATH}")
+        
+        # Create a unique directory for this test to avoid file conflicts
+        string(REPLACE "/" "_" TEST_DIR_NAME "${TEST_REL_PATH}")
+        string(REPLACE ".json" "" TEST_DIR_NAME "${TEST_DIR_NAME}")
+        set(TEST_WORK_DIR "${CMAKE_CURRENT_BINARY_DIR}/test_runs/${TEST_DIR_NAME}")
+        file(MAKE_DIRECTORY "${TEST_WORK_DIR}")
+        
+        # Calculate paths relative to the test working directory
+        file(RELATIVE_PATH Z6M_REL "${TEST_WORK_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/z6m_debug")
+        file(RELATIVE_PATH TEST_JSON_FROM_WORK "${TEST_WORK_DIR}" "${TEST_JSON}")
+        
+        # Generate a test runner script to avoid quoting issues
+        set(TEST_SCRIPT "${TEST_WORK_DIR}/run_test.sh")
+        file(WRITE "${TEST_SCRIPT}" "#!/bin/bash\n")
+        file(APPEND "${TEST_SCRIPT}" "set -e\n")
+        file(APPEND "${TEST_SCRIPT}" "N=$(wc -c < '${TEST_JSON}')\n")
+        file(APPEND "${TEST_SCRIPT}" "{ printf \"1 %u\\n\" $N; cat '${TEST_JSON}'; } > stdin_payload.bin\n")
+        file(APPEND "${TEST_SCRIPT}" "exec qemu-system-riscv32 -M virt -m 2G -display none -bios '${CMAKE_CURRENT_BINARY_DIR}/z6m_debug' -monitor none -serial none -chardev file,id=shlog,path=semihost.log -semihosting-config enable=on,target=native,chardev=shlog\n")
+        file(CHMOD "${TEST_SCRIPT}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+        
         add_test(
             NAME ${TEST_NAME}
-            COMMAND bash -c "N=`wc -c <'${TEST_JSON}'`; \
-                { printf '123456789_123456789_123456789_123'; printf '1 %u\\n' $N; cat '${TEST_JSON}'; } | \
-                qemu-system-riscv32 -M virt -m 2G -nographic \
-                    -bios '$<TARGET_FILE:z6m_debug>' \
-                    -chardev stdio,mux=on,id=stdio0 \
-                    -serial chardev:stdio0 \
-                    -semihosting-config enable=on,chardev=stdio0 \
-                    -mon chardev=stdio0,mode=readline"
+            COMMAND "${TEST_SCRIPT}"
+            WORKING_DIRECTORY "${TEST_WORK_DIR}"
         )
         set_tests_properties(${TEST_NAME} PROPERTIES SKIP_RETURN_CODE 2)
     endforeach()
