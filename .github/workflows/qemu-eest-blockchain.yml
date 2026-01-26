@@ -60,29 +60,28 @@ jobs:
         run: |
           set +e
           cd qemu_runner
-          make rerun_ctest
-          # 2>&1 | tee output.log
+          make rerun_ctest 2>&1 | tee output.log
 
           exit_code=${PIPESTATUS[0]}
 
           # Parse test results
-          # if grep -q "tests passed" output.log; then
-          #   result_line=$(grep "tests passed" output.log | tail -1)
-          #   # Extract numbers: "X% tests passed, Y tests failed out of Z"
-          #   passed=$(echo "$result_line" | grep -oP '\d+(?=% tests passed)')
-          #   failed=$(echo "$result_line" | grep -oP '\d+(?= tests failed)')
-          #   total=$(echo "$result_line" | grep -oP '(?<=out of )\d+')
+          if grep -q "tests passed" output.log; then
+            result_line=$(grep "tests passed" output.log | tail -1)
+            # Extract numbers: "X% tests passed, Y tests failed out of Z"
+            passed=$(echo "$result_line" | grep -oP '\d+(?=% tests passed)')
+            failed=$(echo "$result_line" | grep -oP '\d+(?= tests failed)')
+            total=$(echo "$result_line" | grep -oP '(?<=out of )\d+')
             
-          #   echo "passed_percent=$passed" >> $GITHUB_OUTPUT
-          #   echo "failed=$failed" >> $GITHUB_OUTPUT
-          #   echo "total=$total" >> $GITHUB_OUTPUT
-          #   echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          # else
-          #   echo "passed_percent=0" >> $GITHUB_OUTPUT
-          #   echo "failed=-1" >> $GITHUB_OUTPUT
-          #   echo "total=0" >> $GITHUB_OUTPUT
-          #   echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          # fi
+            echo "passed_percent=$passed" >> $GITHUB_OUTPUT
+            echo "failed=$failed" >> $GITHUB_OUTPUT
+            echo "total=$total" >> $GITHUB_OUTPUT
+            echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          else
+            echo "passed_percent=0" >> $GITHUB_OUTPUT
+            echo "failed=-1" >> $GITHUB_OUTPUT
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          fi
 
       - name: Print test summary
         if: always()
