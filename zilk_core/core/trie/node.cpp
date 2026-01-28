@@ -49,11 +49,11 @@ Bytes Node::encode_for_storage() const {
 DecodingResult Node::decode_from_storage(ByteView raw, Node& node) {
     // At least state/tree/hash masks need to be present
     if (raw.size() < 6) {
-        return tl::unexpected{DecodingError::kInputTooShort};
+        return std::unexpected{DecodingError::kInputTooShort};
     }
     // Beyond the 6th byte the length must be a multiple of kHashLength
     if ((raw.size() - 6) % kHashLength != 0) {
-        return tl::unexpected{DecodingError::kInvalidHashesLength};
+        return std::unexpected{DecodingError::kInvalidHashesLength};
     }
 
     node.root_hash_.reset();
@@ -63,7 +63,7 @@ DecodingResult Node::decode_from_storage(ByteView raw, Node& node) {
     node.hash_mask_ = endian::load_big_u16(&raw[4]);
 
     if (!is_subset(node.tree_mask_, node.state_mask_) || !is_subset(node.hash_mask_, node.state_mask_)) {
-        return tl::unexpected{DecodingError::kInvalidMasksSubsets};
+        return std::unexpected{DecodingError::kInvalidMasksSubsets};
     }
 
     raw.remove_prefix(6);
@@ -72,12 +72,12 @@ DecodingResult Node::decode_from_storage(ByteView raw, Node& node) {
     size_t effective_num_hashes{raw.size() / kHashLength};
 
     if (effective_num_hashes < expected_num_hashes) {
-        return tl::unexpected{DecodingError::kInvalidHashesLength};
+        return std::unexpected{DecodingError::kInvalidHashesLength};
     }
 
     size_t delta{effective_num_hashes - expected_num_hashes};
     if (delta > 1) {
-        return tl::unexpected{DecodingError::kInvalidHashesLength};
+        return std::unexpected{DecodingError::kInvalidHashesLength};
     }
     if (delta == 1) {
         node.root_hash_.emplace();

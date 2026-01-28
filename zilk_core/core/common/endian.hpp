@@ -86,7 +86,7 @@ ByteView to_big_compact(const intx::uint256& value);
 template <UnsignedIntegral T>
 static DecodingResult from_big_compact(ByteView data, T& out) {
     if (data.size() > sizeof(T)) {
-        return tl::unexpected{DecodingError::kOverflow};
+        return std::unexpected{DecodingError::kOverflow};
     }
 
     out = 0;
@@ -95,7 +95,7 @@ static DecodingResult from_big_compact(ByteView data, T& out) {
     }
 
     if (data[0] == 0) {
-        return tl::unexpected{DecodingError::kLeadingZero};
+        return std::unexpected{DecodingError::kLeadingZero};
     }
 
     auto* ptr{reinterpret_cast<uint8_t*>(&out)};

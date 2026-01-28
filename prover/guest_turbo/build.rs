@@ -124,7 +124,7 @@ fn main() {
 
     println!("cargo:warning=Direct from env - PKG_CONFIG_PATH: {}", std::env::var("PKG_CONFIG_PATH").unwrap());
     // ── 3. pull cflags (include dirs) from the .pc files we care about ────
-    for pkg in ["ms-gsl", "nlohmann_json", "magic_enum", "tl-expected"] {
+    for pkg in ["ms-gsl", "nlohmann_json", "magic_enum"] {
         if let Ok(meta) = pkg_config::Config::new()
             // .statik(true) // ensure −static libs if present
             .probe(pkg)

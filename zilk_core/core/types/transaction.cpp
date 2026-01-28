@@ -300,7 +300,7 @@ namespace rlp {
             return res;
         }
         if (!to.set_v(v)) {
-            return tl::unexpected{DecodingError::kInvalidVInSignature};
+            return std::unexpected{DecodingError::kInvalidVInSignature};
         }
 
         return decode_items(from, to.r, to.s);
@@ -311,15 +311,15 @@ namespace rlp {
             to.type != TransactionType::kDynamicFee &&
             to.type != TransactionType::kBlob &&
             to.type != TransactionType::kSetCode) {
-            return tl::unexpected{DecodingError::kUnsupportedTransactionType};
+            return std::unexpected{DecodingError::kUnsupportedTransactionType};
         }
 
         const auto h{decode_header(from)};
         if (!h) {
-            return tl::unexpected{h.error()};
+            return std::unexpected{h.error()};
         }
         if (!h->list) {
-            return tl::unexpected{DecodingError::kUnexpectedString};
+            return std::unexpected{DecodingError::kUnexpectedString};
         }
 
         intx::uint256 chain_id;
@@ -377,12 +377,12 @@ namespace rlp {
         to.reset();
 
         if (from.empty()) {
-            return tl::unexpected{DecodingError::kInputTooShort};
+            return std::unexpected{DecodingError::kInputTooShort};
         }
 
         if (0 < from[0] && from[0] < kEmptyStringCode) {  // Raw serialization of a typed transaction
             if (accepted_typed_txn_wrapping == Eip2718Wrapping::kString) {
-                return tl::unexpected{DecodingError::kUnexpectedEip2718Serialization};
+                return std::unexpected{DecodingError::kUnexpectedEip2718Serialization};
             }
 
             to.type = static_cast<TransactionType>(from[0]);
@@ -393,7 +393,7 @@ namespace rlp {
 
         const auto h{decode_header(from)};
         if (!h) {
-            return tl::unexpected{h.error()};
+            return std::unexpected{h.error()};
         }
 
         if (h->list) {  // Legacy transaction
@@ -404,13 +404,13 @@ namespace rlp {
 
             const uint64_t leftover{from.size() - h->payload_length};
             if (mode != Leftover::kAllow && leftover) {
-                return tl::unexpected{DecodingError::kInputTooLong};
+                return std::unexpected{DecodingError::kInputTooLong};
             }
             if (DecodingResult res{legacy_decode_items(from, to)}; !res) {
                 return res;
             }
             if (from.size() != leftover) {
-                return tl::unexpected{DecodingError::kUnexpectedListElements};
+                return std::unexpected{DecodingError::kUnexpectedListElements};
             }
             return {};
         }
@@ -418,11 +418,11 @@ namespace rlp {
         // String-wrapped typed transaction
 
         if (accepted_typed_txn_wrapping == Eip2718Wrapping::kNone) {
-            return tl::unexpected{DecodingError::kUnexpectedEip2718Serialization};
+            return std::unexpected{DecodingError::kUnexpectedEip2718Serialization};
         }
 
         if (h->payload_length == 0) {
-            return tl::unexpected{DecodingError::kInputTooShort};
+            return std::unexpected{DecodingError::kInputTooShort};
         }
 
         to.type = static_cast<TransactionType>(from[0]);
@@ -435,24 +435,24 @@ namespace rlp {
         }
 
         if (!eip2718_view.empty()) {
-            return tl::unexpected{DecodingError::kUnexpectedListElements};
+            return std::unexpected{DecodingError::kUnexpectedListElements};
         }
 
         from.remove_prefix(h->payload_length - 1);
         if (mode != Leftover::kAllow && !from.empty()) {
-            return tl::unexpected{DecodingError::kInputTooLong};
+            return std::unexpected{DecodingError::kInputTooLong};
         }
         return {};
     }
 
     DecodingResult decode_transaction_header_and_type(ByteView& from, Header& header, TransactionType& type) noexcept {
         if (from.empty()) {
-            return tl::unexpected{DecodingError::kInputTooShort};
+            return std::unexpected{DecodingError::kInputTooShort};
         }
 
         const auto header_res{decode_header(from)};
         if (!header_res) {
-            return tl::unexpected{header_res.error()};
+            return std::unexpected{header_res.error()};
         }
         header = *header_res;
 
@@ -463,7 +463,7 @@ namespace rlp {
 
         // String-wrapped typed transaction
         if (header.payload_length == 0) {
-            return tl::unexpected{DecodingError::kInputTooShort};
+            return std::unexpected{DecodingError::kInputTooShort};
         }
 
         type = static_cast<TransactionType>(from[0]);

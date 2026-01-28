@@ -7,7 +7,6 @@ include("${SILKWORM_MAIN_DIR}/cmake/common/targets.cmake")
 find_package(magic_enum REQUIRED)
 find_package(Microsoft.GSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(tl-expected REQUIRED)
 
 
 if(SILKWORM_CORE_ONLY)
@@ -26,7 +25,6 @@ set(SILKWORM_CORE_PUBLIC_LIBS
     Microsoft.GSL::GSL
     nlohmann_json::nlohmann_json
     # secp256k1
-    tl::expected
 )
 set(SILKWORM_CORE_PRIVATE_LIBS blst::blst)
 

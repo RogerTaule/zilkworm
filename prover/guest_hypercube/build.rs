@@ -145,7 +145,7 @@ fn main() {
         "cargo:warning=Direct from env - PKG_CONFIG_PATH: {}",
         std::env::var("PKG_CONFIG_PATH").unwrap()
     );
-    for pkg in ["ms-gsl", "nlohmann_json", "magic_enum", "tl-expected"] {
+    for pkg in ["ms-gsl", "nlohmann_json", "magic_enum"] {
         if let Ok(meta) = pkg_config::Config::new()
             // .statik(true) // ensure −static libs if present
             .probe(pkg)

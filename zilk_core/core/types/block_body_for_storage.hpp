@@ -32,7 +32,7 @@ struct BlockBodyForStorage {
 
 DecodingResult decode_stored_block_body(ByteView& from, BlockBodyForStorage& to);
 
-tl::expected<BlockBodyForStorage, DecodingError> decode_stored_block_body(ByteView& from);
+std::expected<BlockBodyForStorage, DecodingError> decode_stored_block_body(ByteView& from);
 
 inline Bytes BlockBodyForStorage::encode() const {
     rlp::Header header{.list = true, .payload_length = 0};
@@ -58,14 +58,14 @@ inline Bytes BlockBodyForStorage::encode() const {
 inline DecodingResult decode_stored_block_body(ByteView& from, BlockBodyForStorage& to) {
     const auto header{rlp::decode_header(from)};
     if (!header) {
-        return tl::unexpected{header.error()};
+        return std::unexpected{header.error()};
     }
     if (!header->list) {
-        return tl::unexpected{DecodingError::kUnexpectedString};
+        return std::unexpected{DecodingError::kUnexpectedString};
     }
     const uint64_t leftover{from.size() - header->payload_length};
     if (leftover) {
-        return tl::unexpected{DecodingError::kInputTooLong};
+        return std::unexpected{DecodingError::kInputTooLong};
     }
 
     if (DecodingResult res{rlp::decode_items(from, to.base_txn_id, to.txn_count, to.ommers)}; !res) {
@@ -82,16 +82,16 @@ inline DecodingResult decode_stored_block_body(ByteView& from, BlockBodyForStora
     }
 
     if (from.size() != leftover) {
-        return tl::unexpected{DecodingError::kUnexpectedListElements};
+        return std::unexpected{DecodingError::kUnexpectedListElements};
     }
     return {};
 }
 
-inline tl::expected<BlockBodyForStorage, DecodingError> decode_stored_block_body(ByteView& from) {
+inline std::expected<BlockBodyForStorage, DecodingError> decode_stored_block_body(ByteView& from) {
     BlockBodyForStorage to;
     DecodingResult result = decode_stored_block_body(from, to);
     if (!result)
-        return tl::unexpected{result.error()};
+        return std::unexpected{result.error()};
     return to;
 }
 
