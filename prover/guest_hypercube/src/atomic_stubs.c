@@ -5,6 +5,11 @@
 #define OPAQUE __attribute__((used,visibility("default")))
 
 // --- 32-bit variants -------------------------------------------------
+WEAK OPAQUE
+int fegetround(void) { return 0; }
+
+WEAK OPAQUE
+int fesetround(int) { return 0; }
 
 WEAK OPAQUE
 int __atomic_fetch_add_4(volatile int *ptr, int val, int memorder)
