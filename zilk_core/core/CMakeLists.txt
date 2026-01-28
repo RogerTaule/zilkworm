@@ -36,6 +36,8 @@ silkworm_library(
   PRIVATE ${SILKWORM_CORE_PRIVATE_LIBS}
 )
 
+target_compile_features(silkworm_core PUBLIC cxx_std_23)
+
 # unit tests
 # set(TEST_TARGET silkworm_core_test)
 

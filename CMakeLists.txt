@@ -26,7 +26,7 @@ endif()
 
 if(NOT CMAKE_TOOLCHAIN_FILE)
   set(CMAKE_TOOLCHAIN_FILE
-      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain/cxx20.cmake
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain/cxx23.cmake
       CACHE FILEPATH "" FORCE
   )
   include("${CMAKE_TOOLCHAIN_FILE}")
