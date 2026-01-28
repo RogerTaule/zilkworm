@@ -15,7 +15,6 @@
 #include <zilk_core/core/chain/config.hpp>
 #include <zilk_core/core/common/base.hpp>
 #include <zilk_core/core/common/lru_cache.hpp>
-#include <zilk_core/core/common/object_pool.hpp>
 #include <zilk_core/core/common/util.hpp>
 #include <zilk_core/core/protocol/validation.hpp>
 #include <zilk_core/core/state/intra_block_state.hpp>

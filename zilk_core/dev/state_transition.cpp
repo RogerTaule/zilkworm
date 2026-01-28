@@ -21,7 +21,6 @@
 #include <zilk_core/core/state/in_memory_state.hpp>
 #include <zilk_core/core/types/address.hpp>
 #include <zilk_core/core/types/evmc_bytes32.hpp>
-#include <zilk_core/dev/common/ecc_key_pair.hpp>
 #include <zilk_core/print.hpp>
 
 #include "expected_state.hpp"
