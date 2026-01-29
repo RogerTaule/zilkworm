@@ -59,7 +59,7 @@ xpack-zilkworm-eest:
 	@[ -d $(BUILD_DIR)/zilkworm ] || mkdir $(BUILD_DIR)/zilkworm
 	cmake -B$(BUILD_DIR)/zilkworm -S..	\
 		-DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN) \
-		-DCMAKE_BUILD_TYPE=Debug \
+		-DCMAKE_BUILD_TYPE=Release \
 		-DCONAN_PROFILE_HOST=$(CONAN_PROFILE) \
 		-DCONAN_OUTPUT_FOLDER=$(BUILD_DIR)/conan \
 		-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE \
@@ -75,7 +75,7 @@ xpack-zilkworm-eest:
 xpack-elf-eest: xpack-zilkworm-eest
 	cmake -B$(BUILD_DIR) -S. \
 		-DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN) \
-		-DCMAKE_BUILD_TYPE=Debug \
+		-DCMAKE_BUILD_TYPE=Release \
 		-DCONAN_PROFILE_HOST=$(CONAN_PROFILE) \
 		-DCONAN_OUTPUT_FOLDER=$(BUILD_DIR)/conan \
 		-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE \
