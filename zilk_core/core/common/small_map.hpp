@@ -33,7 +33,6 @@ class SmallMap {
     template <std::input_iterator InputIt>
     constexpr SmallMap(InputIt first, InputIt last) {
         for (InputIt it{first}; it != last; ++it) {
-            // SILKWORM_ASSERT(size_ < maximum_size);
             data_[size_++] = *it;
         }
         sort();
@@ -65,6 +64,15 @@ class SmallMap {
 
     static constexpr size_t max_size() noexcept {
         return maximum_size;
+    }
+
+    constexpr bool emplace_back(Key&& key, T&& value) {
+        if (size_ >= maximum_size) {
+            return false;
+        }
+        data_[size_++] = ValueType{std::forward<Key>(key), std::forward<T>(value)};
+        sort();
+        return true;
     }
 
     constexpr auto begin() const noexcept {

@@ -128,13 +128,11 @@ std::optional<ChainConfig> ChainConfig::from_json(const nlohmann::json& json) no
     read_json_config_member(json, "londonBlock", config.london_block);
 
     if (json.contains("burntContract")) {
-        std::vector<std::pair<BlockNum, evmc::address>> burnt_contract;
-        for (const auto& item : json["burntContract"].items()) {
-            const BlockNum from{std::stoull(item.key(), nullptr, 0)};
-            const evmc::address contract{hex_to_address(item.value().get<std::string>())};
-            burnt_contract.emplace_back(from, contract);
+        const auto items = json["burntContract"].items();
+        auto it = items.begin();
+        for (size_t i{0}; i < SmallMap<BlockNum, evmc::address>::max_size() && it != items.end(); ++i, ++it) {
+            config.burnt_contract.emplace_back(std::stoull(it.key(), nullptr, 0), hex_to_address(it.value().get<std::string>()));
         }
-        config.burnt_contract = SmallMap<BlockNum, evmc::address>(burnt_contract.begin(), burnt_contract.end());
     }
 
     read_json_config_member(json, "arrowGlacierBlock", config.arrow_glacier_block);
