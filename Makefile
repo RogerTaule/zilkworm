@@ -24,7 +24,7 @@ z6m_prover_turbo: z6m_guest_turbo
 selftest: z6m_prover
 	prover/target/release/z6m_prover execute --is-test --file-name third_party/eest-fixtures/blockchain_tests/static/state_tests/stExample/add11.json
 
-execute_block: z6m_prover
+execute-block: z6m_prover
 	prover/target/release/z6m_prover execute --file-name prover/temp/blocks/23519000/unifiedBlockAndStateRlp23519000.bin
 
 TESTFILES := $(shell find $(TESTS_DIR)/${TESTS_SUBDIR} -type f -name '*.json')
@@ -39,12 +39,10 @@ target/logs/%.log: $(TESTS_DIR)/%.json
 	@mkdir -p $(dir $@)
 	prover/target/release/z6m_prover execute --is-test --file-name $< 2>&1 | tee $@ || (echo "CRASHED! $@" && rm $@)
 
-eest_blockchain_tests:
+eest-blockchain-tests: 
 	cmake -B build/eest -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DTESTS_DIR=third_party/eest-fixtures/blockchain_tests
 	cmake --build build/eest
 	ctest --test-dir build/eest --parallel
 
-rv32im_eest_blockchain_tests:
-	cd debug_build
-	make xpack-elf-eest
-	ctest --test-dir debug_build/build --parallel
+rv32im-eest-blockchain-tests: 
+	cd qemu_runner && make rv32im-eest-blockchain-tests

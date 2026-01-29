@@ -1,6 +1,4 @@
 BUILD_DIR :=  $(CURDIR)/build
-CONAN_PROFILE  := conan/profiles/rv32im.sp1.profile
-CMAKE_TOOLCHAIN := cmake/rv32im.sp1.cmake
 ELF := $(BUILD_DIR)/z6m_debug
 
 CONAN_PROFILE  = $(CURDIR)/conan/profiles/riscv32im.conan.profile
@@ -102,26 +100,35 @@ qemu-eest: xpack-elf-eest
 		-semihosting-config enable=on,chardev=stdio0 \
 		-mon chardev=stdio0,mode=readline
 
-rv32im_eest_blockchain_tests: xpack-elf-eest
+rv32im-eest-blockchain-tests: xpack-elf-eest
 	ctest --test-dir build --parallel --output-on-failure
 
+rerun-ctest:
+	ctest --test-dir build --parallel --output-on-failure -V --timeout 7200
 
-# qemu: xpack-elf
-# 	@echo "QEMU waiting for GDB on :1234..."
-# 	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu file-name=path/to.json"; exit 1; fi
+# rerun-qemu-eest:
+# 	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu-eest file-name=path/to.json"; exit 1; fi
 # 	@N=$$(wc -c <"$(file-name)"); \
-# 	{ printf "%u\n" $$N; cat "$(file-name)"; } | \
+# 	{ printf "123456789_123456789_123456789_123"; printf "1 %u\n" $$N; cat "$(file-name)"; } | \
 # 	qemu-system-riscv32 -M virt -m 2G -nographic \
-# 	  -bios $(ELF) -S -gdb tcp::1234 \
-# 	  -serial none -monitor none \
-# 	  -chardev stdio,id=sh0,signal=off \
-# 	  -semihosting-config enable=on,target=native,chardev=sh0 
+# 		-bios $(BUILD_DIR)/z6m_debug \
+# 		-chardev stdio,mux=on,id=stdio0 \
+# 		-serial chardev:stdio0 \
+# 		-semihosting-config enable=on,target=native,chardev=stdio0 \
+# 		-monitor none \
+#   		-qmp unix:/tmp/qmp.sock,server=on,wait=off
 
-# qemu:
-# 	@echo "QEMU waiting for GDB on :1234..."
-# 	@qemu-system-riscv32 -M virt -nographic -m 2G \
-# 	  -bios $(ELF) -S -gdb tcp::1234 -semihosting
-# -semihosting-config enable=on,target=native \
+rerun-qemu-eest:
+	@if [ -z "$(file-name)" ]; then echo "Usage: make rerun-qemu-eest file-name=path/to.json"; exit 1; fi
+	@N=$$(wc -c <"$(file-name)"); \
+	rm -f semihost.log serial.log; \
+	{ printf "1 %u\n" $$N; cat "$(file-name)"; } > stdin_payload.bin; \
+	qemu-system-riscv32 -M virt -m 2G -display none \
+		-bios $(BUILD_DIR)/z6m_debug \
+		-monitor none \
+		-serial none \
+		-chardev file,id=shlog,path=semihost.log \
+		-semihosting-config enable=on,target=native,chardev=shlog
 
 
 # Clean build artifacts

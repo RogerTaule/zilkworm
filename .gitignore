@@ -41,3 +41,4 @@ cmake-build-*
 **deps/
 third_party/*/*/build/
 third_party/*/*/deps/
+.editorconfig
