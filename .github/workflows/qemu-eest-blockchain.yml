@@ -60,7 +60,7 @@ jobs:
         run: |
           set +e
           cd qemu_runner
-          make rerun_ctest 2>&1 | tee output.log
+          make rerun-ctest 2>&1 | tee output.log
 
           exit_code=${PIPESTATUS[0]}
 
