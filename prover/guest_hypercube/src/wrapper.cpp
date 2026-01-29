@@ -5,6 +5,8 @@
 // bn254_add.hpp
 #include <cstdint>
 #include <array>
+#include <iostream>
+#include <sstream>
 #include "include/sp1_syscalls.hpp"
 
 /* These magic symbols are provided by the linker.  */
@@ -40,7 +42,7 @@ extern "C" uint64_t sample_run_wrapped(bool is_test, rust::Vec<uint8_t> rlp_or_j
         auto state_transition = silkworm::cmd::state_transition::StateTransition(json_str, false, true);
         auto msg = "state_transition object initialized input size: " + std::to_string(json_str.size());
         sys_println(msg.c_str());
-        res = state_transition.run(1, true);
+        res = state_transition.run();
     }
     else
     {

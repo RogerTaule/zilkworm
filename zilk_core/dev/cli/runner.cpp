@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 
 #include "../state_transition.hpp"
 
@@ -20,10 +21,10 @@ int run_json_test_file(const std::string& file_path) {
     const auto terminate_on_error = false;
     const auto show_diagnostics = true;
     auto state_transition = StateTransition(input_str, terminate_on_error, show_diagnostics);
-    return static_cast<int>(state_transition.run(1, true));
+    return static_cast<int>(state_transition.run());
 }
 
-int run_unified_bin_file(const std::string file_path) {
+int run_unified_bin_file(const std::string& file_path) {
     std::ifstream file(file_path, std::ios::binary);
     const auto input_str = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     if (file.fail()) {

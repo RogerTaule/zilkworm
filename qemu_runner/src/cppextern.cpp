@@ -18,7 +18,7 @@ namespace {
         const auto terminate_on_error = false;
         const auto show_diagnostics = true;
         auto state_transition = silkworm::cmd::state_transition::StateTransition(json_str, terminate_on_error, show_diagnostics);
-        return state_transition.run(1, true);
+        return state_transition.run();
     }
 
     uint64_t run_unified_rlp(const std::string& unified_rlp_str) {

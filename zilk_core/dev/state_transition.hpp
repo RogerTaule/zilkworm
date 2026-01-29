@@ -3,27 +3,17 @@
 
 #pragma once
 
-#include <iostream>
 #include <memory>
-#include <stdexcept>
 
-#include <nlohmann/json.hpp>
-#include <zilk_core/core/execution/execution.hpp>
-#include <zilk_core/core/state/in_memory_state.hpp>
-
-#include "expected_state.hpp"
+#include <evmc/evmc.hpp>
+#include <zilk_core/core/common/bytes.hpp>
 
 namespace silkworm::cmd::state_transition {
 
 class StateTransition {
   private:
-    bool blockchain_test_{false};
-    nlohmann::json base_json_;
-    nlohmann::json test_data_;
+    std::string_view json_str_;
     ByteView unified_rlp_;
-    std::string test_name_;
-    unsigned total_count_{};
-    unsigned failed_count_{};
     bool terminate_on_error_{false};
     bool show_diagnostics_{false};
 
@@ -32,25 +22,12 @@ class StateTransition {
     // void print_diagnostic_message(const ExpectedState& expected_state, const ExpectedSubState& expected_sub_state, const std::string& message);
 
   public:
-    explicit StateTransition(const std::string& json_str, bool terminate_on_error, bool show_diagnostics) noexcept;
-    explicit StateTransition(const bool terminate_on_error, const bool show_diagnostics) noexcept;
+    explicit StateTransition(std::string_view json_str, bool terminate_on_error, bool show_diagnostics) noexcept;
     explicit StateTransition(const std::string& unified_rlp_str) noexcept;
     explicit StateTransition(ByteView& unified_rlp) noexcept;
-    // std::string name();
-    std::string get_env(const std::string& key);
-    bool contains_env(const std::string& key);
-    std::vector<Withdrawal> get_withdrawals();
-    std::vector<ExpectedState> get_expected_states();
-    ExpectedState get_expected_state();
     static evmc::address to_evmc_address(const std::string& address);
-    Block get_block(InMemoryState& state, ChainConfig& chain_config);
-    std::unique_ptr<InMemoryState> get_state();
-    // static std::unique_ptr<evmc::address> private_key_to_address(const std::string& private_key);
     std::unique_ptr<evmc::address> sender_to_address(const std::string& sender);
-    Transaction get_txn_from_sub_state(const ExpectedSubState& expected_state);
-    // Transaction get_transaction(const ExpectedSubState& expected_sub_state);
-    void validate_transition(const Receipt& receipt, const ExpectedState& expected_state, const ExpectedSubState& expected_sub_state, const InMemoryState& state);
-    uint64_t run(uint32_t num_runs, bool blockchain_test);
+    uint64_t run();
     uint64_t run_rlp();
 };
 

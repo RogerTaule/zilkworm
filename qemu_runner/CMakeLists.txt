@@ -102,11 +102,9 @@ target_compile_options(z6m_debug PRIVATE
 )
 
 ## =========== Comment and run and then re-run uncommented ==========
-find_package(nlohmann_json REQUIRED)
 find_package(magic_enum REQUIRED)
 find_package(Microsoft.GSL REQUIRED)
 target_link_libraries(z6m_debug PRIVATE Microsoft.GSL::GSL)
-target_link_libraries(z6m_debug PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(z6m_debug PRIVATE magic_enum::magic_enum)
 ## ===================================================================
 
