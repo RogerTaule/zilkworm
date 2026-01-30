@@ -6,7 +6,6 @@
 #include <memory>
 #include <ostream>
 
-#include <gsl/pointers>
 #include <zilk_core/core/chain/config.hpp>
 #include <zilk_core/core/execution/evm.hpp>
 #include <zilk_core/core/protocol/validation.hpp>
@@ -30,9 +29,9 @@ std::ostream& operator<<(std::ostream& out, const BlockReward& reward);
 // For example, its subclass BorRuleSet corresponds to the protocol rule set of Polygon PoS.
 class RuleSet {
   public:
-    // Only movable
-    RuleSet(RuleSet&& other) = default;
-    RuleSet& operator=(RuleSet&& other) = default;
+    // Not copyable nor movable.
+    RuleSet(const RuleSet& other) = delete;
+    RuleSet& operator=(const RuleSet& other) = delete;
 
     virtual ~RuleSet() = default;
 
@@ -84,7 +83,7 @@ class RuleSet {
 
   protected:
     explicit RuleSet(const ChainConfig& chain_config, bool prohibit_ommers)
-        : chain_config_{&chain_config}, prohibit_ommers_{prohibit_ommers} {}
+        : chain_config_{chain_config}, prohibit_ommers_{prohibit_ommers} {}
 
     virtual ValidationResult validate_extra_data(const BlockHeader& header) const;
 
@@ -95,7 +94,7 @@ class RuleSet {
     //! \brief Returns parent header (if any) of provided header
     static std::optional<BlockHeader> get_parent_header(const BlockState& state, const BlockHeader& header);
 
-    gsl::not_null<const ChainConfig*> chain_config_;
+    const ChainConfig& chain_config_;
 
   private:
     //! \brief See [YP] Section 11.1 "Ommer Validation"
