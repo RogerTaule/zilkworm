@@ -2,9 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 include("${SILKWORM_MAIN_DIR}/cmake/common/targets.cmake")
+include(FetchContent)
 
-# find_package(Catch2 REQUIRED)
-find_package(magic_enum REQUIRED)
+FetchContent_Declare(
+    magic_enum
+    URL https://github.com/Neargye/magic_enum/releases/download/v0.9.7/magic_enum-v0.9.7.tar.gz
+    URL_HASH SHA256=c047bc7ca0b76752168140e7ae9a4a30d72bf6530c196fdfbf5105a39d40cc46
+    EXCLUDE_FROM_ALL
+    SYSTEM
+)
+FetchContent_MakeAvailable(magic_enum)
+
 find_package(nlohmann_json REQUIRED)
 
 

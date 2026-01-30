@@ -10,5 +10,4 @@ class SilkwormRecipe(ConanFile):
     generators = 'CMakeDeps', 'PkgConfigDeps'
 
     def requirements(self):
-        self.requires('magic_enum/0.8.2')
         self.requires('nlohmann_json/3.11.3')

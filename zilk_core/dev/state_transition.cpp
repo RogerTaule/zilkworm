@@ -7,7 +7,7 @@
 #include <format>
 #include <fstream>
 
-#include <magic_enum.hpp>
+#include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
 #include <zilk_core/core/chain/genesis.hpp>
 #include <zilk_core/core/common/test_util.hpp>
