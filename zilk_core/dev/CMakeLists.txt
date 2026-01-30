@@ -3,9 +3,7 @@
 
 include("${SILKWORM_MAIN_DIR}/cmake/common/targets.cmake")
 
-find_package(nlohmann_json REQUIRED)
-
-set(LIBS_PRIVATE 
+set(LIBS_PRIVATE
 )
 
 # cmake-format: off
