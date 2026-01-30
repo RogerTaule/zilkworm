@@ -28,18 +28,7 @@ set(SW_INCLUDE_DIR ${SW_INSTALL_DIR}/include)
 
 # ExternalProject_Get_Property(silkworm_ep BINARY_DIR)
 set(SW_BIN         "${CMAKE_BINARY_DIR}/zilkworm")
-set(SW_CONAN_DIR   "${SW_BIN}/conan2")
-set(SW_INC_FALLBACK "${CMAKE_SOURCE_DIR}/..")
 set(SW_INC_INSTALL  "${CMAKE_BINARY_DIR}/zilkworm-install/include")
-
-
-
-# Make Conan package configs from the external build visible here
-if (EXISTS "${SW_CONAN_DIR}/conandeps_legacy.cmake")
-  list(APPEND CMAKE_MODULE_PATH "${SW_CONAN_DIR}")
-  list(APPEND CMAKE_PREFIX_PATH "${SW_CONAN_DIR}")
-  include("${SW_CONAN_DIR}/conandeps_legacy.cmake")
-endif()
 
 add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp src/start.S src/sys_sbrk_wrap.c)
 
@@ -59,9 +48,6 @@ add_dependencies(z6m_debug silkworm_dev )
 
 
 # Include paths:
-# Silkworm repo (always present)
-# Conan-provided headers via find_package (below)
-target_include_directories(z6m_debug PRIVATE "${SW_INC_FALLBACK}")
 if (EXISTS "${SW_INC_INSTALL}")
   target_include_directories(z6m_debug PRIVATE "${SW_INC_INSTALL}")
 endif()
@@ -100,14 +86,6 @@ target_compile_options(z6m_debug PRIVATE
   $<$<COMPILE_LANGUAGE:C>:-mstrict-align>
   $<$<COMPILE_LANGUAGE:CXX>:-mstrict-align>
 )
-
-## =========== Comment and run and then re-run uncommented ==========
-find_package(magic_enum REQUIRED)
-find_package(Microsoft.GSL REQUIRED)
-target_link_libraries(z6m_debug PRIVATE Microsoft.GSL::GSL)
-target_link_libraries(z6m_debug PRIVATE magic_enum::magic_enum)
-## ===================================================================
-
 
 # If you later see unresolved symbols from 3rd-party .a’s, also add:
 target_link_libraries(z6m_debug PRIVATE
