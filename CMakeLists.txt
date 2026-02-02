@@ -32,8 +32,6 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
   include("${CMAKE_TOOLCHAIN_FILE}")
 endif()
 
-include(cmake/conan.cmake)
-
 project(zilkworm)
 set(PROJECT_VERSION 0.1.0-dev)
 
@@ -69,12 +67,6 @@ option(SILKWORM_FUZZER "Build instrumentation for fuzzers" OFF)
 option(SILKWORM_FUZZER_SANITIZERS "CLang sanitizer options for fuzzers" OFF)
 option(SILKWORM_USE_MIMALLOC "Enable using mimalloc for dynamic memory management" ON)
 option(SILKWORM_ALLOW_UNUSED_VAR_WARNINGS "Turn unused variable errors into warnings" OFF)
-
-set_property(
-  DIRECTORY
-  APPEND
-  PROPERTY CMAKE_CONFIGURE_DEPENDS conanfile.py
-)
 
 get_filename_component(SILKWORM_MAIN_DIR . ABSOLUTE)
 set(SILKWORM_MAIN_SRC_DIR "${SILKWORM_MAIN_DIR}/zilk_core")

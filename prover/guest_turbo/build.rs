@@ -39,7 +39,6 @@ fn main() {
             format!("-T{templib_dir}/ldscripts/elf32lriscv.xn -z norelro"),
         )
         .define("CATCH_BUILD_TESTING", "OFF")
-        .define("CONAN_HOST_PROFILE", "riscv32-baremetal")
         .define("SILKWORM_CORE_USE_ABSEIL", "OFF")
         .profile("Release")
         .cflag("-D_GLIBCXX_HAS_GTHREADS=0")
