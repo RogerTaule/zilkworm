@@ -1,9 +1,27 @@
 cmake_minimum_required(VERSION 3.16)
-project(SilkwormRV32Demo C CXX ASM)
+project(SilkwormRVDemo C CXX ASM)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# ========== Architecture detection ==========
+# Detect based on CMAKE_SYSTEM_PROCESSOR set in toolchain file
+set(START_ASM "start.S" CACHE STRING "Assembly startup file")
+set(QEMU_SYSTEM "qemu-system-riscv32" CACHE STRING "QEMU system emulator")
+
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
+  set(ARCH_RV64 TRUE)
+  message(STATUS "Building for RISC-V 64-bit (rv64im)")
+  if(NOT DEFINED START_ASM OR START_ASM STREQUAL "start.S")
+    set(START_ASM "start64.S")
+  endif()
+  if(NOT DEFINED QEMU_SYSTEM OR QEMU_SYSTEM STREQUAL "qemu-system-riscv32")
+    set(QEMU_SYSTEM "qemu-system-riscv64")
+  endif()
+else()
+  set(ARCH_RV64 FALSE)
+  message(STATUS "Building for RISC-V 32-bit (rv32im)")
+endif()
 
 set(SW_INSTALL_DIR ${CMAKE_BINARY_DIR}/zilkworm-install CACHE PATH "")
 set(SW_INCLUDE_DIR ${SW_INSTALL_DIR}/include)
@@ -13,7 +31,6 @@ set(SW_INC_FALLBACK "${CMAKE_SOURCE_DIR}/..")
 set(SW_INC_INSTALL  "${CMAKE_BINARY_DIR}/zilkworm-install/include")
 
 
-
 # Make Conan package configs from the external build visible here
 if (EXISTS "${SW_CONAN_DIR}/conandeps_legacy.cmake")
   list(APPEND CMAKE_MODULE_PATH "${SW_CONAN_DIR}")
@@ -21,7 +38,8 @@ if (EXISTS "${SW_CONAN_DIR}/conandeps_legacy.cmake")
   include("${SW_CONAN_DIR}/conandeps_legacy.cmake")
 endif()
 
-add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp src/start.S src/sys_sbrk_wrap.c)
+add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp src/${START_ASM} src/sys_sbrk_wrap.c)
+
 
 
 add_library(silkworm_core STATIC IMPORTED GLOBAL)
@@ -127,7 +145,7 @@ if(TESTS_DIR)
         file(APPEND "${TEST_SCRIPT}" "set -e\n")
         file(APPEND "${TEST_SCRIPT}" "N=$(wc -c < '${TEST_JSON}')\n")
         file(APPEND "${TEST_SCRIPT}" "{ printf \"1 %u\\n\" $N; cat '${TEST_JSON}'; } > stdin_payload.bin\n")
-        file(APPEND "${TEST_SCRIPT}" "exec qemu-system-riscv32 -M virt -m 2G -display none -bios '${CMAKE_CURRENT_BINARY_DIR}/z6m_debug' -monitor none -serial none -chardev file,id=shlog,path=semihost.log -semihosting-config enable=on,target=native,chardev=shlog\n")
+        file(APPEND "${TEST_SCRIPT}" "exec ${QEMU_SYSTEM} -M virt -m 2G -display none -bios '${CMAKE_CURRENT_BINARY_DIR}/z6m_debug' -monitor none -serial none -chardev file,id=shlog,path=semihost.log -semihosting-config enable=on,target=native,chardev=shlog\n")
         file(CHMOD "${TEST_SCRIPT}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
         
         add_test(

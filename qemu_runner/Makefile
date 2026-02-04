@@ -1,8 +1,24 @@
-BUILD_DIR :=  $(CURDIR)/build
-ELF := $(BUILD_DIR)/z6m_debug
+# ========== Architecture selection ==========
+# Default to riscv32im, can be overridden: make ARCH=rv64
+ARCH ?= rv32
 
-CONAN_PROFILE  = $(CURDIR)/conan/profiles/riscv32im.conan.profile
-CMAKE_TOOLCHAIN = $(CURDIR)/cmake/riscv32im.cmake
+ifeq ($(ARCH),rv64)
+  BUILD_DIR := $(CURDIR)/build64
+  CONAN_PROFILE := $(CURDIR)/conan/profiles/riscv64im.conan.profile
+  CMAKE_TOOLCHAIN := $(CURDIR)/cmake/riscv64im.cmake
+  LINKER_SCRIPT := $(CURDIR)/qemu-xpack-64.ld
+  QEMU_SYSTEM := qemu-system-riscv64
+  START_ASM := start64.S
+else
+  BUILD_DIR := $(CURDIR)/build
+  CONAN_PROFILE := $(CURDIR)/conan/profiles/riscv32im.conan.profile
+  CMAKE_TOOLCHAIN := $(CURDIR)/cmake/riscv32im.cmake
+  LINKER_SCRIPT := $(CURDIR)/qemu-xpack.ld
+  QEMU_SYSTEM := qemu-system-riscv32
+  START_ASM := start.S
+endif
+
+ELF := $(BUILD_DIR)/z6m_debug
 
 .PHONY: xpack-elf
 xpack-elf: xpack-zilkworm
@@ -15,7 +31,8 @@ xpack-elf: xpack-zilkworm
 		-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE \
 		-DCMAKE_VERBOSE_MAKEFILE=ON \
 		-G "Unix Makefiles" \
-		-DCMAKE_EXE_LINKER_FLAGS="-T$(CURDIR)/qemu-xpack.ld -z norelro" \
+		-DCMAKE_EXE_LINKER_FLAGS="-T$(LINKER_SCRIPT) -z norelro" \
+		-DSTART_ASM=$(START_ASM) \
 		-Wno-dev
 	cmake --build $(BUILD_DIR) -j --verbose
 
@@ -46,7 +63,7 @@ rlp-qemu: xpack-elf
 	@echo "QEMU waiting for GDB on :1234..."
 	@N=$$(wc -c <"$(file-name)"); \
 	{ printf "123456789_123456789_123456789_123"; printf "%u\n" $$N; cat "$(file-name)"; } | \
-	qemu-system-riscv32 -M virt -m 2G -nographic \
+	$(QEMU_SYSTEM) -M virt -m 2G -nographic \
 		-bios $(ELF) -S -gdb tcp::1234 \
 		-chardev stdio,mux=on,id=stdio0 \
 		-serial chardev:stdio0 \
@@ -81,7 +98,9 @@ xpack-elf-eest: xpack-zilkworm-eest
 		-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE \
 		-DCMAKE_VERBOSE_MAKEFILE=ON \
 		-G "Unix Makefiles" \
-		-DCMAKE_EXE_LINKER_FLAGS="-T$(CURDIR)/qemu-xpack.ld -z norelro" \
+		-DCMAKE_EXE_LINKER_FLAGS="-T$(LINKER_SCRIPT) -z norelro" \
+		-DSTART_ASM=$(START_ASM) \
+		-DQEMU_SYSTEM=$(QEMU_SYSTEM) \
 		-DBUILD_TESTING=ON \
 		-DTESTS_DIR=$(CURDIR)/../third_party/eest-fixtures/blockchain_tests \
 		-Wno-dev
@@ -93,18 +112,18 @@ qemu-eest: xpack-elf-eest
 	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu-eest file-name=path/to.json"; exit 1; fi
 	@N=$$(wc -c <"$(file-name)"); \
 	{ printf "123456789_123456789_123456789_123"; printf "1 %u\n" $$N; cat "$(file-name)"; } | \
-	qemu-system-riscv32 -M virt -m 2G -nographic \
+	$(QEMU_SYSTEM) -M virt -m 2G -nographic \
 		-bios $(BUILD_DIR)/z6m_debug \
 		-chardev stdio,mux=on,id=stdio0 \
 		-serial chardev:stdio0 \
 		-semihosting-config enable=on,chardev=stdio0 \
 		-mon chardev=stdio0,mode=readline
 
-rv32im_eest_blockchain_tests: xpack-elf-eest
-	ctest --test-dir build --parallel --output-on-failure
+eest-blockchain-tests: xpack-elf-eest
+	ctest --test-dir $(BUILD_DIR) --parallel --output-on-failure
 
-rerun_ctest:
-	ctest --test-dir build --parallel --output-on-failure -V --timeout 7200
+rerun-ctest:
+	ctest --test-dir $(BUILD_DIR) --parallel --output-on-failure -V --timeout 7200
 
 # rerun-qemu-eest:
 # 	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu-eest file-name=path/to.json"; exit 1; fi
@@ -149,7 +168,7 @@ rerun-qemu-eest:
 	@N=$$(wc -c <"$(file-name)"); \
 	rm -f semihost.log serial.log; \
 	{ printf "1 %u\n" $$N; cat "$(file-name)"; } > stdin_payload.bin; \
-	qemu-system-riscv32 -M virt -m 2G -display none \
+	$(QEMU_SYSTEM) -M virt -m 2G -display none \
 		-bios $(BUILD_DIR)/z6m_debug \
 		-monitor none \
 		-serial none \
@@ -157,7 +176,27 @@ rerun-qemu-eest:
 		-semihosting-config enable=on,target=native,chardev=shlog
 
 
-# # Clean build artifacts
-.PHONY: clean
+# ========== Convenience targets for specific architectures ==========
+.PHONY: xpack-elf-eest-rv32 xpack-elf-eest-rv64 eest-rv32 eest-rv64
+
+# RV32 specific targets
+xpack-elf-eest-rv32:
+	$(MAKE) ARCH=rv32 xpack-elf-eest
+
+eest-rv32:
+	$(MAKE) ARCH=rv32 eest-blockchain-tests
+
+# RV64 specific targets  
+xpack-elf-eest-rv64:
+	$(MAKE) ARCH=rv64 xpack-elf-eest
+
+eest-rv64:
+	$(MAKE) ARCH=rv64 eest-blockchain-tests
+
+# Clean build artifacts
+.PHONY: clean clean-all
 clean:
 	rm -rf $(BUILD_DIR)
+
+clean-all:
+	rm -rf $(CURDIR)/build $(CURDIR)/build64

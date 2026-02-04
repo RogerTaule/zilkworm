@@ -61,7 +61,7 @@ namespace sh
         // SYS_EXIT_EXTENDED argument block:
         // field 1: reason code (ADP_Stopped_ApplicationExit for normal exit)
         // field 2: exit status code
-        uint32_t args[2] = { ADP_Stopped_ApplicationExit, static_cast<uint32_t>(code) };
+        uintptr_t args[2] = {ADP_Stopped_ApplicationExit, static_cast<uintptr_t>(code)};
         call(SYS_EXIT_EXTENDED, args);
         __builtin_unreachable();
     }
@@ -125,8 +125,8 @@ namespace sh
         struct Args
         {
             const char* name;
-            int mode;
-            int name_len;
+            std::size_t mode;     // must be pointer-sized for rv64
+            std::size_t name_len; // must be pointer-sized for rv64
         } a{ ":tt", 0, 3 };
         long h = call(SYS_OPEN, &a);
         return static_cast<int>(h); // -1 on failure
@@ -137,9 +137,9 @@ namespace sh
         struct Args
         {
             const char* name;
-            int mode;
-            int name_len;
-        } a{ path.c_str(), 0, static_cast<int>(path.size()) };
+            std::size_t mode;     // must be pointer-sized for rv64
+            std::size_t name_len; // must be pointer-sized for rv64
+        } a{ path.c_str(), 0, static_cast<std::size_t>(path.size())};
 
         long h = call(SYS_OPEN, &a);
         return static_cast<int>(h);
@@ -158,14 +158,14 @@ namespace sh
     // =======================================================
 
     // Read up to len from a semihosting handle; returns bytes actually read.
-    inline std::size_t read_handle(int handle, void* buf, std::size_t len)
+    inline std::size_t read_handle(int handle, void *buf, std::size_t len)
     {
         struct Args
         {
-            int fd;
+            std::size_t fd; // must be pointer-sized for rv64
             void* buf;
             std::size_t len;
-        } a{ handle, buf, len };
+        } a{ static_cast<std::size_t>(handle), buf, len };
         long not_read = call(SYS_READ, &a); // returns bytes NOT read
         return len - static_cast<std::size_t>(not_read);
     }
