@@ -20,10 +20,11 @@ endif
 
 ELF := $(BUILD_DIR)/z6m_debug
 
-.PHONY: xpack-elf
+.PHONY: xpack-elf xpack-zilkworm xpack-zilkworm-eest gdb rlp-qemu qemu-eest-stdio qemu-eest-fileio rerun-ctest
+
 xpack-elf: xpack-zilkworm
-	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
-	cmake -B$(BUILD_DIR) -S. -DCMAKE_BUILD_TYPE=Debug \
+	@mkdir -p $(BUILD_DIR)
+	cmake -B$(BUILD_DIR) -S. \
 		-DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN) \
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCONAN_PROFILE_HOST=$(CONAN_PROFILE) \
@@ -37,9 +38,8 @@ xpack-elf: xpack-zilkworm
 	cmake --build $(BUILD_DIR) -j --verbose
 
 xpack-zilkworm:
-	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
-	@[ -d $(BUILD_DIR)/zilkworm ] || mkdir $(BUILD_DIR)/zilkworm
-	cmake -B$(BUILD_DIR)/zilkworm -S.. -DCMAKE_BUILD_TYPE=Debug \
+	@mkdir -p $(BUILD_DIR)/zilkworm
+	cmake -B$(BUILD_DIR)/zilkworm -S.. \
 		-DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN) \
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCONAN_PROFILE_HOST=$(CONAN_PROFILE) \
@@ -55,11 +55,11 @@ xpack-zilkworm:
 	cmake --build $(BUILD_DIR)/zilkworm -j --target install
 
 gdb:
-	riscv-none-elf-gdb -q -ex "target remote :1234" -x .gdbinit build/z6m_debug
+	riscv-none-elf-gdb -q -ex "target remote :1234" -x .gdbinit $(ELF)
 
 ## make rlp-qemu file-name=../prover/temp/blocks/2347866/uni...bin
 rlp-qemu: xpack-elf
-	@if [ -z "$(file-name)" ]; then echo "Usage: make rlp-qemu file-name=path/to.json"; exit 1; fi
+	@if [ -z "$(file-name)" ]; then echo "Usage: make rlp-qemu file-name=path/to.json (ARCH=$(ARCH))"; exit 1; fi
 	@echo "QEMU waiting for GDB on :1234..."
 	@N=$$(wc -c <"$(file-name)"); \
 	{ printf "123456789_123456789_123456789_123"; printf "%u\n" $$N; cat "$(file-name)"; } | \
@@ -72,9 +72,8 @@ rlp-qemu: xpack-elf
 
 
 xpack-zilkworm-eest:
-	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
-	@[ -d $(BUILD_DIR)/zilkworm ] || mkdir $(BUILD_DIR)/zilkworm
-	cmake -B$(BUILD_DIR)/zilkworm -S..	\
+	@mkdir -p $(BUILD_DIR)/zilkworm
+	cmake -B$(BUILD_DIR)/zilkworm -S.. \
 		-DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN) \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCONAN_PROFILE_HOST=$(CONAN_PROFILE) \
@@ -88,7 +87,6 @@ xpack-zilkworm-eest:
 		-Wno-dev
 	cmake --build $(BUILD_DIR)/zilkworm -j --target install
 
-.PHONY: xpack-elf-eest
 xpack-elf-eest: xpack-zilkworm-eest
 	cmake -B$(BUILD_DIR) -S. \
 		-DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN) \
@@ -107,13 +105,12 @@ xpack-elf-eest: xpack-zilkworm-eest
 	cmake --build $(BUILD_DIR) -j --verbose
 
 
-.PHONY: qemu-eest
-qemu-eest: xpack-elf-eest
-	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu-eest file-name=path/to.json"; exit 1; fi
+qemu-eest-stdio: xpack-elf-eest
+	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu-eest-stdio file-name=path/to.json (ARCH=$(ARCH))"; exit 1; fi
 	@N=$$(wc -c <"$(file-name)"); \
 	{ printf "123456789_123456789_123456789_123"; printf "1 %u\n" $$N; cat "$(file-name)"; } | \
 	$(QEMU_SYSTEM) -M virt -m 2G -nographic \
-		-bios $(BUILD_DIR)/z6m_debug \
+		-bios $(ELF) \
 		-chardev stdio,mux=on,id=stdio0 \
 		-serial chardev:stdio0 \
 		-semihosting-config enable=on,chardev=stdio0 \
@@ -122,31 +119,20 @@ qemu-eest: xpack-elf-eest
 eest-blockchain-tests: xpack-elf-eest
 	ctest --test-dir $(BUILD_DIR) --parallel --output-on-failure
 
-rerun-ctest:
+rerun-ctest: xpack-elf-eest
 	ctest --test-dir $(BUILD_DIR) --parallel --output-on-failure -V --timeout 7200
 
-# rerun-qemu-eest:
-# 	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu-eest file-name=path/to.json"; exit 1; fi
-# 	@N=$$(wc -c <"$(file-name)"); \
-# 	{ printf "123456789_123456789_123456789_123"; printf "1 %u\n" $$N; cat "$(file-name)"; } | \
-# 	qemu-system-riscv32 -M virt -m 2G -nographic \
-# 		-bios $(BUILD_DIR)/z6m_debug \
-# 		-chardev stdio,mux=on,id=stdio0 \
-# 		-serial chardev:stdio0 \
-# 		-semihosting-config enable=on,target=native,chardev=stdio0 \
-# 		-monitor none \
-#   		-qmp unix:/tmp/qmp.sock,server=on,wait=off
-
-rerun-qemu-eest:
-	@if [ -z "$(file-name)" ]; then echo "Usage: make rerun-qemu-eest file-name=path/to.json"; exit 1; fi
+qemu-eest-fileio: xpack-elf-eest
+	@if [ -z "$(file-name)" ]; then echo "Usage: make qemu-eest-fileio file-name=path/to.json (ARCH=$(ARCH))"; exit 1; fi
+	@mkdir -p $(CURDIR)/temp
 	@N=$$(wc -c <"$(file-name)"); \
-	rm -f semihost.log serial.log; \
-	{ printf "1 %u\n" $$N; cat "$(file-name)"; } > stdin_payload.bin; \
+	rm -f $(CURDIR)/temp/semihost.log $(CURDIR)/temp/serial.log; \
+	{ printf "1 %u\n" $$N; cat "$(file-name)"; } > $(CURDIR)/temp/stdin_payload.bin; \
 	$(QEMU_SYSTEM) -M virt -m 2G -display none \
-		-bios $(BUILD_DIR)/z6m_debug \
+		-bios $(ELF) \
 		-monitor none \
 		-serial none \
-		-chardev file,id=shlog,path=semihost.log \
+		-chardev file,id=shlog,path=$(CURDIR)/temp/semihost.log \
 		-semihosting-config enable=on,target=native,chardev=shlog
 
 
@@ -168,9 +154,12 @@ eest-rv64:
 	$(MAKE) ARCH=rv64 eest-blockchain-tests
 
 # Clean build artifacts
-.PHONY: clean clean-all
+.PHONY: clean clean-all clean-temp
 clean:
 	rm -rf $(BUILD_DIR)
 
 clean-all:
 	rm -rf $(CURDIR)/build $(CURDIR)/build64
+
+clean-temp:
+	rm -f $(CURDIR)/temp/stdin_payload.bin $(CURDIR)/temp/semihost.log $(CURDIR)/temp/serial.log

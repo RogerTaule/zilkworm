@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <string>
 #include "./include/semihosting.hpp"
+#include <format>
 
 // Static buffer big enough for all the JSON payloads.
 static char JSON_BUF[200 * 1024 * 1024];
@@ -89,5 +90,6 @@ int main(int argc, char* argv[])
     const uint64_t res = sample_run_wrapped(is_test, jsonStr);
 
     // Exit QEMU with the result code
+    sys_println(std::format("Run complete. Result: {}", res));
     sh::exit(static_cast<int>(res));
 }

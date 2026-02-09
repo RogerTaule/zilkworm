@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 static inline void sys_print(const char* s)
 {
@@ -16,9 +17,9 @@ static inline void sys_print(const char* s)
         : "+r"(a0) : "r"(a1) : "memory");
 }
 
-static inline void sys_println(const char* s)
+static inline void sys_println(std::string_view s)
 {
-    sys_print(s);
+    sys_print(s.data());
     sys_print("\n");
 }
 
