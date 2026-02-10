@@ -5,6 +5,7 @@ mod service;
 mod types;
 
 use crate::ethproofs_client::EthProofsConfig;
+use crate::fetcher::{fetch_block_and_witness, FetchRequest};
 use crate::service::{
     AppConfig, ExecuteOptions, FetchOptions, ProveOptions, ServiceConfig, SetupOptions,
     VerifyOptions, Z6mProverService,
@@ -160,51 +161,77 @@ async fn main() -> Result<()> {
     dotenv::dotenv().ok();
     let args = Args::parse();
 
-    let ethproofs = match (
-        args.ethproofs_endpoint.clone(),
-        args.ethproofs_token.clone(),
-        args.ethproofs_cluster_id,
-    ) {
-        (Some(endpoint), Some(token), Some(cluster_id)) => Some(EthProofsConfig {
-            endpoint,
-            token,
-            cluster_id,
-        }),
-        _ => None,
-    };
-
-    let app_config = AppConfig {
-        data_dir: args.data_dir.clone(),
-        rpc_url: args.rpc_url.clone(),
-        save_all_responses: args.save_all_responses,
-        ethproofs,
-    };
-
-
-    let mut app = Z6mProverService::new(app_config).await?;
-
-    
-    if args.service {
-        let rpc_url = args.rpc_url.clone().or_else(|| {
-            args.command.as_ref().and_then(|cmd| match cmd {
-                Command::Fetch { rpc_url, .. } => rpc_url.clone(),
-                _ => None,
-            })
-        });
-        let rpc_url = rpc_url.ok_or_else(|| eyre!("--service requires --rpc-url"))?;
-
-        let service_config = ServiceConfig {
-            start_block: args.start_block,
-            end_block: args.end_block,
-            prove_every: args.prove_every,
-            execute_every: args.execute_every,
-            post_every: args.post_every,
-            rpc_url,
-            save_all_responses: args.save_all_responses,
-            proving_key_path: Some(args.pk_path.clone()),
-            proof_type: args.proof_type.clone(),
+    if args.service || matches!(args.command, Some(Command::Prove { .. })) {
+        let ethproofs = match (
+            args.ethproofs_endpoint.clone(),
+            args.ethproofs_token.clone(),
+            args.ethproofs_cluster_id,
+        ) {
+            (Some(endpoint), Some(token), Some(cluster_id)) => Some(EthProofsConfig {
+                endpoint,
+                token,
+                cluster_id,
+            }),
+            _ => None,
         };
-        app.run_service(service_config).await?;
+
+        let app_config = AppConfig {
+            data_dir: args.data_dir.clone(),
+            rpc_url: args.rpc_url.clone(),
+            save_all_responses: args.save_all_responses,
+            ethproofs,
+        };
+
+        let mut app = Z6mProverService::new(app_config).await?;
+
+        if args.service {
+            let rpc_url = args.rpc_url.clone().or_else(|| {
+                args.command.as_ref().and_then(|cmd| match cmd {
+                    Command::Fetch { rpc_url, .. } => rpc_url.clone(),
+                    _ => None,
+                })
+            });
+            let rpc_url = rpc_url.ok_or_else(|| eyre!("--service requires --rpc-url"))?;
+
+            let service_config = ServiceConfig {
+                start_block: args.start_block,
+                end_block: args.end_block,
+                prove_every: args.prove_every,
+                execute_every: args.execute_every,
+                post_every: args.post_every,
+                rpc_url,
+                save_all_responses: args.save_all_responses,
+                proving_key_path: Some(args.pk_path.clone()),
+                proof_type: args.proof_type.clone(),
+            };
+            app.run_service(service_config).await?;
+        } else if let Some(Command::Prove {
+            block_number,
+            file_name,
+            is_test,
+            data_dir,
+            pk_path: _,
+            proof_path,
+            proof_type,
+        }) = args.command
+        {
+            let log = app
+                .prove_block(&ProveOptions {
+                    block_number,
+                    file_name,
+                    is_test,
+                    data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
+                    proof_path,
+                    proof_type,
+                })
+                .await?;
+            println!(
+                "Proved block {} (gas_used={}, proof={})",
+                log.block_number,
+                log.gas_used,
+                log.proof_path.display()
+            );
+        }
         return Ok(());
     }
 
@@ -222,15 +249,14 @@ async fn main() -> Result<()> {
             let rpc = rpc_url
                 .or_else(|| args.rpc_url.clone())
                 .ok_or_else(|| eyre!("fetch requires --rpc-url"))?;
-            let outcome = app
-                .fetch_block(FetchOptions {
-                    block_number,
-                    rpc_url: rpc,
-                    save_all_responses: save_all_responses || args.save_all_responses,
-                    data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
-                    build_eth_test,
-                })
-                .await?;
+            let outcome = fetch_block_and_witness(FetchRequest {
+                block_number,
+                rpc_url: &rpc,
+                save_all_responses: save_all_responses || args.save_all_responses,
+                data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
+                build_eth_test,
+            })
+            .await?;
             println!(
                 "Fetched block {} into {}",
                 outcome.block_number,
@@ -243,9 +269,9 @@ async fn main() -> Result<()> {
             is_test,
             data_dir,
         }) => {
-            let opts = ExecuteOptions{
+            let opts = ExecuteOptions {
                 block_number,
-                file_name, 
+                file_name,
                 is_test,
                 data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
             };
@@ -256,33 +282,8 @@ async fn main() -> Result<()> {
                 log.block_number, log.gas_used, log.cycle_count, log.prover_gas, log.syscall_count
             );
         }
-        Some(Command::Prove {
-            block_number,
-            file_name,
-            is_test,
-            data_dir,
-            pk_path,
-            proof_path,
-            proof_type,
-        }) => {
-            let pk = pk_path.clone();
-
-            let log = app
-                .prove_block(&ProveOptions {
-                    block_number,
-                    file_name,
-                    is_test,
-                    data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
-                    proof_path,
-                    proof_type,
-                })
-                .await?;
-            println!(
-                "Proved block {} (gas_used={}, proof={})",
-                log.block_number,
-                log.gas_used,
-                log.proof_path.display()
-            );
+        Some(Command::Prove { .. }) => {
+            unreachable!("Prove is handled by the service path above");
         }
         Some(Command::Verify {
             proof_path,
