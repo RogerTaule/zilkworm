@@ -1,4 +1,4 @@
-TESTS_DIR := ../fixtures/fixtures_develop/fixtures/blockchain_tests/prague
+TESTS_DIR := third_party/eest-fixtures/blockchain_tests/prague
 
 SHELL = /bin/bash
 .SHELLFLAGS = -o pipefail -c

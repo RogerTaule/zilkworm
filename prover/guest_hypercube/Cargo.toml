@@ -14,7 +14,7 @@ default-features = false
 [dependencies.sp1-zkvm]
 path = "../../../sp1-wip/crates/zkvm/entrypoint"
 default-features = false
-version = "*"
+version = "6.0.0-rc.1"
 features = ["lib"]
 
 [dependencies.bls12_381]

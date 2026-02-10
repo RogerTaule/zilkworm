@@ -12,11 +12,10 @@ use sp1_cuda::CudaProvingKey;
 use sp1_prover::worker::SP1CoreExecutor;
 use sp1_prover::{SP1CompressWitness, SP1CoreProof, SP1CoreProofData, SP1ProofWithMetadata};
 use sp1_sdk::cuda::builder::CudaProverBuilder;
-use sp1_sdk::Executor;
 use sp1_sdk::{
-    cpu::CPUProvingKey, include_elf, CpuProver, CudaProver, Elf, ProveRequest, Prover,
+   include_elf, CpuProver, CudaProver, Elf, ProveRequest, Prover,
     ProverClient, ProvingKey, SP1Proof, SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin,
-    SP1VerifyingKey,
+    SP1VerifyingKey, SP1ProvingKey
 };
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Write};
@@ -39,7 +38,7 @@ enum DynamicProver {
 
 #[derive(Clone)]
 enum DynProvingKey {
-    Env(CPUProvingKey),
+    Env(SP1ProvingKey),
     Cuda(CudaProvingKey),
 }
 
@@ -93,7 +92,7 @@ impl DynamicProver {
             }
             (DynamicProver::Cuda(prover), DynProvingKey::Cuda(cuda_pk)) => {
                 let proof_result = prover
-                    .prove_impl(cuda_pk, stdin.clone(), Default::default(), mode)
+                    .prove(cuda_pk, stdin.clone())
                     .await;
                 let proof = proof_result.map_err(|e| eyre::eyre!("Proving failed: {}", e))?;
                 let cycles = proof.cycles;

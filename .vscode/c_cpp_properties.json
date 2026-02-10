@@ -3,20 +3,12 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**",
-                "${workspaceFolder}/target/elf-compilation/cxxbridge",
-                "/home/som/.conan2/p/b/gmp5e440497b1b12/p/include",
-                "/home/som/.conan2/p/b/zlibcd6beb403a099/p/include",
-                "/home/som/.conan2/p/cli11501ea4aa71965/p/include",
-                "/home/som/.conan2/p/magic18bdfe2210c00/p/include",
-                "/home/som/.conan2/p/ms-gs000db09c5aa93/p/include",
-                "/home/som/.conan2/p/nlohm0567ffc90cfc1/p/include",
-                "/home/som/.conan2/p/tl-ex9ec65529d2884/p/include"
+                "${workspaceFolder}/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c17",
-            "cppStandard": "gnu++20",
+            "cppStandard": "gnu++23",
             "intelliSenseMode": "linux-gcc-x64",
             "compileCommands": [
                 "${workspaceFolder}/build/compile_commands.json"
