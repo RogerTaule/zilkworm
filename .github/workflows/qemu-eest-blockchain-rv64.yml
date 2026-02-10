@@ -46,15 +46,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT_TOKEN }}
           submodules: recursive
           lfs: true
 
-      - name: Build EEST blockchain tests (RV64IM)
+      - name: Build for RV64IM
         run: |
           cd qemu_runner && make ARCH=rv64 xpack-elf-eest
 
-      - name: Run EEST blockchain tests (RV64IM)
+      - name:  Run EESTs on qemu-riscv64
         id: run_tests
         shell: bash
         run: |

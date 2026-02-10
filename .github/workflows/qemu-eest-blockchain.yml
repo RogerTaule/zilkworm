@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-run-rv32im:
-    name: Build and Run EEST Tests (Ubuntu 25.10)
+    name: Build and Run EEST Tests RV32IM (Ubuntu 25.10)
     runs-on: ubuntu-latest
     container: ubuntu:25.10
     steps:
@@ -48,11 +48,11 @@ jobs:
           submodules: recursive
           lfs: true
 
-      - name: Build EEST blockchain tests
+      - name: Build for RV32IM
         run: |
           cd qemu_runner && make xpack-elf-eest
 
-      - name: Run EEST blockchain tests
+      - name: Run EESTs on qemu-riscv32
         id: run_tests
         shell: bash
         run: |
@@ -86,7 +86,7 @@ jobs:
         shell: bash
         run: |
           echo "========================================"
-          echo "         EEST TEST SUMMARY"
+          echo "         EEST TEST SUMMARY (RV32IM)"
           echo "========================================"
           echo ""
           echo "Results: ${{ steps.run_tests.outputs.passed_percent }}% passed, ${{ steps.run_tests.outputs.failed }} failed out of ${{ steps.run_tests.outputs.total }}"
