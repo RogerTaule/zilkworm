@@ -58,7 +58,7 @@ jobs:
         run: |
           set +e
           cd qemu_runner
-          make rerun_ctest 2>&1 | tee output.log
+          make rerun-ctest 2>&1 | tee output.log
 
           exit_code=${PIPESTATUS[0]}
 
@@ -86,7 +86,7 @@ jobs:
         shell: bash
         run: |
           echo "========================================"
-          echo "         EEST TEST SUMMARY (RV32IM)"
+          echo "     EEST TEST SUMMARY (RV32IM)"
           echo "========================================"
           echo ""
           echo "Results: ${{ steps.run_tests.outputs.passed_percent }}% passed, ${{ steps.run_tests.outputs.failed }} failed out of ${{ steps.run_tests.outputs.total }}"

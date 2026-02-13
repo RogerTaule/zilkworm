@@ -10,7 +10,6 @@ jobs:
     name: Build and Run EEST Tests RV64IM (Ubuntu 25.10)
     runs-on: ubuntu-latest
     container: ubuntu:25.10
-    environment: ci
     steps:
       - name: Install system dependencies
         env:
