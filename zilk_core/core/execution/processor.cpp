@@ -22,7 +22,7 @@ class StateView final : public evmone::state::StateView {
         return std::nullopt;
         
         const auto& cur = *obj->current;
-        bool has_storage = state_.db().storage_size(addr, cur.incarnation) > 0;
+        bool has_storage = state_.db().storage_size(addr) > 0;
         return Account{
             .nonce = cur.nonce,
             .balance = cur.balance,

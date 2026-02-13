@@ -1,6 +1,5 @@
 // Copyright 2025 The Silkworm Authors
 // SPDX-License-Identifier: Apache-2.0
-
 #include "intra_block_state.hpp"
 
 #include <bit>
@@ -44,7 +43,6 @@ state::Object& IntraBlockState::get_or_create_object(const evmc::address& addres
         journal_.emplace_back(std::make_unique<state::UpdateDelta>(address, *obj));
         obj->current = Account{};
     }
-
     return *obj;
 }
 
@@ -66,36 +64,15 @@ void IntraBlockState::create_contract(const evmc::address& address, bool is_code
     state::Object created{};
     created.current = Account{};
 
-    std::optional<uint64_t> prev_incarnation{};
     const state::Object* prev{get_object(address)};
     if (prev) {
         created.initial = prev->initial;
         if (prev->current) {
             created.current->balance = prev->current->balance;
-            if (prev->initial) {
-                prev_incarnation = std::max(prev->current->incarnation, prev->initial->incarnation);
-            } else {
-                prev_incarnation = prev->current->incarnation;
-            }
-        } else if (prev->initial) {
-            prev_incarnation = prev->initial->incarnation;
         }
         journal_.emplace_back(std::make_unique<state::UpdateDelta>(address, *prev));
     } else {
         journal_.emplace_back(std::make_unique<state::CreateDelta>(address));
-    }
-
-    if (!prev_incarnation || prev_incarnation == 0) {
-        prev_incarnation = db_.previous_incarnation(address);
-    }
-    if (prev && prev_incarnation < prev->current->previous_incarnation) {
-        prev_incarnation = prev->current->previous_incarnation;
-    }
-
-    // EIP-7702 Reincarnation works for accounts which are not delegated designations
-    if (!is_code_delegation && !delegated_designations_.contains(address)) {
-        created.current->incarnation = *prev_incarnation + 1;
-        created.current->previous_incarnation = *prev_incarnation;
     }
 
     objects_[address] = created;
@@ -152,9 +129,11 @@ bool IntraBlockState::is_self_destructed(const evmc::address& address) const noe
 // Doesn't create a delta since it's called at the end of a transaction,
 // when we don't need snapshots anymore.
 void IntraBlockState::destruct(const evmc::address& address) {
+    
     // EIP-7702 Storage cannot be cleared for delegated designations
     if (!delegated_designations_.contains(address)) {
         storage_.erase(address);
+        db_.drop_storage(address);
     }
     auto* obj{get_object(address)};
     if (obj) {
@@ -262,16 +241,18 @@ evmc_access_status IntraBlockState::access_storage(const evmc::address& address,
 
 evmc::bytes32 IntraBlockState::get_current_storage(const evmc::address& address,
                                                    const evmc::bytes32& key) const noexcept {
-    return get_storage(address, key, /*original=*/false);
+    
+    return get_storage(address, key, /*is_original=*/false);
 }
 
 evmc::bytes32 IntraBlockState::get_original_storage(const evmc::address& address,
                                                     const evmc::bytes32& key) const noexcept {
-    return get_storage(address, key, /*original=*/true);
+    return get_storage(address, key, /*is_original=*/true);
 }
 
 evmc::bytes32 IntraBlockState::get_storage(const evmc::address& address, const evmc::bytes32& key,
-                                           bool original) const noexcept {
+                                           bool is_original) const noexcept {
+    
     auto* obj{get_object(address)};
     if (!obj || !obj->current) {
         return {};
@@ -279,7 +260,7 @@ evmc::bytes32 IntraBlockState::get_storage(const evmc::address& address, const e
 
     state::Storage& storage{storage_[address]};
 
-    if (!original) {
+    if (!is_original) {
         auto it{storage.current.find(key)};
         if (it != storage.current.end()) {
             return it->second;
@@ -291,12 +272,7 @@ evmc::bytes32 IntraBlockState::get_storage(const evmc::address& address, const e
         return it->second.original;
     }
 
-    uint64_t incarnation{obj->current->incarnation};
-    if (!obj->initial || obj->initial->incarnation != incarnation) {
-        return evmc::bytes32{};
-    }
-
-    evmc::bytes32 val{db_.read_storage(address, incarnation, key)};
+    evmc::bytes32 val{db_.read_storage(address, key)};
 
     state::CommittedValue& entry{storage_[address].committed[key]};
     entry.initial = val;
@@ -330,19 +306,18 @@ void IntraBlockState::write_to_db(uint64_t block_num) {
     db_.begin_block(block_num, objects_.size());
 
     for (const auto& [address, storage] : storage_) {
-        // std::cerr << "Writing do db storage: " << hex(address) << std::endl;
         auto it1{objects_.find(address)};
         if (it1 == objects_.end()) {
             continue;
         }
         const state::Object& obj{it1->second};
         if (!obj.current) {
+            db_.drop_storage(address);
             continue;
         }
 
         for (const auto& [key, val] : storage.committed) {
-            uint64_t incarnation{obj.current->incarnation};
-            db_.update_storage(address, incarnation, key, val.initial, val.original);
+            db_.update_storage(address, key, val.initial, val.original);
         }
     }
 
@@ -361,9 +336,9 @@ void IntraBlockState::write_to_db(uint64_t block_num) {
         const auto is_code_delegated = eip7702::is_code_delegated(code_view);
 
         if (code_hash != kEmptyHash &&
-            (!obj.initial || obj.initial->incarnation != obj.current->incarnation || is_code_delegated)) {
+            (is_code_delegated || !obj.initial || obj.initial->code_hash != code_hash)) {
             if (auto it{new_code_.find(code_hash)}; it != new_code_.end()) {
-                db_.update_account_code(address, obj.current->incarnation, code_hash, code_view);
+                db_.update_account_code(address, code_hash, code_view);
             }
         }
     }

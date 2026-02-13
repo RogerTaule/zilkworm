@@ -176,7 +176,7 @@ namespace {
                 return false;
             }
 
-            size_t storage_size{state.storage_size(address, account->incarnation)};
+            size_t storage_size{state.storage_size(address)};
             if (storage_size != j["storage"].size()) {
                 sys_println(std::format("Storage size mismatch for {}:\n{} != {}", entry.key(), storage_size, j["storage"].size()).c_str());
                 return false;
@@ -185,7 +185,7 @@ namespace {
             for (const auto& storage : j["storage"].items()) {
                 Bytes key{from_hex(storage.key()).value()};
                 Bytes expected_value{from_hex(storage.value().get<std::string>()).value()};
-                evmc::bytes32 actual_value{state.read_storage(address, account->incarnation, to_bytes32(key))};
+                evmc::bytes32 actual_value{state.read_storage(address, to_bytes32(key))};
                 if (actual_value != to_bytes32(expected_value)) {
                     sys_println(std::format("Storage mismatch for {} at {}:\n{} != {}", entry.key(), storage.key(), to_hex(actual_value), to_hex(expected_value)).c_str());
                     return false;

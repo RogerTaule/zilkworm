@@ -17,20 +17,19 @@ class InMemoryState : public State {
     // address -> initial value
     using AccountChanges = FlatHashMap<evmc::address, std::optional<Account>>;
 
-    // address -> incarnation -> location -> initial value
-    using StorageChanges = FlatHashMap<evmc::address, FlatHashMap<uint64_t, FlatHashMap<evmc::bytes32, evmc::bytes32>>>;
+    // address -> location -> initial value
+    using StorageChanges = FlatHashMap<evmc::address, FlatHashMap<evmc::bytes32, evmc::bytes32>>;
 
-    // address -> incarnation -> location -> value
-    using Storage = FlatHashMap<evmc::address, FlatHashMap<uint64_t, FlatHashMap<evmc::bytes32, evmc::bytes32>>>;
+    // address -> location -> value
+    using Storage = FlatHashMap<evmc::address, FlatHashMap<evmc::bytes32, evmc::bytes32>>;
 
     std::optional<Account> read_account(const evmc::address& address) const noexcept override;
 
     ByteView read_code(const evmc::address& address, const evmc::bytes32& code_hash) const noexcept override;
 
-    evmc::bytes32 read_storage(const evmc::address& address, uint64_t incarnation,
+    evmc::bytes32 read_storage(const evmc::address& address, 
                                const evmc::bytes32& location) const noexcept override;
 
-    uint64_t previous_incarnation(const evmc::address& address) const noexcept override;
 
     std::optional<BlockHeader> read_header(BlockNum block_num,
                                            const evmc::bytes32& block_hash) const noexcept override;
@@ -62,30 +61,31 @@ class InMemoryState : public State {
     void update_account(const evmc::address& address, std::optional<Account> initial,
                         std::optional<Account> current) override;
 
-    void update_account_code(const evmc::address& address, uint64_t incarnation, const evmc::bytes32& code_hash,
+    void update_account_code(const evmc::address& address, const evmc::bytes32& code_hash,
                              ByteView code) override;
 
-    void update_storage(const evmc::address& address, uint64_t incarnation, const evmc::bytes32& location,
+    void update_storage(const evmc::address& address, const evmc::bytes32& location,
                         const evmc::bytes32& initial, const evmc::bytes32& current) override;
+
+    void drop_storage(const evmc::address& address) override;
 
     void unwind_state_changes(BlockNum block_num) override;
 
     const FlatHashMap<BlockNum, AccountChanges>& account_changes() const { return account_changes_; }
     const FlatHashMap<evmc::address, Account>& accounts() const { return accounts_; }
 
-    size_t storage_size(const evmc::address& address, uint64_t incarnation) const override;
+    size_t storage_size(const evmc::address& address) const override;
     const Storage& storage() const { return storage_; }
 
   private:
-    evmc::bytes32 account_storage_root(const evmc::address& address, uint64_t incarnation) const;
+    evmc::bytes32 account_storage_root(const evmc::address& address) const;
 
     FlatHashMap<evmc::address, Account> accounts_;
 
     // hash -> code
     FlatHashMap<evmc::bytes32, Bytes> code_;
-
-    FlatHashMap<evmc::address, uint64_t> prev_incarnations_;
-
+    
+    // address -> location -> value
     Storage storage_;
 
     // block number -> hash -> header

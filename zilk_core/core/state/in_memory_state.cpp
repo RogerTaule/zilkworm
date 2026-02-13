@@ -31,27 +31,16 @@ ByteView InMemoryState::read_code(const evmc::address& /*address*/, const evmc::
     return it->second;
 }
 
-evmc::bytes32 InMemoryState::read_storage(const evmc::address& address, uint64_t incarnation,
+evmc::bytes32 InMemoryState::read_storage(const evmc::address& address,
                                           const evmc::bytes32& location) const noexcept {
     const auto it1{storage_.find(address)};
     if (it1 != storage_.end()) {
-        const auto it2{it1->second.find(incarnation)};
+        const auto it2{it1->second.find(location)};
         if (it2 != it1->second.end()) {
-            const auto it3{it2->second.find(location)};
-            if (it3 != it2->second.end()) {
-                return it3->second;
-            }
+            return it2->second;
         }
     }
     return {};
-}
-
-uint64_t InMemoryState::previous_incarnation(const evmc::address& address) const noexcept {
-    auto it{prev_incarnations_.find(address)};
-    if (it == prev_incarnations_.end()) {
-        return 0;
-    }
-    return it->second;
 }
 
 std::optional<BlockHeader> InMemoryState::read_header(BlockNum block_num,
@@ -148,30 +137,26 @@ void InMemoryState::update_account(const evmc::address& address, std::optional<A
     } else {
         accounts_.erase(address);
     }
-
-    // Remember the previous incarnation when an initially existing contract gets deleted, i.e. current is empty or EOA
-    const bool initial_smart{initial && initial->incarnation};
-    const bool current_deleted_or_eoa{!current || current->incarnation == 0};
-    if (initial_smart && current_deleted_or_eoa) {
-        prev_incarnations_[address] = initial.value().incarnation;
-    }
 }
-
-void InMemoryState::update_account_code(const evmc::address&, uint64_t, const evmc::bytes32& code_hash, ByteView code) {
+void InMemoryState::update_account_code(const evmc::address&, const evmc::bytes32& code_hash, ByteView code) {
     // Don't overwrite already existing code so that views of it
     // that were previously returned by read_code() are still valid.
     code_.try_emplace(code_hash, code);
 }
 
-void InMemoryState::update_storage(const evmc::address& address, uint64_t incarnation, const evmc::bytes32& location,
+void InMemoryState::update_storage(const evmc::address& address, const evmc::bytes32& location,
                                    const evmc::bytes32& initial, const evmc::bytes32& current) {
-    storage_changes_[block_num_][address][incarnation][location] = initial;
+    storage_changes_[block_num_][address][location] = initial;
 
     if (is_zero(current)) {
-        storage_[address][incarnation].erase(location);
+        storage_[address].erase(location);
     } else {
-        storage_[address][incarnation][location] = current;
+        storage_[address][location] = current;
     }
+}
+
+void InMemoryState::drop_storage(const evmc::address& address) {
+    storage_.erase(address);
 }
 
 void InMemoryState::unwind_state_changes(BlockNum block_num) {
@@ -184,41 +169,32 @@ void InMemoryState::unwind_state_changes(BlockNum block_num) {
     }
 
     for (const auto& [address, storage1] : storage_changes_[block_num]) {
-        for (const auto& [incarnation, storage2] : storage1) {
-            for (const auto& [location, value] : storage2) {
-                if (is_zero(value)) {
-                    storage_[address][incarnation].erase(location);
-                } else {
-                    storage_[address][incarnation][location] = value;
-                }
+        for (const auto& [location, value] : storage1) {
+            if (is_zero(value)) {
+                storage_[address].erase(location);
+            } else {
+                storage_[address][location] = value;
             }
         }
     }
 }
 
-size_t InMemoryState::storage_size(const evmc::address& address, uint64_t incarnation) const {
+size_t InMemoryState::storage_size(const evmc::address& address) const {
     const auto it1{storage_.find(address)};
     if (it1 != storage_.end()) {
-        const auto it2{it1->second.find(incarnation)};
-        if (it2 != it1->second.end()) {
-            return it2->second.size();
-        }
+        return it1->second.size();
     }
     return 0;
 }
 
 // https://eth.wiki/fundamentals/patricia-tree#storage-trie
-evmc::bytes32 InMemoryState::account_storage_root(const evmc::address& address, uint64_t incarnation) const {
+evmc::bytes32 InMemoryState::account_storage_root(const evmc::address& address) const {
     auto it1{storage_.find(address)};
-    if (it1 == storage_.end()) {
-        return kEmptyRoot;
-    }
-    auto it2{it1->second.find(incarnation)};
-    if (it2 == it1->second.end() || it2->second.empty()) {
+    if (it1 == storage_.end() || it1->second.empty()) {
         return kEmptyRoot;
     }
 
-    const auto& storage{it2->second};
+    const auto& storage{it1->second};
 
     std::map<evmc::bytes32, Bytes> storage_rlp;
     Bytes buffer;
@@ -245,7 +221,7 @@ evmc::bytes32 InMemoryState::state_root_hash() const {
     std::map<evmc::bytes32, Bytes> account_rlp;
     for (const auto& [address, account] : accounts_) {
         ethash::hash256 hash{keccak256(address.bytes)};
-        evmc::bytes32 storage_root{account_storage_root(address, account.incarnation)};
+        evmc::bytes32 storage_root{account_storage_root(address)};
         // std::cout << to_hex(address.bytes) << ":  " << to_hex(storage_root.bytes) << "\n";
         // std::cout << account.to_string() << "\n\n--";
         account_rlp[to_bytes32(hash.bytes)] = account.rlp(storage_root);

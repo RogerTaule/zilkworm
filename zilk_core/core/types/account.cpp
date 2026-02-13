@@ -1,10 +1,9 @@
 // Copyright 2025 The Silkworm Authors
 // SPDX-License-Identifier: Apache-2.0
 
+#include <format>
+
 #include "account.hpp"
-
-#include <sstream>
-
 #include <zilk_core/core/rlp/encode.hpp>
 
 namespace silkworm {
@@ -28,15 +27,10 @@ Bytes Account::rlp(const evmc::bytes32& storage_root) const {
 }
 
 std::string Account::to_string() const {
-    const auto& account = *this;
-    std::stringstream out;
-
-    out << "nonce: " << account.nonce;
-    out << " balance: "
-        << "0x" << intx::hex(account.balance);
-    out << " code_hash: 0x" << to_hex(account.code_hash);
-    out << " incarnation: " << account.incarnation;
-    return out.str();
+    return std::format("nonce: {} balance: 0x{} code_hash: 0x{}",
+                       nonce,
+                       intx::hex(balance),
+                       to_hex(code_hash));
 }
 
 }  // namespace silkworm

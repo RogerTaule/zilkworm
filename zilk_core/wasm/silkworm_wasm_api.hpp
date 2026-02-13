@@ -76,8 +76,7 @@ SILKWORM_EXPORT uint8_t* header_state_root(silkworm::BlockHeader* header);
 SILKWORM_EXPORT silkworm::InMemoryState* new_state();
 SILKWORM_EXPORT void delete_state(silkworm::InMemoryState* x);
 
-SILKWORM_EXPORT size_t state_storage_size(const silkworm::InMemoryState* state, const uint8_t* address,
-                                          const silkworm::Account* account);
+SILKWORM_EXPORT size_t state_storage_size(const silkworm::InMemoryState* state, const uint8_t* address);
 
 // Result has to be freed with delete_buffer
 SILKWORM_EXPORT uint8_t* state_root_hash_new(const silkworm::InMemoryState* state);
@@ -90,7 +89,6 @@ SILKWORM_EXPORT silkworm::Bytes* state_read_code_new(const silkworm::State* stat
 
 // Result has to be freed with delete_bytes
 SILKWORM_EXPORT silkworm::Bytes* state_read_storage_new(const silkworm::State* state, const uint8_t* address,
-                                                        const silkworm::Account* account,
                                                         const silkworm::Bytes* location);
 
 SILKWORM_EXPORT void state_update_account(silkworm::State* state, const uint8_t* address,
@@ -100,7 +98,7 @@ SILKWORM_EXPORT void state_update_code(silkworm::State* state, const uint8_t* ad
                                        const silkworm::Bytes* code);
 
 SILKWORM_EXPORT void state_update_storage(silkworm::State* state, const uint8_t* address,
-                                          const silkworm::Account* account, const silkworm::Bytes* location,
+                                          const silkworm::Bytes* location,
                                           const silkworm::Bytes* value);
 
 SILKWORM_EXPORT silkworm::protocol::Blockchain* new_blockchain(silkworm::State* state,

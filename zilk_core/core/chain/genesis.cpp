@@ -96,9 +96,8 @@ InMemoryState read_genesis_allocation(const nlohmann::json& alloc) {
         if (account_json.contains("code")) {
             const Bytes code{*from_hex(account_json["code"].get<std::string>())};
             if (!code.empty()) {
-                account.incarnation = kDefaultIncarnation;
                 account.code_hash = std::bit_cast<evmc_bytes32>(keccak256(code));
-                state.update_account_code(address, account.incarnation, account.code_hash, code);
+                state.update_account_code(address, account.code_hash, code);
             }
         }
         state.update_account(address, /*initial=*/std::nullopt, account);
@@ -107,7 +106,7 @@ InMemoryState read_genesis_allocation(const nlohmann::json& alloc) {
             for (const auto& storage : account_json["storage"].items()) {
                 const Bytes key{*from_hex(storage.key())};
                 const Bytes value{*from_hex(storage.value().get<std::string>())};
-                state.update_storage(address, account.incarnation, to_bytes32(key), /*initial=*/{}, to_bytes32(value));
+                state.update_storage(address, to_bytes32(key), /*initial=*/{}, to_bytes32(value));
             }
         }
     }
@@ -131,8 +130,6 @@ InMemoryState read_pre_state_from_rlp(ByteView rlp_view) {
     }
     ByteView accounts_view = payload_view.substr(0, accounts_header->payload_length);
 
-    std::unordered_map<evmc::address, uint64_t> address_incarnations;
-
     while (!accounts_view.empty()) {
         auto entry_header{rlp::decode_header(accounts_view)};
         if (!entry_header || !entry_header->list) {
@@ -146,18 +143,6 @@ InMemoryState read_pre_state_from_rlp(ByteView rlp_view) {
         rlp::decode(acc_items_list, account.balance);
         rlp::decode(acc_items_list, account.code_hash);
         rlp::decode(acc_items_list, account.storage_root_);
-
-        if (account.code_hash != kEmptyHash) {
-            account.incarnation = kDefaultIncarnation;
-            address_incarnations[address] = account.incarnation;
-
-            // // Update code if available
-            // auto it = code_map.find(code_hash);
-            // if (it != code_map.end()) {
-            //     state.update_account_code(address, account.incarnation, code_hash, it->second);
-            // }
-        }
-
         state.update_account(address, /*initial=*/std::nullopt, account);
         accounts_view.remove_prefix(entry_header->payload_length);
     }
@@ -180,8 +165,6 @@ InMemoryState read_pre_state_from_rlp(ByteView rlp_view) {
         // sys_println(to_hex(entry_payload).c_str());
         evmc::address address;
         rlp::decode(entry_payload, address);
-        uint64_t incarnation = address_incarnations[address];
-
         // Decode [k,v,k,v,...]
         auto kvs_header{rlp::decode_header(entry_payload)};
         if (!kvs_header || !kvs_header->list) {
@@ -200,7 +183,7 @@ InMemoryState read_pre_state_from_rlp(ByteView rlp_view) {
             evmc::bytes32 key32 = intx::be::store<evmc::bytes32>(key);
             evmc::bytes32 value32 = intx::be::store<evmc::bytes32>(value);
 
-            state.update_storage(address, incarnation, key32, /*initial=*/{}, value32);
+            state.update_storage(address, key32, /*initial=*/{}, value32);
         }
         storage_view.remove_prefix(entry_header->payload_length);
     }
@@ -223,7 +206,7 @@ InMemoryState read_pre_state_from_rlp(ByteView rlp_view) {
             sys_println("Failed to decode code from codes_view");
         }
 
-        state.update_account_code(address, 0, code_hash, code);
+        state.update_account_code(address, code_hash, code);
     }
 
     return state;

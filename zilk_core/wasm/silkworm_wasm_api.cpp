@@ -129,8 +129,8 @@ static evmc::address address_from_ptr(const uint8_t* ptr) { return bytes_to_addr
 
 static evmc::bytes32 bytes32_from_ptr(const uint8_t* ptr) { return to_bytes32({ptr, kHashLength}); }
 
-size_t state_storage_size(const InMemoryState* state, const uint8_t* address, const Account* account) {
-    return state->storage_size(address_from_ptr(address), account->incarnation);
+size_t state_storage_size(const InMemoryState* state, const uint8_t* address) {
+    return state->storage_size(address_from_ptr(address));
 }
 
 Account* state_read_account_new(const State* state, const uint8_t* address) {
@@ -150,9 +150,8 @@ Bytes* state_read_code_new(const State* state, const uint8_t* address, const uin
     return out;
 }
 
-Bytes* state_read_storage_new(const State* state, const uint8_t* address, const Account* account,
-                              const Bytes* location) {
-    evmc::bytes32 value{state->read_storage(address_from_ptr(address), account->incarnation, to_bytes32(*location))};
+Bytes* state_read_storage_new(const State* state, const uint8_t* address, const Bytes* location) {
+    evmc::bytes32 value{state->read_storage(address_from_ptr(address), to_bytes32(*location))};
     auto out{new Bytes};
     *out = zeroless_view(value.bytes);
     return out;
@@ -167,12 +166,12 @@ void state_update_account(State* state, const uint8_t* address, const Account* c
 }
 
 void state_update_code(State* state, const uint8_t* address, const Account* account, const Bytes* code) {
-    state->update_account_code(address_from_ptr(address), account->incarnation, account->code_hash, *code);
+    state->update_account_code(address_from_ptr(address), account->code_hash, *code);
 }
 
-void state_update_storage(State* state, const uint8_t* address, const Account* account, const Bytes* location,
+void state_update_storage(State* state, const uint8_t* address, const Bytes* location,
                           const Bytes* value) {
-    state->update_storage(address_from_ptr(address), account->incarnation, to_bytes32(*location), /*initial=*/{},
+    state->update_storage(address_from_ptr(address), to_bytes32(*location), /*initial=*/{},
                           to_bytes32(*value));
 }
 
