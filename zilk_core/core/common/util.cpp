@@ -217,11 +217,10 @@ size_t prefix_length(ByteView a, ByteView b) {
 
 float to_float(const intx::uint256& n) noexcept {
     static constexpr float k2to64{18446744073709551616.};  // 2^64
-    const uint64_t* words{intx::as_words(n)};
-    auto res{static_cast<float>(words[3])};
-    res = k2to64 * res + static_cast<float>(words[2]);
-    res = k2to64 * res + static_cast<float>(words[1]);
-    res = k2to64 * res + static_cast<float>(words[0]);
+    auto res{static_cast<float>(n[3])};
+    res = k2to64 * res + static_cast<float>(n[2]);
+    res = k2to64 * res + static_cast<float>(n[1]);
+    res = k2to64 * res + static_cast<float>(n[0]);
     return res;
 }
 

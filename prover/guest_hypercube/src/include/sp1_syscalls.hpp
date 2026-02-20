@@ -130,13 +130,14 @@ extern "C"
     // pub fn syscall_bls12381_decompress(point: &mut [u64; 12], is_odd: bool)
     void syscall_bls12381_decompress(uint64_t point[12], bool is_odd);
 
+    // Use syscall_uint256_mulmod instead.
     // pub fn sys_bigint(
     //   result: *mut [u64; 4], op: u64, x: *const [u64; 4], y: *const [u64; 4], modulus: *const [u64; 4])
-    void sys_bigint(uint64_t result[4],
-                    uint64_t op,
-                    const uint64_t x[4],
-                    const uint64_t y[4],
-                    const uint64_t modulus[4]);
+    // void sys_bigint(uint64_t result[4],
+    //                 uint64_t op,
+    //                 const uint64_t x[4],
+    //                 const uint64_t y[4],
+    //                 const uint64_t modulus[4]);
 
     // Field/Fp and Fp2 ops for BLS12-381 (operands are limb pointers; sizes defined by the ABI)
     // pub fn syscall_bls12381_fp_addmod(p: *mut u64, q: *const u64)
@@ -192,6 +193,13 @@ static inline void sys_println(const char *s)
     syscall_write(1, reinterpret_cast<const uint8_t *>(s), std::strlen(s));
     syscall_write(1, reinterpret_cast<const uint8_t *>("\n"), 1);
 }
+
+namespace sp1 {
+inline void mulmod(intx::uint256 &x, std::span<const intx::uint256, 2> ym) noexcept {
+    syscall_uint256_mulmod(reinterpret_cast<size_t *>(&x),
+                           reinterpret_cast<const size_t *>(ym.data()));
+}
+} // namespace sp1
 
 // Note: Affine points are now uint64_t[8] (not uint32_t[16])
 using sp1_AffinePoint = uint64_t[8];
