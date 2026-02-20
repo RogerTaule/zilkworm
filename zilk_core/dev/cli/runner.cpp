@@ -47,12 +47,15 @@ int main(int argc, const char* argv[]) {
         }
         const std::string file_path = argv[1];
 
-        // Handle JSON tests in a directory.
+        // Handle BIN/JSON tests in a directory.
         if (std::filesystem::is_directory(file_path)) {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(file_path)) {
                 const auto& path = entry.path();
                 if (path.extension() == ".json") {
                     run_json_test_file(path.string());
+                } else if (path.extension() == ".bin") {
+                    std::cout << path << ":\n";
+                    run_unified_bin_file(path.string());
                 }
             }
             return 0;
