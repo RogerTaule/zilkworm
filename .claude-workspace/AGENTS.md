@@ -1,0 +1,223 @@
+# AGENTS.md — z6m Claude Workspace Skill
+
+## Project Overview
+
+**z6m** (zilkworm) is a high-performance Ethereum execution engine with ZK-proving
+capabilities. It consists of:
+
+- **zilk_core/** — C++23 core library: EVM execution, state transitions, Merkle
+  Patricia Trie (MPT), RLP encoding/decoding, and blockchain data structures.
+- **prover/** — Rust workspace for zkVM guest programs and provers (SP1/Hypercube).
+- **qemu_runner/** — RISC-V bare-metal runner for QEMU-based testing of the C++ core.
+- **third_party/** — Git submodules: evmone, intx, eest-fixtures.
+
+## Repository Layout
+
+```
+z6m/
+├── CMakeLists.txt          # Top-level CMake (C++23, Ninja)
+├── Makefile                # Convenience targets (prover, tests)
+├── prover/                 # Rust prover workspace
+│   ├── Cargo.toml
+│   ├── rust-toolchain.toml # Rust 1.88.0
+│   ├── common/             # Shared Rust crate
+│   ├── guest_hypercube/    # zkVM guest (rv64)
+│   ├── guest_turbo/        # zkVM guest (rv32)
+│   ├── prover_hypercube/   # Prover binary (Hypercube)
+│   └── prover_turbo/       # Prover binary (Turbo)
+├── qemu_runner/            # RISC-V bare-metal QEMU runner
+├── zilk_core/              # C++23 core library
+│   ├── core/               # Core data structures & EVM
+│   └── dev/                # Dev utilities, CLI tools
+├── third_party/
+│   ├── evmone/             # Fork of evmone (branch: hyper1)
+│   │   └── evmc/           # EVM-C interface
+│   ├── intx/               # 256-bit integer library
+│   └── eest-fixtures/      # Ethereum execution test fixtures
+└── .claude-workspace/      # This Dockerfile and orchestrator
+```
+
+## Git Submodules
+
+All submodules **must** be initialized before building:
+
+```bash
+git submodule update --init --recursive
+```
+
+| Submodule     | Path                        | URL                                           | Branch |
+| ------------- | --------------------------- | --------------------------------------------- | ------ |
+| evmone        | `third_party/evmone`        | `https://github.com/erigontech/zevmone.git`   | hyper1 |
+| intx          | `third_party/intx`          | `https://github.com/chfast/intx.git`          | master |
+| eest-fixtures | `third_party/eest-fixtures` | `https://github.com/erigontech/eest-fixtures` | main   |
+| evmc (nested) | `third_party/evmone/evmc`   | `https://github.com/somnathb1/zevmc.git`      | hyper1 |
+
+## Build Instructions
+
+### C++ Core (zilk_core)
+
+```bash
+# Configure
+cmake -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_C_COMPILER=/usr/bin/gcc \
+    -DCMAKE_CXX_COMPILER=/usr/bin/g++ \
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+# Build all
+cmake --build build
+
+# Build specific target
+cmake --build build --target state_transition
+
+# Run EEST blockchain tests
+cmake -B build/eest -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+    -DTESTS_DIR=third_party/eest-fixtures/blockchain_tests
+cmake --build build/eest
+ctest --test-dir build/eest --parallel
+```
+
+### Rust Prover
+
+```bash
+# Build guest (must come first — generates ELF binary for prover)
+cd prover/guest_hypercube && cargo prove build
+
+# Build prover
+cargo build --release --manifest-path prover/prover_hypercube/Cargo.toml
+
+# Self-test
+prover/target/release/z6m_prover execute --is-test \
+    --file-name third_party/eest-fixtures/blockchain_tests/static/state_tests/stExample/add11.json
+```
+
+## Current Branch
+
+The workspace checks out branch **`mpt_new`** which implements memory-optimized
+stateless Merkle tree update (PR #2).
+
+## Coding Conventions
+
+- **C++23** standard, compiled with GCC 14+ or Clang 16+.
+- CMake ≥ 3.28 with Ninja generator preferred.
+- Rust 1.88.0 (pinned in `prover/rust-toolchain.toml`).
+- Follow existing code style in each sub-project.
+- Unit tests use CTest (C++) and `cargo test` (Rust).
+
+## Chat Orchestrator
+
+Available at `/usr/local/bin/orchestrator` inside the container. Tasks
+dispatch to **background** Claude agents and the prompt returns immediately.
+
+### Task types
+
+| Prefix | Behaviour | Parallelism |
+| ------ | --------- | ----------- |
+| _(none)_ | Read-only — Edit/Write/NotebookEdit tools disabled | Unlimited parallel |
+| `edit:` | Write — full tool access | Serialized (max 1 at a time) |
+
+### Sessions
+
+Sessions persist task logs and metadata to `./temp/orch_sessions/` on the host (mounted
+at `/data` in the container). Each session is a named directory containing
+its tasks.
+
+```bash
+orchestrator                     # resume last session (creates first if none)
+orchestrator new [name]          # create a new session
+orchestrator --list              # pick a session interactively
+```
+
+The `sessions` and `session` REPL commands show session info from within
+the REPL.
+
+### REPL commands
+
+```
+<prompt>              dispatch read-only agent
+edit: <prompt>        dispatch write agent (queued if one is already running)
+status                show all tasks in current session
+logs <id>             show task output
+wait [id]             block until task(s) finish
+kill <id>             kill a running task
+session               show current session info
+sessions              list all sessions with last-used timestamps
+help                  show commands
+quit                  exit (kills running tasks)
+```
+
+### CLI modes
+
+```bash
+# Interactive REPL (resumes last session)
+orchestrator
+
+# New session
+orchestrator new my-feature
+
+# Pick session from list
+orchestrator --list
+
+# One-shot (dispatches in last session, waits, prints output)
+orchestrator "explain the MPT implementation"
+
+# Parallel from file (one task per line, prefix edit: for write tasks)
+orchestrator --parallel tasks.txt
+```
+
+Session data is stored at `./temp/orch_sessions/<session-name>/` on the host.
+
+## Authentication
+
+Claude Code auth is passed into the container at runtime (never baked into
+the image). Two methods, in order of precedence:
+
+### 1. Subscription credentials (recommended)
+
+Mount your local OAuth credentials file (created by `claude auth login` on
+the host) into the container read-only:
+
+```bash
+docker run -v ~/.claude/.credentials.json:/tmp/claude-credentials.json:ro ...
+```
+
+The helper script `run.sh` does this automatically.
+
+### 2. API key
+
+Pass an API key via environment variable:
+
+```bash
+docker run -e ANTHROPIC_API_KEY=sk-ant-... ...
+```
+
+## Quick Start
+
+```bash
+# Build and launch interactive shell (uses your subscription automatically)
+.claude-workspace/run.sh
+
+# Build and launch the orchestrator
+.claude-workspace/run.sh orchestrator
+
+# One-shot task
+.claude-workspace/run.sh orchestrator "explain the MPT implementation"
+
+# Just build the image
+.claude-workspace/run.sh --build-only
+```
+
+## Environment Variables
+
+| Variable            | Purpose                                                         |
+| ------------------- | --------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY` | API key auth (fallback when subscription credentials not found) |
+| `Z6M_AUTO_PULL`     | Set to `1` to auto-pull latest code on container start          |
+
+## Agent Guidelines
+
+1. Always verify submodules are initialised before attempting a build.
+2. Use `compile_commands.json` (in `build/`) for accurate code intelligence.
+3. The C++ code uses deep template metaprogramming — read headers carefully.
+4. Test changes with `cmake --build build` before marking tasks complete.
+5. For Rust changes, run `cargo check` in the prover workspace first.
