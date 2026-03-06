@@ -34,7 +34,7 @@ z6m/
 │   │   └── evmc/           # EVM-C interface
 │   ├── intx/               # 256-bit integer library
 │   └── eest-fixtures/      # Ethereum execution test fixtures
-└── .claude-workspace/      # This Dockerfile and orchestrator
+└── tools/claude/           # Dockerfile, orchestrator, entrypoint
 ```
 
 ## Git Submodules
@@ -143,7 +143,7 @@ kill <id>             kill a running task
 session               show current session info
 sessions              list all sessions with last-used timestamps
 help                  show commands
-quit                  exit (kills running tasks)
+quit                  drop to shell (kills running tasks)
 ```
 
 ### CLI modes
@@ -195,16 +195,16 @@ docker run -e ANTHROPIC_API_KEY=sk-ant-... ...
 
 ```bash
 # Build and launch interactive shell (uses your subscription automatically)
-.claude-workspace/run.sh
+tools/claude/run.sh
 
 # Build and launch the orchestrator
-.claude-workspace/run.sh orchestrator
+tools/claude/run.sh orchestrator
 
 # One-shot task
-.claude-workspace/run.sh orchestrator "explain the MPT implementation"
+tools/claude/run.sh orchestrator "explain the MPT implementation"
 
 # Just build the image
-.claude-workspace/run.sh --build-only
+tools/claude/run.sh --build-only
 ```
 
 ## Environment Variables
@@ -214,6 +214,81 @@ docker run -e ANTHROPIC_API_KEY=sk-ant-... ...
 | `ANTHROPIC_API_KEY` | API key auth (fallback when subscription credentials not found) |
 | `Z6M_AUTO_PULL`     | Set to `1` to auto-pull latest code on container start          |
 
+## Persistent Data (`/data`)
+
+The `/data` directory is a host-mounted volume that **survives container restarts**.
+Agents **must** use it to persist work products so nothing is lost when the
+container is recreated.
+
+### Directory layout
+
+```
+/data/
+├── patches/
+│   ├── <name>.patch          # current version of each patch
+│   ├── <name>.summary.md     # human-readable summary for each patch
+│   └── old/                  # superseded versions (auto-rotated)
+│       ├── <name>_v001.patch
+│       ├── <name>_v001.summary.md
+│       └── ...
+├── MEMORY.md                 # shared multi-agent coordination file (see below)
+└── <session-dir>/            # orchestrator session data (automatic)
+```
+
+### Patch & summary workflow
+
+1. When you produce a patch (diff, formatted patch, etc.), write it to
+   `/data/patches/<descriptive-name>.patch`.
+2. Write a companion `/data/patches/<descriptive-name>.summary.md` with:
+   - One-line title
+   - What changed and why
+   - Files affected
+   - Build / test status
+3. Before overwriting an existing patch, **rotate** the old version:
+   ```bash
+   mkdir -p /data/patches/old
+   # Find next version number
+   n=$(ls /data/patches/old/<name>_v*.patch 2>/dev/null | wc -l)
+   ver=$(printf "v%03d" $((n + 1)))
+   mv /data/patches/<name>.patch     /data/patches/old/<name>_${ver}.patch
+   mv /data/patches/<name>.summary.md /data/patches/old/<name>_${ver}.summary.md
+   ```
+4. Never delete patches from `old/`.
+
+### MEMORY.md — multi-agent coordination
+
+`/data/MEMORY.md` is a **shared file** that all agents (across tasks and sessions)
+can read and write. Use it to coordinate work, avoid duplication, and share
+discoveries.
+
+Structure:
+
+```markdown
+# Agent Memory
+
+## Current Goals
+- <high-level objectives the team is working towards>
+
+## Decisions
+- <architectural or design decisions made, with rationale>
+
+## Discoveries
+- <important findings about the codebase, bugs, patterns>
+
+## In Progress
+- <what is currently being worked on and by which task ID>
+
+## Blocked / Needs Attention
+- <items that need human input or are stuck>
+```
+
+Rules:
+- **Read MEMORY.md at the start of every task** to understand current context.
+- **Update it when you finish** — move your item out of "In Progress", record
+  decisions or discoveries.
+- Keep entries concise (1-2 lines each). Remove stale entries.
+- Do not duplicate information already in session task logs.
+
 ## Agent Guidelines
 
 1. Always verify submodules are initialised before attempting a build.
@@ -221,3 +296,5 @@ docker run -e ANTHROPIC_API_KEY=sk-ant-... ...
 3. The C++ code uses deep template metaprogramming — read headers carefully.
 4. Test changes with `cmake --build build` before marking tasks complete.
 5. For Rust changes, run `cargo check` in the prover workspace first.
+6. Persist all patches and summaries to `/data/patches/` (see above).
+7. Read `/data/MEMORY.md` before starting work; update it when done.

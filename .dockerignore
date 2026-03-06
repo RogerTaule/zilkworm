@@ -1,5 +1,5 @@
 # .dockerignore for z6m Claude workspace build
-# Used when: docker build -f .claude-workspace/Dockerfile .
+# Used when: docker build -f tools/claude/Dockerfile .
 
 # Build outputs
 build/
@@ -20,7 +20,10 @@ third_party/eest-fixtures/state_tests/
 
 # Session data / logs
 temp/
-.claude-workspace/logs/
+tools/claude/logs/
+
+# Claude Code worktrees (can be multi-GB)
+.claude/worktrees/
 
 # OS junk
 .DS_Store

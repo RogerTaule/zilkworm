@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Python (needed by some cmake scripts, conan, etc.)
     python3 python3-pip python3-venv \
     # Misc dev utilities
-    jq ripgrep fd-find unzip xz-utils file sudo \
+    jq ripgrep fd-find unzip xz-utils file sudo protobuf-compiler libprotobuf-dev \
     # Node.js (for Claude Code CLI)
     nodejs npm \
     # Docker entrypoint privilege drop (clean setuid+exec, no PAM/session)
@@ -61,6 +61,35 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
     rustup component add rustfmt rust-src
 USER root
 
+# ── 3a. RISC-V toolchain (xPack riscv-none-elf-gcc) ─────────────────────
+#    Installed via xpm (xPack package manager) per Instructions.md.
+RUN npm install --location=global xpm@latest
+USER z6m
+RUN xpm install @xpack-dev-tools/riscv-none-elf-gcc@latest --global --verbose
+USER root
+# Create a stable symlink to the dynamically-versioned bin directory
+RUN set -e; \
+    version_dir="$(ls -1d /home/z6m/.local/xPacks/@xpack-dev-tools/riscv-none-elf-gcc/*/  | head -1)"; \
+    ln -s "${version_dir}.content/bin" /opt/riscv-none-elf-gcc-bin
+ENV PATH="/opt/riscv-none-elf-gcc-bin:${PATH}"
+
+# ── 3b. SP1 toolchain (~/.sp1) ──────────────────────────────────────────
+#    Copied from host via named build context "sp1_home".
+COPY --from=sp1_home / /home/z6m/.sp1/
+RUN chown -R z6m:z6m /home/z6m/.sp1
+ENV PATH="/home/z6m/.sp1/bin:${PATH}"
+
+# ── 3c. sp1-wip source tree ─────────────────────────────────────────────
+#    Cargo.toml in prover/guest_hypercube references ../../../sp1-wip
+#    which resolves to /sp1-wip from /workspace/prover/guest_hypercube.
+COPY --from=sp1_wip / /sp1-wip/
+RUN chown -R z6m:z6m /sp1-wip
+
+# ── 3d. SP1 CLI (cargo-prove) from sp1-wip source ────────────────────────
+USER z6m
+RUN cd /sp1-wip/crates/cli && cargo install --locked --path .
+USER root
+
 # ── 4. Claude Code CLI ─────────────────────────────────────────────────────
 RUN npm install -g @anthropic-ai/claude-code
 
@@ -87,11 +116,16 @@ RUN cmake -B build -G Ninja \
 USER root
 
 # ── 7. Chat orchestrator wrapper ────────────────────────────────────────────
-COPY .claude-workspace/orchestrator.sh /usr/local/bin/orchestrator
-RUN chmod +x /usr/local/bin/orchestrator
+COPY tools/claude/orchestrator.sh /usr/local/bin/orchestrator
+RUN chmod +x /usr/local/bin/orchestrator && \
+    ln -s /usr/local/bin/orchestrator /usr/local/bin/orc
 
 # ── 8. AGENTS.md skill file (Claude convention) ────────────────────────────
-COPY --chown=z6m:z6m .claude-workspace/AGENTS.md /workspace/AGENTS.md
+COPY --chown=z6m:z6m tools/claude/AGENTS.md /workspace/AGENTS.md
+
+# ── 8a. Claude settings and skills ────────────────────────────────────────
+COPY --chown=z6m:z6m tools/claude/settings.json /home/z6m/.claude/settings.json
+COPY --chown=z6m:z6m .claude/skills/ /workspace/.claude/skills/
 
 # ── 9. Make workspace and home dir writable by any runtime user ─────────────
 #    Supports `docker run --user $(id -u):$(id -g)` so mounted volume files
@@ -102,7 +136,7 @@ COPY --chown=z6m:z6m .claude-workspace/AGENTS.md /workspace/AGENTS.md
 RUN chmod a+rx /home/z6m && chmod -R a+rwX /home/z6m/.claude /workspace
 
 # ── 10. Entrypoint ─────────────────────────────────────────────────────────
-COPY .claude-workspace/entrypoint.sh /entrypoint.sh
+COPY tools/claude/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Run as root so the entrypoint can remap z6m's UID to the host user's UID

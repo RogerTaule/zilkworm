@@ -52,24 +52,29 @@ fi
 # Fix home dir ownership (non-recursive — just the dir itself, instant).
 # Claude writes ~/.claude.json here; without this z6m gets EACCES.
 chown z6m:z6m /home/z6m /home/z6m/.claude
+# Fix ownership of mounted volumes so z6m can write to them.
+[[ -d /data ]] && chown z6m:z6m /data
+[[ -d /home/z6m/.claude/projects ]] && chown z6m:z6m /home/z6m/.claude/projects
 
 # ── Auth: copy mounted Claude config dir or use API key ────────────────────
 if [[ -d "$STAGING_DIR" ]]; then
     mkdir -p "$CLAUDE_DIR"
-    # Copy all top-level files from the staging dir.
+    # Copy only auth/cache files from the staging dir.
     # Skip:
     #   .credentials.json          – bind-mounted read-write by run.sh
     #   mcp-needs-auth-cache.json  – triggers MCP OAuth browser flow hang
+    #   settings*.json             – container uses its own (tools/claude/settings.json)
     for src in "$STAGING_DIR"/.* "$STAGING_DIR"/*; do
         [[ -f "$src" ]] || continue
         name="$(basename "$src")"
         [[ "$name" == ".credentials.json" ]] && continue
         [[ "$name" == "mcp-needs-auth-cache.json" ]] && continue
+        [[ "$name" == settings*.json ]] && continue
         cp "$src" "${CLAUDE_DIR}/${name}"
         chown z6m:z6m "${CLAUDE_DIR}/${name}"
         chmod 600 "${CLAUDE_DIR}/${name}"
     done
-    echo "[entrypoint] Copied Claude config files from ~/.claude/."
+    echo "[entrypoint] Copied Claude config files from ~/.claude/ (settings from image)."
 
     if python3 -c "import json; d=json.load(open('$CRED_FILE')); assert 'claudeAiOauth' in d" 2>/dev/null; then
         echo "[entrypoint] Credential file validated (OAuth subscription)."

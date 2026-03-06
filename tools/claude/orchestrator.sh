@@ -553,21 +553,29 @@ resume_task() {
 # ── Wait for task(s) ─────────────────────────────────────────────────────────
 wait_for_tasks() {
     local target_id="${1:-}"
+    local interrupted=false
+    trap 'interrupted=true' INT
 
     if [[ -n "$target_id" ]]; then
-        read_meta "$target_id" || { err "Unknown task: ${target_id}"; return 1; }
+        read_meta "$target_id" || { trap - INT; err "Unknown task: ${target_id}"; return 1; }
         if [[ "$META_STATUS" == "done" || "$META_STATUS" == "failed" ]]; then
+            trap - INT
             ok "Task ${target_id} already finished (${META_STATUS})."
             return 0
         fi
-        log "Waiting for task ${target_id}..."
-        while pid_alive "$META_PID"; do sleep 1; done
-        refresh_statuses; read_meta "$target_id"
-        ok "Task ${target_id} finished (${META_STATUS})."
+        log "Waiting for task ${target_id}... (Ctrl+C to stop waiting)"
+        while ! $interrupted && pid_alive "$META_PID"; do sleep 1; done
+        trap - INT
+        if $interrupted; then
+            log "Stopped waiting. Task ${target_id} still running."
+        else
+            refresh_statuses; read_meta "$target_id"
+            ok "Task ${target_id} finished (${META_STATUS})."
+        fi
     else
-        log "Waiting for all tasks..."
+        log "Waiting for all tasks... (Ctrl+C to stop waiting)"
         local any_running=true
-        while $any_running; do
+        while ! $interrupted && $any_running; do
             any_running=false
             refresh_statuses
             for metafile in "$TASK_DIR"/*.meta; do
@@ -581,7 +589,12 @@ wait_for_tasks() {
             done
             $any_running && sleep 1
         done
-        ok "All tasks finished."
+        trap - INT
+        if $interrupted; then
+            log "Stopped waiting. Tasks still running in background."
+        else
+            ok "All tasks finished."
+        fi
     fi
 }
 
@@ -636,13 +649,20 @@ interactive_repl() {
     log "Tasks run in background. Type 'help' for commands."
     echo ""
 
-    trap 'cleanup_on_exit' EXIT
+    trap 'cleanup_on_exit' TERM
 
     while true; do
         refresh_statuses
 
+        # Ctrl+C during prompt just cancels the current line and loops back.
+        trap '' INT
         echo -n -e "${CYAN}z6m> ${NC}"
-        read -r input || break
+        if ! read -r input; then
+            # EOF (Ctrl+D) — exit the REPL
+            echo ""
+            break
+        fi
+        trap - INT
         [[ -z "$input" ]] && continue
 
         # Normalise id argument: strip leading zeros for arithmetic, re-pad to 3
@@ -667,7 +687,7 @@ interactive_repl() {
                 echo "  session               show current session info"
                 echo "  sessions              list all sessions"
                 echo ""
-                echo "  help / quit"
+                echo "  help / quit (drops to shell)"
                 echo ""
                 ;;
 
@@ -754,12 +774,18 @@ main() {
             name=$(create_session "${1:-}")
             init_session "$name"
             interactive_repl
+            cleanup_on_exit
+            log "Dropping to shell. Run 'orchestrator' to re-enter."
+            exec bash
             ;;
         --list)
             local name
             name=$(pick_session)
             init_session "$name"
             interactive_repl
+            cleanup_on_exit
+            log "Dropping to shell. Run 'orchestrator' to re-enter."
+            exec bash
             ;;
         --parallel)
             shift
@@ -769,6 +795,9 @@ main() {
         "")
             resolve_session
             interactive_repl
+            cleanup_on_exit
+            log "Dropping to shell. Run 'orchestrator' to re-enter."
+            exec bash
             ;;
         *)
             resolve_session

@@ -6,16 +6,16 @@ Docker-based development environment that runs Claude Code agents against the z6
 
 ```bash
 # Interactive shell inside the container
-./.claude-workspace/run.sh
+./tools/claude/run.sh
 
 # Start the task orchestrator
-./.claude-workspace/run.sh orchestrator
+./tools/claude/run.sh orchestrator
 
 # One-shot read-only task
-./.claude-workspace/run.sh orchestrator "explain the MPT implementation"
+./tools/claude/run.sh orchestrator "explain the MPT implementation"
 
 # Build image only (no container)
-./.claude-workspace/run.sh --build-only
+./tools/claude/run.sh --build-only
 ```
 
 ## What Works
