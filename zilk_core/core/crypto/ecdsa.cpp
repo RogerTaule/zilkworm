@@ -7,11 +7,10 @@
 
 bool silkworm_recover_address(uint8_t out[20], const uint8_t message[32], const uint8_t signature[64],
                               uint8_t recovery_id) {
-    ethash::hash256 msg_hash;
-    std::memcpy(msg_hash.bytes, message, 32);
-    const auto opt_address = evmmax::secp256k1::ecrecover(msg_hash,
-                                                          intx::be::unsafe::load<intx::uint256>(&signature[0]),
-                                                          intx::be::unsafe::load<intx::uint256>(&signature[32]),
+    const auto hash = std::span<const uint8_t, 32>{message, 32};
+    const auto r_bytes = std::span<const uint8_t, 32>{signature, 32};
+    const auto s_bytes = std::span<const uint8_t, 32>{signature + 32, 32};
+    const auto opt_address = evmmax::secp256k1::ecrecover(hash, r_bytes, s_bytes,
                                                           recovery_id != 0);
     if (!opt_address) {
         return false;

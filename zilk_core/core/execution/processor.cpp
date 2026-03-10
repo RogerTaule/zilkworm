@@ -151,7 +151,7 @@ void ExecutionProcessor::execute_transaction(const Transaction& txn, Receipt& re
                                                .signer = authorization.recover_authority(txn),
                                                .r = authorization.r,
                                                .s = authorization.s,
-                                               .v = authorization.v()});
+                                               .v = authorization.y_parity});
     }
 
     const auto rev = evm_.revision();
