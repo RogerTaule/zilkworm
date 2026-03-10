@@ -769,6 +769,81 @@ impl Z6mProverService {
         Ok(())
     }
 
+    pub async fn run_test_service(
+        start_block: u64,
+        end_block: u64,
+        execute_every: Option<u64>,
+        data_dir: PathBuf,
+        execution_log_file: Option<PathBuf>,
+    ) -> Result<()> {
+        if start_block > end_block {
+            bail!("--start-block ({}) must be <= --end-block ({})", start_block, end_block);
+        }
+        info!("starting test service mode, blocks {} to {}", start_block, end_block);
+        let execute_every = match execute_every {
+            Some(0) => {
+                bail!("--execute-every 0 is invalid in test service mode; use a positive value or omit the flag");
+            }
+            Some(v) => v,
+            None => 1,
+        };
+
+        // Create ONE CpuProver upfront and reuse for all blocks
+        let client = ProverClient::builder().cpu().build().await;
+
+        // Resolve log path once before the loop
+        let log_path = execution_log_file
+            .unwrap_or_else(|| data_dir.join("executionLogs.log"));
+
+        for block_number in start_block..=end_block {
+            if block_number % execute_every != 0 {
+                continue;
+            }
+
+            let input_path = Self::resolve_input_path(block_number, None, false, &data_dir)?;
+            if !input_path.exists() {
+                warn!("block {} not found at {}, skipping", block_number, input_path.display());
+                continue;
+            }
+
+            let stdin = match build_stdin_from_unified_rlp(&input_path) {
+                Ok(s) => s,
+                Err(e) => {
+                    warn!("block {} failed to build stdin: {}, skipping", block_number, e);
+                    continue;
+                }
+            };
+            let (mut output, report) = match client.execute(Z6M_ELF, stdin).await {
+                Ok(result) => result,
+                Err(e) => {
+                    warn!("block {} execution failed: {}, skipping", block_number, e);
+                    continue;
+                }
+            };
+
+            let gas_used = output.read::<u64>();
+            let cycle_count = report.total_instruction_count();
+            let prover_gas = report.gas.unwrap_or_default();
+            let syscall_count = report.total_syscall_count();
+
+            println!(
+                "Executed block {} (gas_used={}, cycles={}, prover_gas={}, syscall_count={})",
+                block_number, gas_used, cycle_count, prover_gas, syscall_count
+            );
+
+            let log = ExecutionLog {
+                block_number,
+                gas_used,
+                cycle_count,
+                prover_gas,
+                syscall_count,
+                input_path: input_path.clone(),
+            };
+            Self::persist_execution_logs_static(&log_path, &log)?;
+        }
+        Ok(())
+    }
+
     pub async fn execute_block_static(opts: ExecuteOptions) -> Result<ExecutionLog> {
         let input_path = Self::resolve_input_path(
             opts.block_number,
@@ -812,16 +887,21 @@ impl Z6mProverService {
             syscall_count,
             input_path: input_path.clone(),
         };
-        Self::persist_execution_logs_static(&opts.data_dir, &log)?;
+        let log_file = opts.data_dir.join("executionLogs.log");
+        Self::persist_execution_logs_static(&log_file, &log)?;
         Ok(log)
     }
 
-    fn persist_execution_logs_static(data_dir: &Path, log: &ExecutionLog) -> Result<()> {
-        let log_file: PathBuf = data_dir.join("executionLogs.log");
+    fn persist_execution_logs_static(log_file: &Path, log: &ExecutionLog) -> Result<()> {
+        if let Some(parent) = log_file.parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent)?;
+            }
+        }
         let mut text_file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&log_file)?;
+            .open(log_file)?;
         let timestamp = Self::format_timestamp();
         writeln!(
             &mut text_file,

@@ -21,9 +21,13 @@ struct Args {
     #[arg(long, action = clap::ArgAction::SetTrue)]
     service: bool,
 
+    #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "service")]
+    test_service: bool,
+
     #[arg(long)]
     rpc_url: Option<String>,
 
+    /// Root data directory containing a blocks/ subdirectory (e.g. /mnt/data, not /mnt/data/blocks)
     #[arg(long, default_value = "temp")]
     data_dir: PathBuf,
 
@@ -44,6 +48,10 @@ struct Args {
 
     #[arg(long)]
     end_block: Option<u64>,
+
+    /// Custom path for the execution log output (only used in --test-service mode)
+    #[arg(long)]
+    execution_log_file: Option<PathBuf>,
 
     #[arg(long, default_value = "pk.bin")]
     pk_path: PathBuf,
@@ -160,6 +168,23 @@ async fn main() -> Result<()> {
     fmt().with_env_filter(filter).init();
     dotenv::dotenv().ok();
     let args = Args::parse();
+
+    if args.test_service {
+        if args.command.is_some() {
+            bail!("--test-service cannot be combined with a subcommand");
+        }
+        let start = args.start_block.ok_or_else(|| eyre!("--test-service requires --start-block"))?;
+        let end = args.end_block.ok_or_else(|| eyre!("--test-service requires --end-block"))?;
+        Z6mProverService::run_test_service(
+            start,
+            end,
+            args.execute_every,
+            args.data_dir.clone(),
+            args.execution_log_file.clone(),
+        )
+        .await?;
+        return Ok(());
+    }
 
     if args.service || matches!(args.command, Some(Command::Prove { .. })) {
         let ethproofs = match (
