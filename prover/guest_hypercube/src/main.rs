@@ -22,11 +22,6 @@ mod ffi {
 pub fn main() {
     let is_test: bool = sp1_zkvm::io::read();
     let input_str = sp1_zkvm::io::read_vec();
-    let result: u64;
-    if is_test {
-        result = ffi::sample_run_wrapped(is_test, input_str);
-    } else {
-        result = ffi::sample_run_wrapped(is_test, input_str);
-    }
+    let result = ffi::sample_run_wrapped(is_test, input_str);
     sp1_zkvm::io::commit(&result);
 }
