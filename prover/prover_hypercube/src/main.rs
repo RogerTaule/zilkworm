@@ -103,6 +103,10 @@ enum Command {
         /// Whether to create an ethereum/tests format json file too
         #[arg(long, action = clap::ArgAction::SetTrue)]
         build_eth_test: bool,
+
+        /// Use geth's debug_executionWitness format instead of reth/alloy format
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        geth: bool,
     },
     /// Execute the guest program without proving
     Execute {
@@ -270,6 +274,7 @@ async fn main() -> Result<()> {
             data_dir,
             save_all_responses,
             build_eth_test,
+            geth,
         }) => {
             let rpc = rpc_url
                 .or_else(|| args.rpc_url.clone())
@@ -280,6 +285,7 @@ async fn main() -> Result<()> {
                 save_all_responses: save_all_responses || args.save_all_responses,
                 data_dir: data_dir.unwrap_or_else(|| args.data_dir.clone()),
                 build_eth_test,
+                geth,
             })
             .await?;
             println!(

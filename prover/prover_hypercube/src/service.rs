@@ -265,6 +265,7 @@ impl Z6mProverService {
             data_dir: opts.data_dir,
             save_all_responses: opts.save_all_responses,
             build_eth_test: opts.build_eth_test,
+            geth: false,
         })
         .await?;
         Ok(outcome)
@@ -699,6 +700,7 @@ impl Z6mProverService {
             data_dir: data_dir.clone(),
             save_all_responses: service.save_all_responses,
             build_eth_test: false,
+            geth: false,
         })
         .await?;
         let unified_path = outcome.unified_rlp_path.clone();

@@ -4,14 +4,15 @@ use crate::types::{
     EthTestTransaction, SealEngine, TestBlock, TestHeader,
 };
 use alloy_consensus::transaction::SignerRecoverable;
-use alloy_consensus::{BlockHeader, Transaction};
+use alloy_consensus::{BlockHeader, Header as ConsensusHeader, Transaction};
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
-use alloy_rlp::Decodable;
+use alloy_rlp::{Decodable, Encodable};
 use alloy_rpc_types::{Block as RpcBlock, BlockTransactions, Transaction as RPCTransaction};
 use alloy_rpc_types_debug::ExecutionWitness;
 use alloy_trie::{TrieAccount, KECCAK_EMPTY};
 use eyre::{bail, eyre, Context, Result};
+use serde::Deserialize;
 use rsp_mpt::EthereumState;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
@@ -23,12 +24,160 @@ use tokio::time::sleep;
 use tracing::{debug, warn};
 use url::Url;
 
+/// Geth's `debug_executionWitness` response format.
+/// Headers are JSON objects, codes/state can be maps (hash→hex) or lists.
+#[derive(Deserialize, Debug)]
+struct GethExecutionWitness {
+    #[serde(default)]
+    headers: Vec<serde_json::Value>,
+    #[serde(default)]
+    codes: serde_json::Value,
+    #[serde(default)]
+    state: serde_json::Value,
+    #[serde(default)]
+    keys: serde_json::Value,
+}
+
+/// Convert a geth witness response into the alloy `ExecutionWitness` format.
+fn convert_geth_witness(geth: GethExecutionWitness) -> Result<ExecutionWitness> {
+    // Headers: JSON objects → RLP-encoded bytes
+    let headers: Vec<Bytes> = geth
+        .headers
+        .into_iter()
+        .map(|h| {
+            let header: ConsensusHeader =
+                serde_json::from_value(h).wrap_err("failed to parse geth header")?;
+            let mut buf = Vec::new();
+            alloy_rlp::Encodable::encode(&header, &mut buf);
+            Ok(Bytes::from(buf))
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    let codes = extract_bytes_from_value(&geth.codes)
+        .wrap_err("failed to convert geth codes")?;
+    let state = extract_bytes_from_value(&geth.state)
+        .wrap_err("failed to convert geth state")?;
+
+    // Geth doesn't provide key preimages
+    let keys = match &geth.keys {
+        serde_json::Value::Array(arr) if !arr.is_empty() => {
+            extract_bytes_from_value(&geth.keys)?
+        }
+        _ => {
+            warn!("geth witness has no key preimages; preimage-dependent features will be limited");
+            Vec::new()
+        }
+    };
+
+    Ok(ExecutionWitness {
+        state,
+        codes,
+        keys,
+        headers,
+    })
+}
+
+/// Extract a flat list of `Bytes` from a JSON value that is either:
+/// - a map (`{"hash": "0xdata", ...}`) → take the values
+/// - an array (`["0xdata", ...]`) → take each element
+/// - null → empty vec
+fn extract_bytes_from_value(value: &serde_json::Value) -> Result<Vec<Bytes>> {
+    match value {
+        serde_json::Value::Object(map) => map
+            .values()
+            .map(|v| {
+                let s = v.as_str().ok_or_else(|| eyre!("expected hex string in map value"))?;
+                Ok(Bytes::from(
+                    hex::decode(s.strip_prefix("0x").unwrap_or(s))
+                        .wrap_err_with(|| format!("invalid hex: {}", s))?,
+                ))
+            })
+            .collect(),
+        serde_json::Value::Array(arr) => arr
+            .iter()
+            .map(|v| {
+                let s = v.as_str().ok_or_else(|| eyre!("expected hex string in array"))?;
+                Ok(Bytes::from(
+                    hex::decode(s.strip_prefix("0x").unwrap_or(s))
+                        .wrap_err_with(|| format!("invalid hex: {}", s))?,
+                ))
+            })
+            .collect(),
+        serde_json::Value::Null => Ok(Vec::new()),
+        _ => bail!("unexpected JSON type for witness field: expected object, array, or null"),
+    }
+}
+
+/// Fetch execution witness from a geth node using a raw JSON-RPC call.
+async fn fetch_geth_execution_witness(
+    rpc_url: &str,
+    block_number: u64,
+) -> Result<GethExecutionWitness> {
+    let client = reqwest::Client::new();
+    let block_hex = format!("0x{:x}", block_number);
+    let body = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "debug_executionWitness",
+        "params": [block_hex],
+        "id": 1
+    });
+    let resp: serde_json::Value = client
+        .post(rpc_url)
+        .json(&body)
+        .send()
+        .await
+        .wrap_err("failed to send geth RPC request")?
+        .json()
+        .await
+        .wrap_err("failed to parse geth RPC response")?;
+
+    if let Some(error) = resp.get("error") {
+        bail!("geth RPC error: {}", error);
+    }
+
+    let result = resp
+        .get("result")
+        .ok_or_else(|| eyre!("missing 'result' in geth RPC response"))?;
+    serde_json::from_value(result.clone()).wrap_err("failed to deserialize geth ExecutionWitness")
+}
+
+/// Fetch geth execution witness with retry logic, converting to alloy format.
+async fn fetch_geth_execution_witness_with_retry(
+    rpc_url: &str,
+    block_number: u64,
+    max_retries: u32,
+) -> Result<ExecutionWitness> {
+    let mut attempts = 0;
+    loop {
+        match fetch_geth_execution_witness(rpc_url, block_number).await {
+            Ok(geth_witness) => return convert_geth_witness(geth_witness),
+            Err(err) => {
+                attempts += 1;
+                if attempts >= max_retries {
+                    return Err(err);
+                }
+                let delay = Duration::from_secs(2_u64.pow(attempts.min(5)));
+                warn!(
+                    attempt = attempts,
+                    max_retries = max_retries,
+                    delay_secs = delay.as_secs(),
+                    block_number = block_number,
+                    error = %err,
+                    "Failed to get geth execution witness, retrying..."
+                );
+                sleep(delay).await;
+            }
+        }
+    }
+}
+
 pub struct FetchRequest<'a> {
     pub rpc_url: &'a str,
     pub block_number: Option<u64>,
     pub data_dir: PathBuf,
     pub save_all_responses: bool,
     pub build_eth_test: bool,
+    pub geth: bool,
 }
 
 pub struct FetchOutcome {
@@ -118,7 +267,28 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
 
     let execution_witness: ExecutionWitness = if witness_path.exists() {
         let witness_json = fs::read_to_string(&witness_path)?;
-        serde_json::from_str(&witness_json)?
+        match serde_json::from_str::<ExecutionWitness>(&witness_json) {
+            Ok(w) => w,
+            Err(e) if request.geth => {
+                debug!("alloy format parse failed ({}), trying geth format...", e);
+                let geth: GethExecutionWitness = serde_json::from_str(&witness_json)
+                    .wrap_err("failed to parse witness file as geth format")?;
+                convert_geth_witness(geth)?
+            }
+            Err(e) => {
+                return Err(e).wrap_err(
+                    "failed to parse witness file; if using geth, pass --geth flag",
+                );
+            }
+        }
+    } else if request.geth {
+        let witness = fetch_geth_execution_witness_with_retry(request.rpc_url, block_number, 3)
+            .await
+            .wrap_err("failed to fetch geth execution witness after retries")?;
+        if request.save_all_responses {
+            write_json(&witness_path, &witness)?;
+        }
+        witness
     } else {
         let witness = debug_execution_witness_with_retry(&provider, block_number, 3)
             .await
