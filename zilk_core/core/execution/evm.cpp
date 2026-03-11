@@ -144,7 +144,6 @@ evmc::Result EVM::create(const evmc_message& message) noexcept {
         .kind = message.depth > 0 ? message.kind : EVMC_CALL,
         .depth = message.depth,
         .gas = message.gas,
-        .gas_cost = message.gas_cost,
         .recipient = contract_addr,
         .sender = message.sender,
         .value = message.value,
@@ -226,7 +225,7 @@ evmc::Result EVM::call(const evmc_message& message) noexcept {
         } else {
             const std::optional<Bytes> output{contract.run(input)};
             if (output) {
-                res = evmc::Result{EVMC_SUCCESS, message.gas - static_cast<int64_t>(gas), 0, message.gas_cost,
+                res = evmc::Result{EVMC_SUCCESS, message.gas - static_cast<int64_t>(gas), 0,
                                    output->data(), output->size()};
             } else {
                 res.status_code = EVMC_PRECOMPILE_FAILURE;
