@@ -97,6 +97,35 @@ Options:
 
 ```
 
+### Test service (offline batch execution)
+
+Execute a range of blocks from disk without RPC or prover key setup:
+
+```bash
+z6m_prover --test-service \
+  --data-dir /path/to/witness_blocks \
+  --start-block 24490786 --end-block 24490805 \
+  --execute-every 1
+```
+
+Blocks are read from `<data-dir>/blocks/<block_number>/unifiedBlockAndStateRlp<block_number>.bin`. Missing blocks are skipped with a warning. Results are appended to `<data-dir>/executionLogs.log`.
+
+### Single block execute from disk
+
+```bash
+z6m_prover execute --file-name /path/to/unifiedBlockAndStateRlp24490786.bin --data-dir /path/to/output
+```
+
+### Cycle stats
+
+Plot execution metrics from the log file:
+
+```bash
+python3 prover/prover_hypercube/src/stats/cycle_stats.py \
+  -i /path/to/executionLogs.log \
+  -o /path/to/results_plot.png \
+  --no-display
+```
 
 ## NVIDIA CUDA Accelerated proving
 First make sure to install NVIDIA drivers and the NVIDIA Container Toolkit https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
