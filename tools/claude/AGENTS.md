@@ -289,6 +289,33 @@ Rules:
 - Keep entries concise (1-2 lines each). Remove stale entries.
 - Do not duplicate information already in session task logs.
 
+## Read-Only Host Mounts (`/mnt/`)
+
+When `run.sh` is invoked with directory arguments after `orchestrator` (or `orc`),
+those host directories are mounted **read-only** into the container at
+`/mnt/<basename>`. For example:
+
+```bash
+./run.sh orc /mnt/nodes_wd_8tb/witness_blocks
+# → available inside container at /mnt/witness_blocks (read-only)
+```
+
+Agents can read files under `/mnt/` but cannot modify them. Use these mounts
+to access large datasets, witness blocks, or reference material without copying
+them into the workspace.
+
+## Task Execution Protocol
+
+Every time a task is given, follow this exact workflow:
+
+1. **Plan** — Create a plan for the task (scope, approach, risks)
+2. **Protocol** — Define the steps, success criteria, and verification method
+3. **Summary** — Write a brief summary of what will be done
+4. **Persist** — Write the plan+protocol+summary to `./temp/<task_title>.md` in the current working directory
+5. **Delegate** — Spin a background subagent (or multiple parallel agents) to execute the plan
+6. **Orchestrate** — The main agent thread ONLY tracks progress, reports summaries, and launches follow-up agents. NEVER do file reads/edits/builds inline in the main thread.
+7. **Update** — When agents complete, update the task file with results and status
+
 ## Agent Guidelines
 
 1. Always verify submodules are initialised before attempting a build.
@@ -298,3 +325,6 @@ Rules:
 5. For Rust changes, run `cargo check` in the prover workspace first.
 6. Persist all patches and summaries to `/data/patches/` (see above).
 7. Read `/data/MEMORY.md` before starting work; update it when done.
+8. The main conversation thread should be an orchestrator: launch agents, report summaries, merge via agents. Minimize inline file reads/edits in the main thread.
+9. NEVER use the main agent chat interface for direct code work — always delegate to subagents.
+10. When background agents complete, spin another agent to summarize results and merge code — don't do merges inline.

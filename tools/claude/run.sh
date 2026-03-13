@@ -5,8 +5,15 @@
 #  Usage:
 #    ./run.sh                          # build image and start interactive shell
 #    ./run.sh orchestrator             # start the chat orchestrator
+#    ./run.sh orc                      # same (orc is an alias)
 #    ./run.sh orchestrator "fix build" # one-shot task
+#    ./run.sh orc /path/to/blocks      # mount dir read-only at /mnt/blocks
 #    ./run.sh --build-only             # just build the image
+#
+#  Directory mounts:
+#    Any argument after orchestrator/orc that is an existing host directory
+#    is mounted read-only in the container at /mnt/<basename>.
+#    Non-directory arguments are treated as task prompts (existing behavior).
 #
 #  Auth: Uses your local Claude subscription credentials (~/.claude/.credentials.json).
 #        Falls back to ANTHROPIC_API_KEY env var if set.
@@ -64,7 +71,7 @@ list_and_attach() {
             last_used=$(sed -n '2p' "${dir}.meta" 2>/dev/null || echo "?")
             created=$(date -d "$created" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$created")
             last_used=$(date -d "$last_used" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$last_used")
-            task_count=$(find "${dir}tasks" -name "*.meta" 2>/dev/null | wc -l)
+            task_count=$(find "${dir}tasks" -name "*.meta" 2>/dev/null | wc -l) || task_count=0
             (( i++ )) || true
             entries+=("${i}|session|${sname}")
             echo -e "  ${CYAN}$(printf '%3d' "$i")${NC}  $(printf '%-30s' "$sname")  ${DIM}tasks:${NC}$(printf '%-3s' "$task_count")  ${DIM}last:${NC}${last_used}"
@@ -126,6 +133,7 @@ build_image() {
         -f "$REPO_ROOT/tools/claude/Dockerfile" \
         --build-context "sp1_home=$SP1_HOME_DIR" \
         --build-context "sp1_wip=$SP1_WIP_DIR" \
+        --build-arg "CLAUDE_CACHEBUST=$(date +%s)" \
         -t "$IMAGE_NAME" \
         "$REPO_ROOT"
     ok "Image built: ${IMAGE_NAME}"
@@ -133,6 +141,17 @@ build_image() {
 
 # ── Run the container ──────────────────────────────────────────────────────
 run_container() {
+    # Separate directory args (to mount) from command args (to exec).
+    local mount_dirs=()
+    local cmd_args=()
+    for arg in "$@"; do
+        if [[ -d "$arg" ]]; then
+            mount_dirs+=("$arg")
+        else
+            cmd_args+=("$arg")
+        fi
+    done
+
     local docker_args=(
         docker run -d
         --name "$CONTAINER_NAME"
@@ -182,6 +201,16 @@ run_container() {
         docker_args+=(-e "Z6M_AUTO_PULL=1")
     fi
 
+    # Mount extra host directories read-only at /mnt/<basename>
+    for dir in "${mount_dirs[@]}"; do
+        local resolved
+        resolved="$(cd "$dir" && pwd)"
+        local bname
+        bname="$(basename "$resolved")"
+        log "Mounting ${resolved} → /mnt/${bname} (read-only)"
+        docker_args+=(-v "${resolved}:/mnt/${bname}:ro")
+    done
+
     docker_args+=("$IMAGE_NAME")
 
     # Always start with a long-running sleep so the container stays alive.
@@ -205,10 +234,10 @@ run_container() {
 
     log "Type 'exit' or Ctrl+D to leave. Container keeps running. Reattach: ./run.sh list"
 
-    if [[ $# -gt 0 ]]; then
-        log "Executing: $*"
+    if [[ ${#cmd_args[@]} -gt 0 ]]; then
+        log "Executing: ${cmd_args[*]}"
         docker exec -it --detach-keys="" -u z6m -w /workspace \
-            "$CONTAINER_NAME" "$@"
+            "$CONTAINER_NAME" "${cmd_args[@]}"
     else
         docker exec -it --detach-keys="" -u z6m -w /workspace \
             "$CONTAINER_NAME" bash
@@ -240,14 +269,25 @@ main() {
             echo "Usage: $0 [list | clean | --build-only | --help | <cmd...>]"
             echo ""
             echo "  (no args)               Build & start interactive bash shell"
-            echo "  orchestrator             Build & start the chat orchestrator"
+            echo "  orchestrator (orc)       Build & start the chat orchestrator"
             echo "  orchestrator \"task\"      Build & run one-shot task"
+            echo "  orchestrator /path/dir   Mount dir read-only at /mnt/<basename>"
             echo "  list (ls)               Show containers & sessions, attach interactively"
             echo "  --build-only             Just build the Docker image"
             echo "  clean                    Remove all z6m-agent containers"
             echo ""
+            echo "Directory mounts:"
+            echo "  Any arg after orchestrator/orc that is an existing host directory"
+            echo "  is mounted read-only at /mnt/<basename> inside the container."
+            echo "  Non-directory args are treated as task prompts."
+            echo ""
             echo "Auth: Place Claude credentials at ~/.claude/.credentials.json"
             echo "      (run 'claude auth login' on host), or set ANTHROPIC_API_KEY."
+            ;;
+        orc)
+            shift
+            build_image
+            run_container orchestrator "$@"
             ;;
         *)
             build_image

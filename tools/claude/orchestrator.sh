@@ -4,6 +4,10 @@
 #  Dispatches tasks to background Claude Code agents with read/write safety.
 #  Sessions persist to disk at /data (mount from host: ./temp/orch_sessions).
 #
+#  Host directories passed to run.sh are mounted read-only under /mnt/.
+#  For example: ./run.sh orc /path/to/blocks  →  available at /mnt/blocks
+#  Agents can read these paths but cannot modify them.
+#
 #  Usage:
 #    orchestrator                     # resume last session (or create first)
 #    orchestrator new [name]          # create a new session

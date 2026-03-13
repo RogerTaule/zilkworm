@@ -24,14 +24,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ cmake ninja-build pkg-config \
     # C++23 capable compiler (GCC 14 ships in 25.10)
     gcc-14 g++-14 \
-    # Version control
-    git git-lfs \
+    # Version control & GitHub CLI
+    git git-lfs gh \
     # Networking / fetch
     ca-certificates curl wget \
     # Python (needed by some cmake scripts, conan, etc.)
     python3 python3-pip python3-venv \
     # Misc dev utilities
-    jq ripgrep fd-find unzip xz-utils file sudo protobuf-compiler libprotobuf-dev \
+    jq ripgrep fd-find unzip xz-utils file sudo protobuf-compiler libprotobuf-dev vim \
     # Node.js (for Claude Code CLI)
     nodejs npm \
     # Docker entrypoint privilege drop (clean setuid+exec, no PAM/session)
@@ -90,20 +90,18 @@ USER z6m
 RUN cd /sp1-wip/crates/cli && cargo install --locked --path .
 USER root
 
-# ── 4. Claude Code CLI ─────────────────────────────────────────────────────
-RUN npm install -g @anthropic-ai/claude-code
-
-# ── 5. Prepare workspace and Claude config ──────────────────────────────────
+# ── 4. Prepare workspace and Claude config ──────────────────────────────────
 RUN mkdir -p /home/z6m/.claude/projects && chown -R z6m:z6m /home/z6m/.claude && \
     mkdir -p /workspace && chown z6m:z6m /workspace
 
 WORKDIR /workspace
 COPY --chown=z6m:z6m . .
 
+# ── 5. Sanity check ─────────────────────────────────────────────────────────
 # Quick sanity: CMake expects evmc submodule (.git is a file in nested submodules)
 RUN test -e third_party/evmone/evmc/.git
 
-# ── 6. Pre-configure CMake (Debug build, for IDE/agent usage) ──────────────
+# ── 6. Pre-configure CMake (Debug build, for IDE/agent usage) ────────────────
 USER z6m
 RUN cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Debug \
@@ -120,14 +118,22 @@ COPY tools/claude/orchestrator.sh /usr/local/bin/orchestrator
 RUN chmod +x /usr/local/bin/orchestrator && \
     ln -s /usr/local/bin/orchestrator /usr/local/bin/orc
 
-# ── 8. AGENTS.md skill file (Claude convention) ────────────────────────────
+# ── 8. Claude Code CLI (placed late to maximise layer caching) ───────────────
+#    Cache-bust: pass --build-arg CLAUDE_CACHEBUST=$(date +%s) to always
+#    pull the latest version.  run.sh does this automatically.
+#    Layers above (workspace COPY, CMake configure) stay cached even when
+#    this layer is invalidated.
+ARG CLAUDE_CACHEBUST=0
+RUN npm install -g @anthropic-ai/claude-code@latest
+
+# ── 9. AGENTS.md skill file (Claude convention) ────────────────────────────
 COPY --chown=z6m:z6m tools/claude/AGENTS.md /workspace/AGENTS.md
 
-# ── 8a. Claude settings and skills ────────────────────────────────────────
+# ── 9a. Claude settings and skills ────────────────────────────────────────
 COPY --chown=z6m:z6m tools/claude/settings.json /home/z6m/.claude/settings.json
 COPY --chown=z6m:z6m .claude/skills/ /workspace/.claude/skills/
 
-# ── 9. Make workspace and home dir writable by any runtime user ─────────────
+# ── 10. Make workspace and home dir writable by any runtime user ─────────────
 #    Supports `docker run --user $(id -u):$(id -g)` so mounted volume files
 #    are owned by the host user rather than z6m (UID 1001).
 #    - /home/z6m itself: needs o+rx so any UID can enter it
@@ -135,7 +141,7 @@ COPY --chown=z6m:z6m .claude/skills/ /workspace/.claude/skills/
 #    - /workspace: fully world-writable (build output, agent edits)
 RUN chmod a+rx /home/z6m && chmod -R a+rwX /home/z6m/.claude /workspace
 
-# ── 10. Entrypoint ─────────────────────────────────────────────────────────
+# ── 11. Entrypoint ─────────────────────────────────────────────────────────
 COPY tools/claude/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
