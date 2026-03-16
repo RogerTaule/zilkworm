@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "processor.hpp"
-
 #include <evmone/test/state/state.hpp>
 #include <evmone/test/state/system_contracts.hpp>
-#include <zilk_core/core/common/assert.hpp>
 #include <zilk_core/core/protocol/intrinsic_gas.hpp>
 #include <zilk_core/core/protocol/param.hpp>
 #include <zilk_core/core/trie/vector_root.hpp>
@@ -374,13 +372,30 @@ uint64_t ExecutionProcessor::calculate_refund_gas(const Transaction& txn, uint64
 
 void ExecutionProcessor::apply_state_diff(const evmone::state::StateDiff& diff) {
     for (const auto& m : diff.modified_accounts) {
-        if (m.code) {
-            state_.create_contract(m.addr, eip7702::is_code_delegated(*m.code));
-            state_.set_code(m.addr, *m.code);
+        // Ensure the object exists with a current account, bypassing the journal.
+        auto* obj = state_.get_object(m.addr);
+        if (obj == nullptr) {
+            obj = &state_.objects_[m.addr];
+            obj->current = Account{};
+        } else if (!obj->current) {
+            obj->current = Account{};
         }
-        auto& acc = state_.get_or_create_object(m.addr);
-        acc.current->nonce = m.nonce;
-        acc.current->balance = m.balance;
+
+        if (m.code) {
+            const bool is_delegated = eip7702::is_code_delegated(*m.code);
+            // Wipe storage for contract creation (non-journaled).
+            if (!is_delegated && !state_.delegated_designations_.contains(m.addr)) {
+                state_.storage_.erase(m.addr);
+            }
+            obj->current->code_hash = std::bit_cast<evmc_bytes32>(keccak256(*m.code));
+            if (is_delegated) {
+                state_.delegated_designations_.insert(m.addr);
+            }
+            state_.new_code_.try_emplace(obj->current->code_hash, m.code->begin(), m.code->end());
+        }
+
+        obj->current->nonce = m.nonce;
+        obj->current->balance = m.balance;
         auto& storage = state_.storage_[m.addr];
         for (const auto& [k, v] : m.modified_storage) {
             storage.committed[k].original = v;
