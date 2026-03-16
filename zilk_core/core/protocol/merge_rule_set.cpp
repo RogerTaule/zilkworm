@@ -9,7 +9,6 @@
 #include <zilk_core/core/common/assert.hpp>
 
 #include "param.hpp"
-#include "zilk_core/core/types/eip_7685_requests.hpp"
 
 namespace silkworm::protocol {
 
@@ -46,29 +45,8 @@ void MergeRuleSet::initialize(EVM& evm) {
         }
         return;
     }
-
-    if (evm.revision() >= EVMC_CANCUN) {
-        // EIP-4788: Beacon block root in the EVM
-        // SILKWORM_ASSERT(header.parent_beacon_block_root);
-        Transaction system_txn{};
-        system_txn.type = TransactionType::kSystem;
-        system_txn.to = kBeaconRootsAddress;
-        system_txn.data = Bytes{ByteView{*header.parent_beacon_block_root}};
-        system_txn.set_sender(kSystemAddress);
-        evm.execute(system_txn, kSystemCallGasLimit);
-        evm.state().destruct_touched_dead();
-    }
-
-    if (evm.revision() >= EVMC_PRAGUE) {
-        // EIP-2935: Serve historical block hashes from state
-        Transaction system_txn{};
-        system_txn.type = TransactionType::kSystem;
-        system_txn.to = kHistoryStorageAddress;
-        system_txn.data = Bytes{ByteView{header.parent_hash}};
-        system_txn.set_sender(kSystemAddress);
-        evm.execute(system_txn, kSystemCallGasLimit);
-        evm.state().destruct_touched_dead();
-    }
+    // Post-merge system calls are handled by ExecutionProcessor
+    // using evmone's system_call_block_start().
 }
 
 ValidationResult MergeRuleSet::finalize(IntraBlockState& state, const Block& block, EVM& evm, const std::vector<Log>& logs) {
@@ -87,9 +65,6 @@ ValidationResult MergeRuleSet::finalize(IntraBlockState& state, const Block& blo
         }
     }
 
-    if (evm.revision() >= EVMC_PRAGUE && block.header.requests_hash) {
-        return validate_requests_root(block.header, logs, evm);
-    }
     return ValidationResult::kOk;
 }
 

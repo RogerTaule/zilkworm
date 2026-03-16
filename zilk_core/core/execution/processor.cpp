@@ -4,10 +4,12 @@
 #include "processor.hpp"
 
 #include <evmone/test/state/state.hpp>
+#include <evmone/test/state/system_contracts.hpp>
 #include <zilk_core/core/common/assert.hpp>
 #include <zilk_core/core/protocol/intrinsic_gas.hpp>
 #include <zilk_core/core/protocol/param.hpp>
 #include <zilk_core/core/trie/vector_root.hpp>
+#include <zilk_core/core/types/eip_7685_requests.hpp>
 
 namespace silkworm {
 class StateView final : public evmone::state::StateView {
@@ -105,6 +107,7 @@ ExecutionProcessor::ExecutionProcessor(const Block& block, protocol::RuleSet& ru
         .coinbase = block.header.beneficiary,
         .difficulty = static_cast<int64_t>(block.header.difficulty),
         .prev_randao = block.header.difficulty == 0 ? block.header.prev_randao : intx::be::store<evmone::state::bytes32>(intx::uint256{block.header.difficulty}),
+        .parent_beacon_block_root = block.header.parent_beacon_block_root.value_or(evmc::bytes32{}),
         .base_fee = static_cast<uint64_t>(block.header.base_fee_per_gas.value_or(0)),
         .excess_blob_gas = block.header.excess_blob_gas.value_or(0),
         .blob_base_fee = block.header.blob_gas_price(config).value_or(0),
@@ -188,26 +191,7 @@ void ExecutionProcessor::execute_transaction(const Transaction& txn, Receipt& re
     receipt.bloom = logs_bloom(receipt.logs);
 
     if (evm1_v2_) {
-        // Apply the state diff produced by evmone APIv2 to the state and skip the Silkworm execution.
-        const auto& state_diff = evm1_receipt.state_diff;
-        for (const auto& m : state_diff.modified_accounts) {
-            if (m.code) {
-                state_.create_contract(m.addr, eip7702::is_code_delegated(*m.code));
-                state_.set_code(m.addr, *m.code);
-            }
-
-            auto& acc = state_.get_or_create_object(m.addr);
-            acc.current->nonce = m.nonce;
-            acc.current->balance = m.balance;
-
-            auto& storage = state_.storage_[m.addr];
-            for (const auto& [k, v] : m.modified_storage) {
-                storage.committed[k].original = v;
-            }
-        }
-        for (const auto& a : state_diff.deleted_accounts) {
-            state_.destruct(a);
-        }
+        apply_state_diff(evm1_receipt.state_diff);
         return;
     }
 
@@ -388,15 +372,43 @@ uint64_t ExecutionProcessor::calculate_refund_gas(const Transaction& txn, uint64
     return gas_left;
 }
 
+void ExecutionProcessor::apply_state_diff(const evmone::state::StateDiff& diff) {
+    for (const auto& m : diff.modified_accounts) {
+        if (m.code) {
+            state_.create_contract(m.addr, eip7702::is_code_delegated(*m.code));
+            state_.set_code(m.addr, *m.code);
+        }
+        auto& acc = state_.get_or_create_object(m.addr);
+        acc.current->nonce = m.nonce;
+        acc.current->balance = m.balance;
+        auto& storage = state_.storage_[m.addr];
+        for (const auto& [k, v] : m.modified_storage) {
+            storage.committed[k].original = v;
+        }
+    }
+    for (const auto& a : diff.deleted_accounts) {
+        state_.destruct(a);
+    }
+}
+
 ValidationResult ExecutionProcessor::execute_block_no_post_validation(std::vector<Receipt>& receipts) noexcept {
     const evmc_revision rev{evm_.revision()};
     rule_set_.initialize(evm_);
+
+    // Block-start system calls (EIP-4788 beacon roots, EIP-2935 history storage)
+    {
+        StateView state_view{state_};
+        BlockHashes block_hashes{evm_};
+        auto diff = evmone::state::system_call_block_start(
+            state_view, evm1_block_, block_hashes, rev, evm_.vm());
+        apply_state_diff(diff);
+    }
+
     state_.finalize_transaction(rev);
 
     cumulative_gas_used_ = 0;
 
     const Block& block{evm_.block()};
-    // notify_block_execution_start(block);
 
     receipts.resize(block.transactions.size());
     auto receipt_it{receipts.begin()};
@@ -416,10 +428,40 @@ ValidationResult ExecutionProcessor::execute_block_no_post_validation(std::vecto
         std::ranges::copy(receipt.logs, std::back_inserter(logs));
     }
     state_.clear_journal_and_substate();
+
+    // Block-end system calls (EIP-7002 withdrawals, EIP-7251 consolidations)
+    // + requests hash validation
+    if (rev >= EVMC_PRAGUE && evm_.block().header.requests_hash) {
+        // Collect deposit requests from logs (EIP-6110)
+        FlatRequests flat_requests;
+        if (!flat_requests.extract_deposits_from_logs(logs))
+            return ValidationResult::kRequestsProcessingFailure;
+
+        StateView state_view{state_};
+        BlockHashes block_hashes{evm_};
+        auto requests_result = evmone::state::system_call_block_end(
+            state_view, evm1_block_, block_hashes, rev, evm_.vm());
+        if (!requests_result.has_value())
+            return ValidationResult::kRequestsProcessingFailure;
+        apply_state_diff(requests_result->state_diff);
+
+        // Add withdrawal + consolidation request data from system calls
+        using evmone::state::Requests;
+        static_assert(static_cast<uint8_t>(Requests::Type::deposit) == static_cast<uint8_t>(FlatRequestType::kDepositRequest));
+        static_assert(static_cast<uint8_t>(Requests::Type::withdrawal) == static_cast<uint8_t>(FlatRequestType::kWithdrawalRequest));
+        static_assert(static_cast<uint8_t>(Requests::Type::consolidation) == static_cast<uint8_t>(FlatRequestType::kConsolidationRequest));
+        for (const auto& req : requests_result->requests) {
+            const auto type = static_cast<FlatRequestType>(static_cast<uint8_t>(req.type()));
+            flat_requests.add_request(type, Bytes{req.data()});
+        }
+
+        // Validate requests hash
+        if (flat_requests.calculate_sha256() != evm_.block().header.requests_hash)
+            return ValidationResult::kRequestsRootMismatch;
+    }
+
     const auto finalization_result = rule_set_.finalize(state_, block, evm_, logs);
     state_.finalize_transaction(rev);
-
-    // notify_block_execution_end(block);
 
     return finalization_result;
 }

@@ -69,6 +69,7 @@ add_library(
   evmone/test/state/host.cpp
   evmone/test/state/precompiles.cpp
   evmone/test/state/state.cpp
+  evmone/test/state/system_contracts.cpp
 )
 set_source_files_properties(evmone/lib/evmone/vm.cpp PROPERTIES COMPILE_DEFINITIONS PROJECT_VERSION="0.11.0")
 target_include_directories(
