@@ -34,7 +34,7 @@ fn main() {
         .define("CMAKE_SYSTEM_PROCESSOR", "riscv64")
         .define("CMAKE_CXX_STANDARD", "20")
         .define("CMAKE_CXX_STANDARD_REQUIRED", "ON")
-        .define("CMAKE_CXX_FLAGS", format!("-nostdlib -O2 -fno-rtti -ffunction-sections -fdata-sections -fPIC -march=rv64im -mabi=lp64 -fno-threadsafe-statics -DNDEBUG -fno-stack-protector -fno-builtin-trap -I{sp1_include_dir}"))
+        .define("CMAKE_CXX_FLAGS", format!("-nostdlib -fno-rtti -ffunction-sections -fdata-sections -march=rv64im -mabi=lp64 -fno-threadsafe-statics -fno-stack-protector -fno-builtin-trap -I{sp1_include_dir}"))
         .define(
             "CMAKE_EXE_LINKER_FLAGS",
             format!("-T{templib_dir}/ldscripts/elf64lriscv.xn -z norelro"),
