@@ -23,164 +23,48 @@ struct ReadVecResult
 
 using uintType = uint64_t;
 
+// Inline ecall helpers for SP1 syscalls used by evmone.
+// Eliminates jal/ret overhead (~8 cycles) at each C++ call site.
+#define SP1_ECALL_2ARG(name, num)                                              \
+    [[gnu::always_inline]] inline void name(                                   \
+        uint64_t *_p, const uint64_t *_q) noexcept {                           \
+        register uint64_t t0 asm("t0") = (num);                               \
+        register uint64_t *a0 asm("a0") = _p;                                 \
+        register const uint64_t *a1 asm("a1") = _q;                           \
+        asm volatile("ecall" : "+r"(t0) : "r"(a0), "r"(a1) : "memory");       \
+    }
+
+#define SP1_ECALL_1ARG(name, num)                                              \
+    [[gnu::always_inline]] inline void name(                                   \
+        uint64_t *_p) noexcept {                                               \
+        register uint64_t t0 asm("t0") = (num);                               \
+        register uint64_t *a0 asm("a0") = _p;                                 \
+        register uint64_t a1 asm("a1") = 0;                                   \
+        asm volatile("ecall" : "+r"(t0) : "r"(a0), "r"(a1) : "memory");       \
+    }
+
+SP1_ECALL_2ARG(syscall_sha256_compress, 0x00010106)
+SP1_ECALL_1ARG(syscall_sha256_extend,   0x00300105)
+
+SP1_ECALL_2ARG(syscall_secp256k1_add,    0x0001010A)
+SP1_ECALL_1ARG(syscall_secp256k1_double, 0x0000010B)
+
+SP1_ECALL_2ARG(syscall_bn254_add,    0x0001010E)
+SP1_ECALL_1ARG(syscall_bn254_double, 0x0000010F)
+
+SP1_ECALL_2ARG(syscall_bn254_fp_addmod,  0x00010126)
+SP1_ECALL_2ARG(syscall_bn254_fp_submod,  0x00010127)
+SP1_ECALL_2ARG(syscall_bn254_fp_mulmod,  0x00010128)
+SP1_ECALL_2ARG(syscall_bn254_fp2_addmod, 0x00010129)
+SP1_ECALL_2ARG(syscall_bn254_fp2_submod, 0x0001012A)
+SP1_ECALL_2ARG(syscall_bn254_fp2_mulmod, 0x0001012B)
+
+SP1_ECALL_2ARG(syscall_uint256_mulmod, 0x0001011D)
+
+// Syscalls provided by the Rust SP1 runtime (linked via extern "C").
 extern "C"
 {
-
-    // pub fn syscall_halt(exit_code: u8) -> !
-    [[noreturn]] void syscall_halt(uint8_t exit_code);
-
-    // pub fn syscall_write(fd: u32, write_buf: *const u8, nbytes: usize)
     void syscall_write(uint32_t fd, const uint8_t *write_buf, size_t nbytes);
-
-    // pub fn syscall_read(fd: u32, read_buf: *mut u8, nbytes: usize)
-    void syscall_read(uint32_t fd, uint8_t *read_buf, size_t nbytes);
-
-    // pub fn syscall_sha256_extend(w: *mut [u64; 64])
-    void syscall_sha256_extend(uint64_t w[64]);
-
-    // pub fn syscall_sha256_compress(w: *mut [u64; 64], state: *mut [u64; 8])
-    void syscall_sha256_compress(uint64_t w[64], uint64_t state[8]);
-
-    // pub fn syscall_ed_add(p: *mut [u64; 8], q: *const [u64; 8])
-    void syscall_ed_add(uint64_t p[8], const uint64_t q[8]);
-
-    // pub fn syscall_ed_decompress(point: &mut [u64; 8])
-    void syscall_ed_decompress(uint64_t point[8]);
-
-    // pub fn syscall_secp256k1_add(p: *mut [u64; 8], q: *const [u64; 8])
-    void syscall_secp256k1_add(uint64_t p[8], const uint64_t q[8]);
-
-    // pub fn syscall_secp256k1_double(p: *mut [u64; 8])
-    void syscall_secp256k1_double(uint64_t p[8]);
-
-    // pub fn syscall_secp256k1_decompress(point: &mut [u64; 8], is_odd: bool)
-    void syscall_secp256k1_decompress(uint64_t point[8], bool is_odd);
-
-    // pub fn syscall_secp256r1_add(p: *mut [u64; 8], q: *const [u64; 8])
-    void syscall_secp256r1_add(uint64_t p[8], const uint64_t q[8]);
-
-    // pub fn syscall_secp256r1_double(p: *mut [u64; 8])
-    void syscall_secp256r1_double(uint64_t p[8]);
-
-    // pub fn syscall_secp256r1_decompress(point: &mut [u64; 8], is_odd: bool)
-    void syscall_secp256r1_decompress(uint64_t point[8], bool is_odd);
-
-    // pub fn syscall_bn254_add(p: *mut [u64; 8], q: *const [u64; 8])
-    void syscall_bn254_add(uint64_t p[8], const uint64_t q[8]);
-
-    // pub fn syscall_bn254_double(p: *mut [u64; 8])
-    void syscall_bn254_double(uint64_t p[8]);
-
-    // pub fn syscall_bls12381_add(p: *mut [u64; 12], q: *const [u64; 12])
-    void syscall_bls12381_add(uint64_t p[12], const uint64_t q[12]);
-
-    // pub fn syscall_bls12381_double(p: *mut [u64; 12])
-    void syscall_bls12381_double(uint64_t p[12]);
-
-    // pub fn syscall_keccak_permute(state: *mut [u64; 25])
-    void syscall_keccak_permute(uint64_t state[25]);
-
-    // pub fn syscall_uint256_mulmod(x: *mut [u64; 4], y: *const [u64; 4])
-    void syscall_uint256_mulmod(uint64_t x[4], const uint64_t y[4]);
-
-    // pub fn syscall_u256x2048_mul(
-    //     x: *const [u64; 4], y: *const [u64; 32], lo: *mut [u64; 32], hi: *mut [u64; 4])
-    void syscall_u256x2048_mul(const uint64_t x[4],
-                               const uint64_t y[32],
-                               uint64_t lo[32],
-                               uint64_t hi[4]);
-
-    // pub fn syscall_uint256_add_with_carry(
-    //     a: *const [u64; 4], b: *const [u64; 4], c: *const [u64; 4],
-    //     d: *mut [u64; 4], e: *mut [u64; 4])
-    void syscall_uint256_add_with_carry(const uint64_t a[4],
-                                        const uint64_t b[4],
-                                        const uint64_t c[4],
-                                        uint64_t d[4],
-                                        uint64_t e[4]);
-
-    // pub fn syscall_uint256_mul_with_carry(
-    //     a: *const [u64; 4], b: *const [u64; 4], c: *const [u64; 4],
-    //     d: *mut [u64; 4], e: *mut [u64; 4])
-    void syscall_uint256_mul_with_carry(const uint64_t a[4],
-                                        const uint64_t b[4],
-                                        const uint64_t c[4],
-                                        uint64_t d[4],
-                                        uint64_t e[4]);
-
-    // pub fn syscall_enter_unconstrained() -> bool
-    bool syscall_enter_unconstrained();
-
-    // pub fn syscall_exit_unconstrained()
-    void syscall_exit_unconstrained();
-
-    // pub fn syscall_verify_sp1_proof(vk_digest: &[u64; 4], pv_digest: &[u64; 4])
-    void syscall_verify_sp1_proof(const uint64_t vk_digest[4],
-                                  const uint64_t pv_digest[4]);
-
-    // pub fn syscall_hint_len() -> usize
-    size_t syscall_hint_len();
-
-    // pub fn syscall_hint_read(ptr: *mut u8, len: usize)
-    void syscall_hint_read(uint8_t *ptr, size_t len);
-
-    // pub fn sys_alloc_aligned(bytes: usize, align: usize) -> *mut u8
-    uint8_t *sys_alloc_aligned(size_t bytes, size_t align);
-
-    // pub fn syscall_bls12381_decompress(point: &mut [u64; 12], is_odd: bool)
-    void syscall_bls12381_decompress(uint64_t point[12], bool is_odd);
-
-    // Use syscall_uint256_mulmod instead.
-    // pub fn sys_bigint(
-    //   result: *mut [u64; 4], op: u64, x: *const [u64; 4], y: *const [u64; 4], modulus: *const [u64; 4])
-    // void sys_bigint(uint64_t result[4],
-    //                 uint64_t op,
-    //                 const uint64_t x[4],
-    //                 const uint64_t y[4],
-    //                 const uint64_t modulus[4]);
-
-    // Field/Fp and Fp2 ops for BLS12-381 (operands are limb pointers; sizes defined by the ABI)
-    // pub fn syscall_bls12381_fp_addmod(p: *mut u64, q: *const u64)
-    void syscall_bls12381_fp_addmod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_bls12381_fp_submod(p: *mut u64, q: *const u64)
-    void syscall_bls12381_fp_submod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_bls12381_fp_mulmod(p: *mut u64, q: *const u64)
-    void syscall_bls12381_fp_mulmod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_bls12381_fp2_addmod(p: *mut u64, q: *const u64)
-    void syscall_bls12381_fp2_addmod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_bls12381_fp2_submod(p: *mut u64, q: *const u64)
-    void syscall_bls12381_fp2_submod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_bls12381_fp2_mulmod(p: *mut u64, q: *const u64)
-    void syscall_bls12381_fp2_mulmod(uint64_t *p, const uint64_t *q);
-
-    // Field/Fp and Fp2 ops for BN254
-    // pub fn syscall_bn254_fp_addmod(p: *mut u64, q: *const u64)
-    void syscall_bn254_fp_addmod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_bn254_fp_submod(p: *mut u64, q: *const u64)
-    void syscall_bn254_fp_submod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_bn254_fp_mulmod(p: *mut u64, q: *const u64)
-    void syscall_bn254_fp_mulmod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_bn254_fp2_addmod(p: *mut u64, q: *const u64)
-    void syscall_bn254_fp2_addmod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_bn254_fp2_submod(p: *mut u64, q: *const u64)
-    void syscall_bn254_fp2_submod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_bn254_fp2_mulmod(p: *mut u64, q: *const u64)
-    void syscall_bn254_fp2_mulmod(uint64_t *p, const uint64_t *q);
-
-    // pub fn syscall_mprotect(addr: *const u8, prot: u8)
-    void syscall_mprotect(const uint8_t *addr, uint8_t prot);
-
-    // pub fn read_vec_raw() -> ReadVecResult
     ReadVecResult read_vec_raw();
 } // extern "C"
 
