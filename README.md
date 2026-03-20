@@ -118,6 +118,12 @@ z6m_prover execute --file-name /path/to/unifiedBlockAndStateRlp24490786.bin --da
 
 ### Cycle stats
 
+Install the Python dependencies first:
+
+```bash
+pip install -r requirements.txt
+```
+
 Plot execution metrics from the log file:
 
 ```bash
