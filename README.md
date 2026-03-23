@@ -15,7 +15,36 @@
 [NOTE: THIS IS A WORK IN PROGRESS REPOSITORY THAT MAY LACK MAINTENANCE, AND IS PROVIDED AS IS. DO NOT USE IN PRODUCTION ]
 
 
-Zilkworm is a prototype implementation of a ZKEVM building on past works within Silkworm and EVMOne to run on ZKVM provers with native support for RISC-V targets (e.g. rv32im). At the moment the ZKVM integrated is Succint's SP1 Turbo.
+Zilkworm is a prototype implementation of a ZKEVM (Zero-Knowledge Ethereum Virtual Machine) generating ZK proofs that an        
+Ethereum block was executed correctly, without requiring re-execution of the block itself.
+
+Zilkworm is written in C++ (with a Rust orchestration layer) building on past works within Silkworm and EVMOne to run on
+zkVM provers with native support for RISC-V targets (e.g. rv32im).
+At the moment, the zkVM integrated is Succint's SP1 Hypercube.
+                                                                                                                                                                                            
+---             
+High-Level Workflow
+
+1. Fetch — Retrieve a block + its execution witness from an Ethereum RPC node (Reth/Geth)
+2. Execute (dry-run) — Run the EVM inside the zkVM without proof generation (for testing)
+3. Prove — Generate a full ZK proof of correct block execution
+4. Verify — Verify a previously generated proof
+5. Service mode — Continuously poll a node and prove blocks as they arrive
+
+---
+Architecture
+
+For a high-level overview of the system, see [here](docs/architecture.md).
+
+How ZK Ethereum Provers Work Generally
+
+The broader idea: a ZK prover takes an Ethereum block + pre-state witness, re-executes all transactions inside a zkVM
+and produces a cryptographic proof that the execution was done correctly. This proof can be verified cheaply by anyone
+on a lighter hardware without re-executing the block. This also enables other applications like light clients,
+bridges, and rollup verification.
+
+Zilkworm sits alongside other ZKEVM provers in this ecosystem, differentiated by its approach of running a C++ EVM
+inside the zkVM rather than a Rust one.
 
 
 ## How to Run
