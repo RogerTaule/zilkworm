@@ -48,7 +48,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace silkworm {
 
-
 #define SILKWORM_LRU_CACHE_GUARD
 // #endif
 
@@ -137,7 +136,6 @@ class LruCache {
     std::unordered_map<key_t, list_iterator_t> cache_items_map_;
     size_t max_size_;
     bool thread_safe_;
-
 };
 
 }  // namespace silkworm

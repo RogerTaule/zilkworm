@@ -10,12 +10,10 @@
 #include <evmone/baseline.hpp>
 #include <evmone/execution_state.hpp>
 #include <evmone/vm.hpp>
-#include <gsl/pointers>
 #include <intx/intx.hpp>
 #include <zilk_core/core/chain/config.hpp>
 #include <zilk_core/core/common/base.hpp>
 #include <zilk_core/core/common/lru_cache.hpp>
-#include <zilk_core/core/common/object_pool.hpp>
 #include <zilk_core/core/common/util.hpp>
 #include <zilk_core/core/protocol/validation.hpp>
 #include <zilk_core/core/state/intra_block_state.hpp>
@@ -119,7 +117,8 @@ class EVM {
 
     evmc::address beneficiary;  // see IRuleSet::get_beneficiary
 
-    gsl::not_null<TransferFunc*> transfer{standard_transfer};
+    /// The ETH transfer specification. Must not be null.
+    TransferFunc* transfer{standard_transfer};
 
     bool bailout{false};
 

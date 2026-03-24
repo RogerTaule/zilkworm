@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <magic_enum.hpp>
+#include <magic_enum/magic_enum.hpp>
 #include <zilk_core/core/common/bytes.hpp>
 #include <zilk_core/core/rlp/decode.hpp>
 #include <zilk_core/core/types/hash.hpp>

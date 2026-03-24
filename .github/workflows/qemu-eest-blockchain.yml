@@ -7,9 +7,10 @@ on:
 
 jobs:
   build-and-run-rv32im:
-    name: Build and Run EEST Tests RV32IM (Ubuntu 25.10)
+    name: Build and Run EEST Tests (Ubuntu 25.10)
     runs-on: ubuntu-latest
     container: ubuntu:25.10
+    environment: ci
     steps:
       - name: Install system dependencies
         env:
@@ -45,14 +46,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.PAT_TOKEN }}
           submodules: recursive
           lfs: true
 
-      - name: Build for RV32IM
+      - name: Build EEST blockchain tests
         run: |
           cd qemu_runner && make xpack-elf-eest
 
-      - name: Run EESTs on qemu-riscv32
+      - name: Run EEST blockchain tests
         id: run_tests
         shell: bash
         run: |
@@ -86,7 +88,7 @@ jobs:
         shell: bash
         run: |
           echo "========================================"
-          echo "     EEST TEST SUMMARY (RV32IM)"
+          echo "         EEST TEST SUMMARY"
           echo "========================================"
           echo ""
           echo "Results: ${{ steps.run_tests.outputs.passed_percent }}% passed, ${{ steps.run_tests.outputs.failed }} failed out of ${{ steps.run_tests.outputs.total }}"

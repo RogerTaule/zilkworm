@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <tl/expected.hpp>
+#include <expected>
 
 namespace silkworm {
 
@@ -26,7 +26,6 @@ enum class [[nodiscard]] DecodingError {
     kInvalidMasksSubsets,  // trie::Node decoding
 };
 
-// TODO(C++23) Switch to std::expected
-using DecodingResult = tl::expected<void, DecodingError>;
+using DecodingResult = std::expected<void, DecodingError>;
 
 }  // namespace silkworm

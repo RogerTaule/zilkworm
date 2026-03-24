@@ -159,14 +159,14 @@ namespace rlp {
     DecodingResult decode(ByteView& from, BlockHeader& to, Leftover mode) noexcept {
         const auto rlp_head{decode_header(from)};
         if (!rlp_head) {
-            return tl::unexpected{rlp_head.error()};
+            return std::unexpected{rlp_head.error()};
         }
         if (!rlp_head->list) {
-            return tl::unexpected{DecodingError::kUnexpectedString};
+            return std::unexpected{DecodingError::kUnexpectedString};
         }
         const uint64_t leftover{from.size() - rlp_head->payload_length};
         if (mode != Leftover::kAllow && leftover) {
-            return tl::unexpected{DecodingError::kInputTooLong};
+            return std::unexpected{DecodingError::kInputTooLong};
         }
 
         if (DecodingResult res{decode_items(from,
@@ -232,7 +232,7 @@ namespace rlp {
         }
 
         if (from.size() != leftover) {
-            return tl::unexpected{DecodingError::kUnexpectedListElements};
+            return std::unexpected{DecodingError::kUnexpectedListElements};
         }
         return {};
     }
@@ -264,14 +264,14 @@ namespace rlp {
     DecodingResult decode(ByteView& from, BlockBody& to, Leftover mode) noexcept {
         const auto rlp_head{decode_header(from)};
         if (!rlp_head) {
-            return tl::unexpected{rlp_head.error()};
+            return std::unexpected{rlp_head.error()};
         }
         if (!rlp_head->list) {
-            return tl::unexpected{DecodingError::kUnexpectedString};
+            return std::unexpected{DecodingError::kUnexpectedString};
         }
         const uint64_t leftover{from.size() - rlp_head->payload_length};
         if (mode != Leftover::kAllow && leftover) {
-            return tl::unexpected{DecodingError::kInputTooLong};
+            return std::unexpected{DecodingError::kInputTooLong};
         }
 
         if (DecodingResult res{decode_items(from, to.transactions, to.ommers)}; !res) {
@@ -288,7 +288,7 @@ namespace rlp {
         }
 
         if (from.size() != leftover) {
-            return tl::unexpected{DecodingError::kUnexpectedListElements};
+            return std::unexpected{DecodingError::kUnexpectedListElements};
         }
         return {};
     }
@@ -296,14 +296,14 @@ namespace rlp {
     DecodingResult decode(ByteView& from, Block& to, Leftover mode) noexcept {
         const auto rlp_head{decode_header(from)};
         if (!rlp_head) {
-            return tl::unexpected{rlp_head.error()};
+            return std::unexpected{rlp_head.error()};
         }
         if (!rlp_head->list) {
-            return tl::unexpected{DecodingError::kUnexpectedString};
+            return std::unexpected{DecodingError::kUnexpectedString};
         }
         const uint64_t leftover{from.size() - rlp_head->payload_length};
         if (mode != Leftover::kAllow && leftover) {
-            return tl::unexpected{DecodingError::kInputTooLong};
+            return std::unexpected{DecodingError::kInputTooLong};
         }
 
         if (DecodingResult res{decode_items(from, to.header, to.transactions, to.ommers)}; !res) {
@@ -320,7 +320,7 @@ namespace rlp {
         }
 
         if (from.size() != leftover) {
-            return tl::unexpected{DecodingError::kUnexpectedListElements};
+            return std::unexpected{DecodingError::kUnexpectedListElements};
         }
         return {};
     }

@@ -15,7 +15,6 @@
 
 #include "intrinsic_gas.hpp"
 #include "param.hpp"
-#include "zilk_core/core/types/eip_7685_requests.hpp"
 
 namespace silkworm::protocol {
 
@@ -354,56 +353,5 @@ evmc::bytes32 compute_ommers_hash(const BlockBody& body) {
     return std::bit_cast<evmc_bytes32>(keccak256(ommers_rlp));
 }
 
-ValidationResult validate_requests_root(const BlockHeader& header, const std::vector<Log>& logs, EVM& evm) {
-    FlatRequests requests;
-
-    // Dequeue deposit requests by parsing logs
-    if (!requests.extract_deposits_from_logs(logs)) {
-        return ValidationResult::kRequestsProcessingFailure;
-    }
-
-    // Withdrawal requests
-    {
-        if (evm.state().get_code(kWithdrawalRequestAddress).empty()) {
-            return ValidationResult::kRequestsProcessingFailure;
-        }
-        Transaction system_txn{};
-        system_txn.type = TransactionType::kSystem;
-        system_txn.to = kWithdrawalRequestAddress;
-        system_txn.data = Bytes{};
-        system_txn.set_sender(kSystemAddress);
-        const auto withdrawals = evm.execute(system_txn, kSystemCallGasLimit);
-        evm.state().destruct_touched_dead();
-        if (withdrawals.status != EVMC_SUCCESS) {
-            return ValidationResult::kRequestsProcessingFailure;
-        }
-        requests.add_request(FlatRequestType::kWithdrawalRequest, withdrawals.data);
-    }
-    // Consolidation requests
-    {
-        if (evm.state().get_code(kConsolidationRequestAddress).empty()) {
-            return ValidationResult::kRequestsProcessingFailure;
-        }
-        Transaction system_txn{};
-        system_txn.type = TransactionType::kSystem;
-        system_txn.to = kConsolidationRequestAddress;
-        system_txn.data = Bytes{};
-        system_txn.set_sender(kSystemAddress);
-        const auto consolidations = evm.execute(system_txn, kSystemCallGasLimit);
-        evm.state().destruct_touched_dead();
-        if (consolidations.status != EVMC_SUCCESS) {
-            return ValidationResult::kRequestsProcessingFailure;
-        }
-        requests.add_request(FlatRequestType::kConsolidationRequest, consolidations.data);
-    }
-
-    const auto computed_hash = requests.calculate_sha256();
-
-    if (computed_hash != header.requests_hash) {
-        return ValidationResult::kRequestsRootMismatch;
-    }
-
-    return ValidationResult::kOk;
-}
 
 }  // namespace silkworm::protocol

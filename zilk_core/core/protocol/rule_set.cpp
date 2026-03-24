@@ -18,18 +18,18 @@ namespace silkworm::protocol {
 
 ValidationResult RuleSet::pre_validate_block_body(const Block& block, const BlockState& state) {
     const BlockHeader& header{block.header};
-    const evmc_revision rev{chain_config_->revision(header.number, header.timestamp)};
+    const evmc_revision rev{chain_config_.revision(header.number, header.timestamp)};
 
     const evmc::bytes32 txn_root{compute_transaction_root(block)};
     if (txn_root != header.transactions_root) {
         return ValidationResult::kWrongTransactionsRoot;
     }
 
-    if (ValidationResult err{pre_validate_transactions(block, *chain_config_)}; err != ValidationResult::kOk) {
+    if (ValidationResult err{pre_validate_transactions(block, chain_config_)}; err != ValidationResult::kOk) {
         return err;
     }
 
-    if (chain_config_->withdrawals_activated(header.timestamp)) {
+    if (chain_config_.withdrawals_activated(header.timestamp)) {
         if (!block.withdrawals) {
             return ValidationResult::kMissingField;
         }
@@ -50,7 +50,7 @@ ValidationResult RuleSet::pre_validate_block_body(const Block& block, const Bloc
         for (const Transaction& tx : block.transactions) {
             *blob_gas_used += tx.total_blob_gas();
         }
-        const auto blob_params = chain_config_->blob_params(header.timestamp);
+        const auto blob_params = chain_config_.blob_params(header.timestamp);
         const auto max_blob_gas_per_block = blob_params.max * kGasPerBlob;
         if (blob_gas_used > max_blob_gas_per_block) {
             return ValidationResult::kTooManyBlobs;
@@ -144,7 +144,7 @@ ValidationResult RuleSet::validate_block_header(const BlockHeader& header, const
     }
 
     uint64_t parent_gas_limit{parent->gas_limit};
-    if (header.number == chain_config_->london_block) {
+    if (header.number == chain_config_.london_block) {
         parent_gas_limit = parent->gas_limit * kElasticityMultiplier;  // EIP-1559
     }
 
@@ -154,7 +154,7 @@ ValidationResult RuleSet::validate_block_header(const BlockHeader& header, const
         return ValidationResult::kInvalidGasLimit;
     }
 
-    const evmc_revision rev{chain_config_->revision(header.number, header.timestamp)};
+    const evmc_revision rev{chain_config_.revision(header.number, header.timestamp)};
 
     if (rev < EVMC_LONDON) {
         if (header.base_fee_per_gas) {
@@ -169,7 +169,7 @@ ValidationResult RuleSet::validate_block_header(const BlockHeader& header, const
         }
     }
 
-    if (chain_config_->withdrawals_activated(header.timestamp)) {
+    if (chain_config_.withdrawals_activated(header.timestamp)) {
         if (!header.withdrawals_root) {
             return ValidationResult::kMissingField;
         }
@@ -187,7 +187,7 @@ ValidationResult RuleSet::validate_block_header(const BlockHeader& header, const
         if (!header.blob_gas_used || !header.excess_blob_gas || !header.parent_beacon_block_root) {
             return ValidationResult::kMissingField;
         }
-        if (header.excess_blob_gas != calc_excess_blob_gas(header, *parent, *chain_config_)) {
+        if (header.excess_blob_gas != calc_excess_blob_gas(header, *parent, chain_config_)) {
             return ValidationResult::kWrongExcessBlobGas;
         }
     }

@@ -1,8 +1,48 @@
+TESTS_DIR := third_party/eest-fixtures/blockchain_tests/prague
 
-eest_blockchain_tests eest-blockchain-tests: 
+SHELL = /bin/bash
+.SHELLFLAGS = -o pipefail -c
+.PHONY: z6m_guest z6m_prover selftest tests
+
+z6m_guest:
+# 	rm -r target/elf-compilation/riscv64im-succinct-zkvm-elf/* || true
+	rm -r prover/target/elf-compilation/riscv64im-succinct-zkvm-elf/release/build/z6m_guest-* || true
+	(cd prover/guest_hypercube && cargo prove build)
+z6m_prover: z6m_guest
+	cargo build --release --manifest-path prover/prover_hypercube/Cargo.toml
+
+test_hc: z6m_prover
+	prover/target/release/z6m_prover execute --block-number 23540896 --data-dir prover/prover_turbo/temp
+
+z6m_guest_turbo:
+	rm -r prover/target/elf-compilation/riscv32im-succinct-zkvm-elf/release/build/z6m_guest-* || true
+	(cd prover/guest_turbo && cargo prove build)
+
+z6m_prover_turbo: z6m_guest_turbo
+	cargo build --release --manifest-path prover/prover_turbo/Cargo.toml
+
+selftest: z6m_prover
+	prover/target/release/z6m_prover execute --is-test --file-name third_party/eest-fixtures/blockchain_tests/static/state_tests/stExample/add11.json
+
+execute-block: z6m_prover
+	prover/target/release/z6m_prover execute --file-name prover/temp/blocks/23519000/unifiedBlockAndStateRlp23519000.bin
+
+TESTFILES := $(shell find $(TESTS_DIR)/${TESTS_SUBDIR} -type f -name '*.json')
+RELTESTS := $(patsubst $(TESTS_DIR)/%,%,$(TESTFILES))
+LOGFILES := $(addprefix target/logs/,$(RELTESTS:.json=.log))
+
+tests: $(LOGFILES)
+
+.DELETE_ON_ERROR:
+
+target/logs/%.log: $(TESTS_DIR)/%.json
+	@mkdir -p $(dir $@)
+	prover/target/release/z6m_prover execute --is-test --file-name $< 2>&1 | tee $@ || (echo "CRASHED! $@" && rm $@)
+
+eest-blockchain-tests: 
 	cmake -B build/eest -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DTESTS_DIR=third_party/eest-fixtures/blockchain_tests
 	cmake --build build/eest
 	ctest --test-dir build/eest --parallel
 
-rv32im_eest_blockchain_tests: 
-	cd qemu_runner && make rv32im_eest_blockchain_tests
+rv32im-eest-blockchain-tests: 
+	cd qemu_runner && make rv32im-eest-blockchain-tests

@@ -18,12 +18,16 @@ namespace {
         const auto terminate_on_error = false;
         const auto show_diagnostics = true;
         auto state_transition = silkworm::cmd::state_transition::StateTransition(json_str, terminate_on_error, show_diagnostics);
-        return state_transition.run(1, true);
+        return state_transition.run();
     }
 
     uint64_t run_unified_rlp(const std::string& unified_rlp_str) {
-        // TODO
-        return 0;
+        auto state_transition = silkworm::cmd::state_transition::StateTransition(unified_rlp_str);
+            // Run the state transition function of silkworm - EVMONE - silkworm_validate_transition and back
+            auto res = state_transition.run_rlp();
+        std::string msg = "[state_transition] run successful, gas used: " + std::to_string(res);
+        sys_println(msg.c_str());
+        return res;
     }
 }
 
@@ -45,4 +49,6 @@ extern "C" uint64_t sample_run_wrapped(bool is_test, std::string input_str) {
     else {
         return run_unified_rlp(input_str);
     }
+
+    // Initialize a state_transition object with one Shanghai Transaction - within silkworm
 }

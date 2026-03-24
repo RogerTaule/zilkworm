@@ -126,11 +126,11 @@
 //         CHECK(out64 == 0u);
 //         // Try retrieve a compacted value from a too large Byte string
 //         Bytes extra_long_bytes(sizeof(uint64_t) + 1, 0);
-//         CHECK(from_big_compact(extra_long_bytes, out64) == tl::unexpected{DecodingError::kOverflow});
+//         CHECK(from_big_compact(extra_long_bytes, out64) == std::unexpected{DecodingError::kOverflow});
 
 //         uint32_t out32{0};
 //         const Bytes non_compact_be{*from_hex("00AB")};
-//         CHECK(from_big_compact(non_compact_be, out32) == tl::unexpected{DecodingError::kLeadingZero});
+//         CHECK(from_big_compact(non_compact_be, out32) == std::unexpected{DecodingError::kLeadingZero});
 //     }
 // }
 

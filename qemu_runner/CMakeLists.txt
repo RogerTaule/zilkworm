@@ -24,22 +24,31 @@ else()
 endif()
 
 set(SW_INSTALL_DIR ${CMAKE_BINARY_DIR}/zilkworm-install CACHE PATH "")
+
+# include(ExternalProject)
+# ExternalProject_Add(silkworm_ep
+#   SOURCE_DIR  ${CMAKE_SOURCE_DIR}/../silkworm
+#   BINARY_DIR  ${CMAKE_BINARY_DIR}/silkworm
+#   CMAKE_ARGS
+#     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+#     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+#     # -DCMAKE_TOOLCHAIN_FILE=${CMAKE_SOURCE_DIR}/riscv32im.cmake
+#     -DCONAN_HOST_PROFILE=${CONAN_HOST_PROFILE}
+#     -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=${CMAKE_SOURCE_DIR}/../silkworm/cmake/conan.cmake
+#     -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+#     -DCMAKE_INSTALL_PREFIX=${SW_INSTALL_DIR}
+#   INSTALL_COMMAND
+#     ${CMAKE_COMMAND} --build . --target install
+#   BUILD_ALWAYS 1
+# )
+
 set(SW_INCLUDE_DIR ${SW_INSTALL_DIR}/include)
+
+# ExternalProject_Get_Property(silkworm_ep BINARY_DIR)
 set(SW_BIN         "${CMAKE_BINARY_DIR}/zilkworm")
-set(SW_CONAN_DIR   "${SW_BIN}/conan2")
-set(SW_INC_FALLBACK "${CMAKE_SOURCE_DIR}/..")
 set(SW_INC_INSTALL  "${CMAKE_BINARY_DIR}/zilkworm-install/include")
 
-
-# Make Conan package configs from the external build visible here
-if (EXISTS "${SW_CONAN_DIR}/conandeps_legacy.cmake")
-  list(APPEND CMAKE_MODULE_PATH "${SW_CONAN_DIR}")
-  list(APPEND CMAKE_PREFIX_PATH "${SW_CONAN_DIR}")
-  include("${SW_CONAN_DIR}/conandeps_legacy.cmake")
-endif()
-
 add_executable(z6m_debug src/sys_getentropy.c src/cppextern.cpp src/main.cpp src/${START_ASM} src/sys_sbrk_wrap.c)
-
 
 
 add_library(silkworm_core STATIC IMPORTED GLOBAL)
@@ -57,19 +66,27 @@ add_dependencies(z6m_debug silkworm_dev )
 
 
 # Include paths:
-target_include_directories(z6m_debug PRIVATE "${SW_INC_FALLBACK}")
 if (EXISTS "${SW_INC_INSTALL}")
   target_include_directories(z6m_debug PRIVATE "${SW_INC_INSTALL}")
 endif()
 
+# Header-only deps used by Silkworm public headers (e.g. nlohmann_json)
+# find_package(nlohmann_json REQUIRED)
+# target_link_libraries(z6m_debug PRIVATE nlohmann_json::nlohmann_json)
 
-# Link libs (group to avoid static ordering issues)
+# Link Silkworm libs (group to avoid static ordering issues)
 # add_dependencies(z6m_debug silkworm_ep)
 target_link_options(z6m_debug PRIVATE -Wl,--start-group)
 target_link_libraries(z6m_debug PRIVATE 
  c gcc nosys stdc++  
  silkworm_dev silkworm_core)
 target_link_options(z6m_debug PRIVATE -Wl,--end-group)
+
+# target_link_libraries(z6m_debug PRIVATE
+#   -Wl,--start-group
+#   c m gcc gloss            # <-- add gloss
+#   -Wl,--end-group
+# )
 
 target_link_options(z6m_debug PRIVATE
   # -T ${CMAKE_SOURCE_DIR}/virt.ld
@@ -87,18 +104,6 @@ target_compile_options(z6m_debug PRIVATE
   $<$<COMPILE_LANGUAGE:C>:-mstrict-align>
   $<$<COMPILE_LANGUAGE:CXX>:-mstrict-align>
 )
-
-## =========== Comment and run and then re-run uncommented ==========
-find_package(nlohmann_json REQUIRED)
-find_package(magic_enum REQUIRED)
-find_package(Microsoft.GSL REQUIRED)
-find_package(tl-expected REQUIRED)
-target_link_libraries(z6m_debug PRIVATE Microsoft.GSL::GSL)
-target_link_libraries(z6m_debug PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(z6m_debug PRIVATE magic_enum::magic_enum)
-target_link_libraries(z6m_debug PRIVATE tl::expected)
-## ===================================================================
-
 
 # If you later see unresolved symbols from 3rd-party .a’s, also add:
 target_link_libraries(z6m_debug PRIVATE

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <evmone/test/state/block.hpp>
+#include <evmone/test/state/state_diff.hpp>
 #include <zilk_core/core/execution/evm.hpp>
 #include <zilk_core/core/protocol/rule_set.hpp>
 #include <zilk_core/core/state/state.hpp>
@@ -66,6 +67,9 @@ class ExecutionProcessor {
     // void notify_block_execution_end(const Block& block);
 
     uint64_t calculate_refund_gas(const Transaction& txn, uint64_t gas_left, uint64_t gas_refund) const noexcept;
+
+    /// Apply an evmone StateDiff to state_.
+    void apply_state_diff(const evmone::state::StateDiff& diff);
 
     uint64_t cumulative_gas_used_{0};
     IntraBlockState state_;

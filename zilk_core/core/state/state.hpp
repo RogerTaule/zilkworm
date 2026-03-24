@@ -29,24 +29,17 @@ class State : public BlockState {
 
     virtual evmc::bytes32 read_storage(
         const evmc::address& address,
-        uint64_t incarnation,
         const evmc::bytes32& location) const noexcept = 0;
     
     virtual size_t storage_size(
-        const evmc::address& address,
-        uint64_t incarnation
+        const evmc::address& address
     ) const = 0;
-
-    /** Previous non-zero incarnation of an account; 0 if none exists. */
-    virtual uint64_t previous_incarnation(const evmc::address& address) const noexcept = 0;
 
     virtual evmc::bytes32 state_root_hash() const = 0;
 
     virtual BlockNum current_canonical_block() const = 0;
 
     virtual std::optional<evmc::bytes32> canonical_hash(BlockNum block_num) const = 0;
-
-    //!@}
 
     virtual void insert_block(const Block& block, const evmc::bytes32& hash) = 0;
 
@@ -73,11 +66,13 @@ class State : public BlockState {
     virtual void update_account(const evmc::address& address, std::optional<Account> initial,
                                 std::optional<Account> current) = 0;
 
-    virtual void update_account_code(const evmc::address& address, uint64_t incarnation, const evmc::bytes32& code_hash,
+    virtual void update_account_code(const evmc::address& address, const evmc::bytes32& code_hash,
                                      ByteView code) = 0;
 
-    virtual void update_storage(const evmc::address& address, uint64_t incarnation, const evmc::bytes32& location,
+    virtual void update_storage(const evmc::address& address, const evmc::bytes32& location,
                                 const evmc::bytes32& initial, const evmc::bytes32& current) = 0;
+
+    virtual void drop_storage(const evmc::address& address) = 0;
 
     virtual void unwind_state_changes(BlockNum block_num) = 0;
 

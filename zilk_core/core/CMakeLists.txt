@@ -2,12 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 
 include("${SILKWORM_MAIN_DIR}/cmake/common/targets.cmake")
+include(FetchContent)
 
-# find_package(Catch2 REQUIRED)
-find_package(magic_enum REQUIRED)
-find_package(Microsoft.GSL REQUIRED)
-find_package(nlohmann_json REQUIRED)
-find_package(tl-expected REQUIRED)
+FetchContent_Declare(
+    magic_enum
+    URL https://github.com/Neargye/magic_enum/releases/download/v0.9.7/magic_enum-v0.9.7.tar.gz
+    URL_HASH SHA256=c047bc7ca0b76752168140e7ae9a4a30d72bf6530c196fdfbf5105a39d40cc46
+    EXCLUDE_FROM_ALL
+    SYSTEM
+)
+FetchContent_MakeAvailable(magic_enum)
+
+FetchContent_Declare(
+    nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+    URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
+    EXCLUDE_FROM_ALL
+    SYSTEM
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
 
 if(SILKWORM_CORE_ONLY)
@@ -23,18 +36,20 @@ set(SILKWORM_CORE_PUBLIC_LIBS
     evmone
     intx::intx
     magic_enum::magic_enum
-    Microsoft.GSL::GSL
-    nlohmann_json::nlohmann_json
     # secp256k1
-    tl::expected
 )
-set(SILKWORM_CORE_PRIVATE_LIBS blst::blst)
+set(SILKWORM_CORE_PRIVATE_LIBS
+    blst::blst
+    nlohmann_json::nlohmann_json
+)
 
 silkworm_library(
   silkworm_core
   PUBLIC ${SILKWORM_CORE_PUBLIC_LIBS}
   PRIVATE ${SILKWORM_CORE_PRIVATE_LIBS}
 )
+
+target_compile_features(silkworm_core PUBLIC cxx_std_23)
 
 # unit tests
 # set(TEST_TARGET silkworm_core_test)

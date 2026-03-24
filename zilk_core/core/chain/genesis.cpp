@@ -96,9 +96,8 @@ InMemoryState read_genesis_allocation(const nlohmann::json& alloc) {
         if (account_json.contains("code")) {
             const Bytes code{*from_hex(account_json["code"].get<std::string>())};
             if (!code.empty()) {
-                account.incarnation = kDefaultIncarnation;
                 account.code_hash = std::bit_cast<evmc_bytes32>(keccak256(code));
-                state.update_account_code(address, account.incarnation, account.code_hash, code);
+                state.update_account_code(address, account.code_hash, code);
             }
         }
         state.update_account(address, /*initial=*/std::nullopt, account);
@@ -107,10 +106,109 @@ InMemoryState read_genesis_allocation(const nlohmann::json& alloc) {
             for (const auto& storage : account_json["storage"].items()) {
                 const Bytes key{*from_hex(storage.key())};
                 const Bytes value{*from_hex(storage.value().get<std::string>())};
-                state.update_storage(address, account.incarnation, to_bytes32(key), /*initial=*/{}, to_bytes32(value));
+                state.update_storage(address, to_bytes32(key), /*initial=*/{}, to_bytes32(value));
             }
         }
     }
+    return state;
+}
+
+// Modified version with proper code handling
+InMemoryState read_pre_state_from_rlp(ByteView rlp_view) {
+    InMemoryState state;
+    auto mega_header{rlp::decode_header(rlp_view)};
+    if (!mega_header || !mega_header->list) {
+        sys_println("Invalid mega_header");
+    }
+
+    ByteView payload_view = rlp_view.substr(0, mega_header->payload_length);
+
+    // Process accounts
+    auto accounts_header{rlp::decode_header(payload_view)};  // List of accounts
+    if (!accounts_header || !accounts_header->list) {
+        sys_println("Invalid accounts_header");
+    }
+    ByteView accounts_view = payload_view.substr(0, accounts_header->payload_length);
+
+    while (!accounts_view.empty()) {
+        auto entry_header{rlp::decode_header(accounts_view)};
+        if (!entry_header || !entry_header->list) {
+            sys_println("Invalid accounts_header");
+        }
+        ByteView acc_items_list = accounts_view.substr(0, entry_header->payload_length);
+        evmc::address address;
+        Account account;
+        rlp::decode(acc_items_list, address);
+        rlp::decode(acc_items_list, account.nonce);
+        rlp::decode(acc_items_list, account.balance);
+        rlp::decode(acc_items_list, account.code_hash);
+        rlp::decode(acc_items_list, account.storage_root_);
+        state.update_account(address, /*initial=*/std::nullopt, account);
+        accounts_view.remove_prefix(entry_header->payload_length);
+    }
+    payload_view.remove_prefix(accounts_header->payload_length);
+
+    // Process storage
+    auto storage_header{rlp::decode_header(payload_view)};
+    if (!storage_header || !storage_header->list) {
+        sys_println("Invalid storage_header");
+    }
+    ByteView storage_view = payload_view.substr(0, storage_header->payload_length);
+
+    while (!storage_view.empty()) {
+        auto entry_header{rlp::decode_header(storage_view)};
+        if (!entry_header || !entry_header->list) {
+            sys_println("Invalid storage entry_header");
+        }
+        ByteView entry_payload = storage_view.substr(0, entry_header->payload_length);
+        // sys_println("Storage entry:");
+        // sys_println(to_hex(entry_payload).c_str());
+        evmc::address address;
+        rlp::decode(entry_payload, address);
+        // Decode [k,v,k,v,...]
+        auto kvs_header{rlp::decode_header(entry_payload)};
+        if (!kvs_header || !kvs_header->list) {
+            sys_println("Invalid kvs_header");
+        }
+        ByteView kvs_view = entry_payload.substr(0, kvs_header->payload_length);
+
+        while (!kvs_view.empty()) {
+            intx::uint256 key, value;
+            if (!rlp::decode(kvs_view, key, rlp::Leftover::kAllow)) {
+                sys_println("Failed to decode kv_key");
+            }
+            if (!rlp::decode(kvs_view, value, rlp::Leftover::kAllow)) {
+                sys_println("Failed to decode kv_value");
+            }
+            evmc::bytes32 key32 = intx::be::store<evmc::bytes32>(key);
+            evmc::bytes32 value32 = intx::be::store<evmc::bytes32>(value);
+
+            state.update_storage(address, key32, /*initial=*/{}, value32);
+        }
+        storage_view.remove_prefix(entry_header->payload_length);
+    }
+    payload_view.remove_prefix(storage_header->payload_length);
+
+    auto codes_header{rlp::decode_header(payload_view)};
+    ByteView codes_view = payload_view.substr(0, codes_header->payload_length);
+    evmc::address address{};
+    while (!codes_view.empty()) {
+        // auto entry_header{rlp::decode_header(codes_view)};
+        // ByteView entry_payload = codes_view.substr(0, entry_header->payload_length);
+
+        evmc::bytes32 code_hash;
+        Bytes code;
+
+        if (!rlp::decode(codes_view, code_hash, rlp::Leftover::kAllow)) {
+            sys_println("Failed to decode code_hash from codes_view");
+        }
+        if (!rlp::decode(codes_view, code, rlp::Leftover::kAllow)) {
+            sys_println("Failed to decode code from codes_view");
+        }
+
+        state.update_account_code(address, code_hash, code);
+    }
+
     return state;
 }
 

@@ -1,0 +1,22 @@
+[workspace]
+
+[package]
+version = "0.1.0"
+name = "z6m_guest_debug"
+edition = "2021"
+
+
+[dependencies]
+cxx = "1.0.160"                 # runtime bridge
+#sp1-zkvm = "5.0.8"
+
+[dependencies.libm]
+version = "0.2.15"
+default-features = false
+
+
+[build-dependencies]
+cmake = "0.1.54"
+cxx-build = "1.0.160"           # build-time codegen & C++ compilation
+cc = "1.2.29"
+pkg-config = "0.3"

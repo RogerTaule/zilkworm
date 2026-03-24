@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "guest_hypercube",
+    "prover_hypercube",
+    "prover_turbo",
+    "guest_turbo",
+]
+resolver = "2"
+
+[workspace.dependencies]
+alloy-sol-types = "1.0"

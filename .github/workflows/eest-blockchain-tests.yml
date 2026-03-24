@@ -11,6 +11,7 @@ jobs:
   eest-blockchain-tests:
     name: Run EEST Blockchain Tests
     runs-on: ubuntu-latest
+    environment: ci
     container: ubuntu:25.10
     steps:
       - name: Install system dependencies
@@ -42,10 +43,11 @@ jobs:
           git lfs version
           python3 --version
           ctest --version
-
+        
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.PAT_TOKEN || github.token }}
           submodules: recursive
           lfs: true
 

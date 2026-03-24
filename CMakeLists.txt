@@ -3,7 +3,7 @@
 # Copyright 2025 The Silkworm Authors
 # SPDX-License-Identifier: Apache-2.0
 
-cmake_minimum_required(VERSION 3.24.0)
+cmake_minimum_required(VERSION 3.28)
 
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/evmone/evmc/.git)
   message(FATAL_ERROR "Git submodules not initialized, execute:\n  git submodule update --init --recursive")
@@ -26,13 +26,11 @@ endif()
 
 if(NOT CMAKE_TOOLCHAIN_FILE)
   set(CMAKE_TOOLCHAIN_FILE
-      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain/cxx20.cmake
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain/cxx23.cmake
       CACHE FILEPATH "" FORCE
   )
   include("${CMAKE_TOOLCHAIN_FILE}")
 endif()
-
-include(cmake/conan.cmake)
 
 project(zilkworm)
 set(PROJECT_VERSION 0.1.0-dev)
@@ -69,12 +67,6 @@ option(SILKWORM_FUZZER "Build instrumentation for fuzzers" OFF)
 option(SILKWORM_FUZZER_SANITIZERS "CLang sanitizer options for fuzzers" OFF)
 option(SILKWORM_USE_MIMALLOC "Enable using mimalloc for dynamic memory management" ON)
 option(SILKWORM_ALLOW_UNUSED_VAR_WARNINGS "Turn unused variable errors into warnings" OFF)
-
-set_property(
-  DIRECTORY
-  APPEND
-  PROPERTY CMAKE_CONFIGURE_DEPENDS conanfile.py
-)
 
 get_filename_component(SILKWORM_MAIN_DIR . ABSOLUTE)
 set(SILKWORM_MAIN_SRC_DIR "${SILKWORM_MAIN_DIR}/zilk_core")

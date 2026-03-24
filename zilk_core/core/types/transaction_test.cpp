@@ -89,7 +89,7 @@
 
 //     view = encoded_raw;
 //     CHECK(rlp::decode_transaction(view, decoded, rlp::Eip2718Wrapping::kString) ==
-//           tl::unexpected{DecodingError::kUnexpectedEip2718Serialization});
+//           std::unexpected{DecodingError::kUnexpectedEip2718Serialization});
 
 //     view = encoded_raw;
 //     REQUIRE(rlp::decode_transaction(view, decoded, rlp::Eip2718Wrapping::kBoth));
@@ -102,7 +102,7 @@
 
 //     view = encoded_wrapped;
 //     CHECK(rlp::decode_transaction(view, decoded, rlp::Eip2718Wrapping::kNone) ==
-//           tl::unexpected{DecodingError::kUnexpectedEip2718Serialization});
+//           std::unexpected{DecodingError::kUnexpectedEip2718Serialization});
 
 //     view = encoded_wrapped;
 //     REQUIRE(rlp::decode_transaction(view, decoded, rlp::Eip2718Wrapping::kString));

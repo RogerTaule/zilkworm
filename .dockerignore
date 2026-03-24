@@ -1,0 +1,30 @@
+# .dockerignore for z6m Claude workspace build
+# Used when: docker build -f tools/claude/Dockerfile .
+
+# Build outputs
+build/
+debug_build/
+target/
+prover/target/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Large test fixtures (4.7GB) — agents can init on demand
+third_party/eest-fixtures/blockchain_tests/
+third_party/eest-fixtures/state_tests/
+
+
+# Session data / logs
+temp/
+tools/claude/logs/
+
+# Claude Code worktrees (can be multi-GB)
+.claude/worktrees/
+
+# OS junk
+.DS_Store
+Thumbs.db

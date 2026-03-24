@@ -59,23 +59,12 @@ inline constexpr uint8_t kBlobCommitmentVersionKzg{1};
 inline constexpr uint64_t kGasPerBlob{1u << 17};
 inline constexpr uint64_t kMinBlobGasPrice{1};
 
-// EIP-4788: Beacon block root in the EVM
 using namespace evmc::literals;
 inline constexpr uint64_t kSystemCallGasLimit{30'000'000};
 inline constexpr evmc::address kSystemAddress{0xfffffffffffffffffffffffffffffffffffffffe_address};
-inline constexpr evmc::address kBeaconRootsAddress{0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02_address};
 
 // EIP-6110: Supply validator deposits on chain
 inline constexpr auto kDepositContractAddress{0x00000000219ab540356cbb839cbe05303d7705fa_address};
-
-// EIP-7002: Execution layer triggerable withdrawals
-inline constexpr auto kWithdrawalRequestAddress{0x00000961EF480EB55E80D19AD83579A64C007002_address};
-
-// EIP-7251: Increase the MAX_EFFECTIVE_BALANCE
-inline constexpr auto kConsolidationRequestAddress{0x0000BBDDC7CE488642FB579F8B00F3A590007251_address};
-
-// EIP-2935: Serve historical block hashes from state
-inline constexpr evmc::address kHistoryStorageAddress{0x0000F90827F1C53A10CB7A02335B175320002935_address};
 
 // Used in Bor
 inline constexpr size_t kExtraSealSize{65};

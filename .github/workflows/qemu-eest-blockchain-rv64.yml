@@ -10,6 +10,7 @@ jobs:
     name: Build and Run EEST Tests RV64IM (Ubuntu 25.10)
     runs-on: ubuntu-latest
     container: ubuntu:25.10
+    environment: ci
     steps:
       - name: Install system dependencies
         env:
@@ -45,14 +46,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.PAT_TOKEN }}
           submodules: recursive
           lfs: true
 
-      - name: Build for RV64IM
+      - name: Build EEST blockchain tests (RV64IM)
         run: |
           cd qemu_runner && make ARCH=rv64 xpack-elf-eest
 
-      - name:  Run EESTs on qemu-riscv64
+      - name: Run EEST blockchain tests (RV64IM)
         id: run_tests
         shell: bash
         run: |
