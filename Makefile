@@ -4,6 +4,10 @@ SHELL = /bin/bash
 .SHELLFLAGS = -o pipefail -c
 .PHONY: z6m_guest z6m_prover selftest tests
 
+clean: 
+	rm -rf prover/guest_hypercube/build/
+	rm -rf prover/target
+	
 z6m_guest:
 	cmake -S prover/guest_hypercube -B prover/guest_hypercube/build \
 		-DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/prover/guest_hypercube/cmake/riscv64im-sp1.cmake \

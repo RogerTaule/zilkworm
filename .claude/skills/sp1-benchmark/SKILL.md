@@ -1,7 +1,6 @@
 ---
 name: sp1-benchmark
 description: Use when the user asks to "benchmark", "run benchmark", "compare performance", "profile blocks", "cycle count comparison", or discusses SP1 prover performance testing. Runs batch block execution benchmarks and compares C++ vs Rust (or other) provers.
-version: 1.0.0
 ---
 
 # SP1 Benchmark Skill
@@ -72,17 +71,63 @@ Use **absolute paths** for the prover binary. The binary location depends on the
 - Main: `/workspace/prover/target/release/z6m_prover`
 - Worktree: `<worktree_path>/prover/target/release/z6m_prover`
 
+### Git info
+
+At the start of every run, capture commit and branch dynamically:
+```bash
+git log --oneline -1   # e.g., "b9ed9a35b Add memmove forwarding..."
+git branch --show-current  # e.g., "chfast/memmove"
+```
+NEVER hardcode or guess commit/branch — always query git.
+
+### Memory-aware parallel execution
+
+Each z6m_prover instance uses ~**8 GB of RAM**. ALWAYS run in parallel when memory allows.
+
+#### Step 3a: Assess available memory
+```bash
+awk '/MemAvailable/ {printf "%.0f\n", $2/1024/1024}' /proc/meminfo
+```
+- `max_parallel = floor((available_gb - 4) / 8)` — reserve 4 GB for OS
+- Minimum: 1, maximum: cap at 8
+
+#### Step 3b: Split block range into chunks
+- **Minimum chunk size: 25 blocks**
+- `actual_parallel = min(max_parallel, floor(total_blocks / 25))`
+- `actual_parallel = max(actual_parallel, 1)`
+
+Each chunk gets its own log: `execution_chunk_N.log`.
+
+#### Step 3c: Staggered launch
+Launch ALL chunks as parallel background Bash commands in a **single message**, each with a built-in sleep delay:
+```bash
+# Chunk N (delay = (N-1) * 30 seconds):
+sleep <delay> && <prover_path> --test-service \
+  --start-block <CHUNK_START> --end-block <CHUNK_END> \
+  --data-dir <data_dir> \
+  --execution-log-file <output_dir>/execution_chunk_<N>.log
+```
+Stagger is **30 seconds** between chunks.
+
+#### Step 3d: Wait for all chunks to complete
+All background commands send completion notifications. Wait for ALL before analysis.
+
+#### Step 3e: Merge logs
+```bash
+cat <output_dir>/execution_chunk_*.log | sort -t' ' -k2 > <output_dir>/execution.log
+```
+
 ### Log file locations
 
-Direct execution log output into the benchmark results directory:
+- **Single run (parallel)**: `execution_chunk_1.log` ... `execution_chunk_N.log` → merged into `execution.log`
+- **Single run (serial, max_parallel=1)**: `execution.log` directly
+- **Comparison run**: `execution_cpp.log` / `execution_rust.log` (each side gets its own chunks if parallel)
 
-- **Single run**: `./temp/benchmarks/<timestamp>/execution.log`
-- **Comparison run**: `./temp/benchmarks/<timestamp>/execution_a.log` and `./temp/benchmarks/<timestamp>/execution_b.log`
-  - Name them descriptively when possible: e.g., `execution_cpp.log` / `execution_rust.log`
+### Comparison parallel execution
 
-### Parallel execution
-
-When comparing two provers, launch BOTH benchmarks simultaneously as parallel background commands. They are independent and can run concurrently.
+When comparing two provers, apply chunking to BOTH. Memory budget:
+- `max_parallel_per_prover = floor((available_gb - 4) / (8 * 2))`
+- Minimum 1 per prover.
 
 ### Log format
 
@@ -130,25 +175,18 @@ Report a summary table with:
 | A faster | N/total | - | pct |
 | B faster | N/total | - | pct |
 
-### Cycle count percentile distribution
+### Percentile distribution (delta between A and B)
 
-| Percentile | A vs B (cycles) |
-|-----------|-----------------|
-| p5 (best) | X% |
-| p25 | X% |
-| p50 (median) | X% |
-| p75 | X% |
-| p95 (worst) | X% |
-
-### Prover gas percentile distribution
-
-| Percentile | A vs B (prover_gas) |
-|-----------|---------------------|
-| p5 (best) | X% |
-| p25 | X% |
-| p50 (median) | X% |
-| p75 | X% |
-| p95 (worst) | X% |
+| Percentile | cycles delta | prover_gas delta | cycles/gas delta | prover_gas/gas delta |
+|-----------|-------------|------------------|------------------|----------------------|
+| p5 | X% | X% | X% | X% |
+| p10 | X% | X% | X% | X% |
+| p25 | X% | X% | X% | X% |
+| p50 (median) | X% | X% | X% | X% |
+| p75 | X% | X% | X% | X% |
+| p90 | X% | X% | X% | X% |
+| p95 | X% | X% | X% | X% |
+| p99 | X% | X% | X% | X% |
 
 ### Gas correctness
 Report the number of gas mismatches (blocks where gas_used differs between the two provers). This MUST be zero for a valid comparison.
@@ -179,15 +217,18 @@ For runs with more than 50 blocks, show only the top 10 most expensive blocks (b
 | cycles/gas | X | X | X | X | total_cycles/total_gas |
 | prover_gas/gas | X | X | X | X | total_pgas/total_gas |
 
-### Percentile distribution (cycles)
+### Percentile distribution
 
-| Percentile | cycle_count | cycles/gas |
-|-----------|-------------|------------|
-| p5 | X | X |
-| p25 | X | X |
-| p50 | X | X |
-| p75 | X | X |
-| p95 | X | X |
+| Percentile | cycle_count | prover_gas | cycles/gas | prover_gas/gas |
+|-----------|-------------|------------|------------|----------------|
+| p5 | X | X | X | X |
+| p10 | X | X | X | X |
+| p25 | X | X | X | X |
+| p50 | X | X | X | X |
+| p75 | X | X | X | X |
+| p90 | X | X | X | X |
+| p95 | X | X | X | X |
+| p99 | X | X | X | X |
 
 ## Step 5: Persist Results
 
