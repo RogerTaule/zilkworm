@@ -83,7 +83,6 @@ target_link_libraries(z6m_guest PRIVATE
 )
 
 target_compile_options(z6m_guest PRIVATE
-    -fno-builtin
     -fno-asynchronous-unwind-tables
     $<$<COMPILE_LANGUAGE:CXX>:
         -fno-exceptions
