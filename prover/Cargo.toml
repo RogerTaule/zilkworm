@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "guest_hypercube",
     "prover_hypercube",
     "prover_turbo",
     "guest_turbo",

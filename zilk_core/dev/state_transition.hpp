@@ -17,10 +17,6 @@ class StateTransition {
     bool terminate_on_error_{false};
     bool show_diagnostics_{false};
 
-    // void print_message(const ExpectedState& expected_state, const ExpectedSubState& expected_sub_state, const std::string& message);
-    // void print_error_message(const ExpectedState& expected_state, const ExpectedSubState& expected_sub_state, const std::string& message);
-    // void print_diagnostic_message(const ExpectedState& expected_state, const ExpectedSubState& expected_sub_state, const std::string& message);
-
   public:
     explicit StateTransition(std::string_view json_str, bool terminate_on_error, bool show_diagnostics) noexcept;
     explicit StateTransition(const std::string& unified_rlp_str) noexcept;

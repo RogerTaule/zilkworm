@@ -11,7 +11,7 @@ endif()
 
 if(SP1)
     add_compile_definitions(-DSP1)
-    include_directories(${CMAKE_SOURCE_DIR}/../prover/guest_hypercube/src/include)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../prover/guest_hypercube/src/include)
 endif()
 
 if(QEMU_DEBUG)

@@ -5,9 +5,11 @@ SHELL = /bin/bash
 .PHONY: z6m_guest z6m_prover selftest tests
 
 z6m_guest:
-# 	rm -r target/elf-compilation/riscv64im-succinct-zkvm-elf/* || true
-	rm -r prover/target/elf-compilation/riscv64im-succinct-zkvm-elf/release/build/z6m_guest-* || true
-	(cd prover/guest_hypercube && cargo prove build)
+	cmake -S prover/guest_hypercube -B prover/guest_hypercube/build \
+		-DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/prover/guest_hypercube/cmake/riscv64im-sp1.cmake \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DSP1=ON
+	cmake --build prover/guest_hypercube/build -j$$(nproc)
 z6m_prover: z6m_guest
 	cargo build --release --manifest-path prover/prover_hypercube/Cargo.toml
 
@@ -44,5 +46,5 @@ eest-blockchain-tests:
 	cmake --build build/eest
 	ctest --test-dir build/eest --parallel
 
-rv32im-eest-blockchain-tests: 
+rv32im-eest-blockchain-tests:
 	cd qemu_runner && make rv32im-eest-blockchain-tests

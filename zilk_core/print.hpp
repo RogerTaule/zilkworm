@@ -7,10 +7,17 @@
 #include <semihosting.hpp>
 #else
 #include <iostream>
+#include <string_view>
 inline void sys_println(const char* msg) {
     std::cout << "stdout: " << msg << std::endl;
 }
 inline void sys_print(const char* msg) {
+    std::cout << "stdout: " << msg;
+}
+inline void sys_println(std::string_view msg) {
+    std::cout << "stdout: " << msg << std::endl;
+}
+inline void sys_print(std::string_view msg) {
     std::cout << "stdout: " << msg;
 }
 
