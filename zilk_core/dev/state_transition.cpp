@@ -275,7 +275,6 @@ uint64_t StateTransition::run_rlp() {
     sys_println(std::format("run_rlp: Unified RLP length: {}", unified_rlp_.size()).c_str());
 
     Block genesisBlock, block;
-    ByteView pre_state_rlp;
 
     const auto rlp_head{rlp::decode_header(unified_rlp_)};
     if (!rlp_head) {
