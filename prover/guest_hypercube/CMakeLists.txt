@@ -75,14 +75,11 @@ target_link_directories(z6m_guest PRIVATE "${_SYSROOT}/lib/${_MULTIDIR}" "${_LIB
 # Link libraries (grouped to handle circular deps in static archives).
 # The group flags MUST be inside target_link_libraries so they wrap the libs.
 target_link_libraries(z6m_guest PRIVATE
-    -Wl,--start-group
     silkworm_dev
     silkworm_core
     evmone
     blst::blst
-    tooling
-    c m gcc nosys stdc++ supc++
-    -Wl,--end-group
+    stdc++ c m gcc nosys
 )
 
 target_compile_options(z6m_guest PRIVATE
