@@ -36,6 +36,7 @@ add_executable(z6m_guest
     src/sp1_runtime.cpp
     src/main.cpp
     src/atomic_stubs.c
+    src/memcpy.cpp
 )
 
 target_include_directories(z6m_guest PRIVATE
