@@ -13,7 +13,7 @@ struct Account {
     uint64_t nonce{0};
     intx::uint256 balance;
     evmc::bytes32 code_hash{kEmptyHash};
-    evmc::bytes32 storage_root_{kEmptyHash};
+    evmc::bytes32 storage_root_{kEmptyRoot};
 
     //! \brief Serialize the account into its Recursive-Length Prefix (RLP) representation
     Bytes rlp(const evmc::bytes32& storage_root) const;

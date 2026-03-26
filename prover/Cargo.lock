@@ -10199,6 +10199,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "z6m_common"
+version = "0.1.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rlp",
+ "alloy-rpc-types",
+ "alloy-rpc-types-debug",
+ "alloy-trie",
+ "base64 0.22.1",
+ "eyre",
+ "reqwest",
+ "rsp-mpt",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "z6m_guest_turbo"
 version = "0.1.0"
 dependencies = [
@@ -10254,6 +10277,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "z6m_common",
 ]
 
 [[package]]
@@ -10295,6 +10319,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "z6m_common",
 ]
 
 [[package]]

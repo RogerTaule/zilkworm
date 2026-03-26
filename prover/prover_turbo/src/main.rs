@@ -1,8 +1,6 @@
 mod ethproofs_client;
-mod fetcher;
-mod rlp_methods;
 mod service;
-mod types;
+mod stdin_builders;
 
 use crate::ethproofs_client::EthProofsConfig;
 use crate::service::{

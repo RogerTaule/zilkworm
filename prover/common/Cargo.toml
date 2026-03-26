@@ -1,0 +1,23 @@
+[package]
+name = "z6m_common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+alloy-consensus = "1.0"
+alloy-eips = "1.0"
+alloy-primitives = "1.0"
+alloy-provider = { version = "1.0", features = ["debug-api"] }
+alloy-rlp = "0.3"
+alloy-rpc-types = "1.0"
+alloy-rpc-types-debug = "1.0"
+alloy-trie = "0.9"
+eyre = "0.6"
+rsp-mpt = { git = "https://github.com/succinctlabs/rsp" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+url = "2.5"
+reqwest = { version = "0.12", features = ["json"] }
+base64 = "0.22"

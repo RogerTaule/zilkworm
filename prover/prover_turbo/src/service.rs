@@ -1,10 +1,8 @@
 use crate::ethproofs_client::{EthProofsConfig, EthproofsClient};
-use crate::fetcher::{
-    build_stdin_from_eth_tests, build_stdin_from_unified_rlp, fetch_block_and_witness,
-    FetchOutcome, FetchRequest,
-};
+use crate::stdin_builders::{build_stdin_from_eth_tests, build_stdin_from_unified_rlp};
 use alloy_provider::{Provider, ProviderBuilder};
 use eyre::{bail, Context, Result};
+use z6m_common::{fetch_block_and_witness, FetchOutcome, FetchRequest};
 
 use chrono;
 use serde::Serialize;

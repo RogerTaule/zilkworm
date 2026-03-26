@@ -1,4 +1,4 @@
-use crate::rlp_methods::{block_to_header_only_rlp, build_pre_state_rlp};
+use crate::rlp_methods::{block_to_header_only_rlp, build_pre_state_rlp, build_pre_trie_rlp};
 use crate::types::{
     BlockchainTestCase, EthTestAccessListItem, EthTestAccount, EthTestAuthorization,
     EthTestTransaction, SealEngine, TestBlock, TestHeader,
@@ -88,7 +88,7 @@ fn extract_bytes_from_value(value: &serde_json::Value) -> Result<Vec<Bytes>> {
             .map(|v| {
                 let s = v.as_str().ok_or_else(|| eyre!("expected hex string in map value"))?;
                 Ok(Bytes::from(
-                    hex::decode(s.strip_prefix("0x").unwrap_or(s))
+                    alloy_primitives::hex::decode(s.strip_prefix("0x").unwrap_or(s))
                         .wrap_err_with(|| format!("invalid hex: {}", s))?,
                 ))
             })
@@ -98,7 +98,7 @@ fn extract_bytes_from_value(value: &serde_json::Value) -> Result<Vec<Bytes>> {
             .map(|v| {
                 let s = v.as_str().ok_or_else(|| eyre!("expected hex string in array"))?;
                 Ok(Bytes::from(
-                    hex::decode(s.strip_prefix("0x").unwrap_or(s))
+                    alloy_primitives::hex::decode(s.strip_prefix("0x").unwrap_or(s))
                         .wrap_err_with(|| format!("invalid hex: {}", s))?,
                 ))
             })
@@ -482,26 +482,6 @@ pub fn write_json<T: ?Sized + Serialize>(path: &Path, value: &T) -> Result<()> {
     Ok(())
 }
 
-pub fn build_stdin_from_eth_tests(path: &Path) -> Result<sp1_sdk::SP1Stdin> {
-    use sp1_sdk::SP1Stdin;
-    let mut stdin = SP1Stdin::new();
-    stdin.write(&true);
-    let raw = fs::read_to_string(path)?;
-    let value: serde_json::Value = serde_json::from_str(&raw)?;
-    let minified = serde_json::to_string(&value)?;
-    stdin.write_slice(minified.as_bytes());
-    Ok(stdin)
-}
-
-pub fn build_stdin_from_unified_rlp(path: &Path) -> Result<sp1_sdk::SP1Stdin> {
-    use sp1_sdk::SP1Stdin;
-    let mut stdin = SP1Stdin::new();
-    stdin.write(&false);
-    let raw = fs::read(path)?;
-    stdin.write_slice(&raw);
-    Ok(stdin)
-}
-
 fn build_unified_rlp_map(
     _block_number: u64,
     _current_block: &RpcBlock,
@@ -531,18 +511,19 @@ fn build_unified_rlp_map(
 
     let headers_rlp_list = alloy_rlp::encode(witness.headers.clone());
 
+    let pre_trie_map = build_pre_trie_rlp(&witness.state)?;
+
+
     let items = vec![
         prev_block_rlp.as_ref(),
         block_rlp.as_ref(),
         pre_state_rlp.as_ref(),
         headers_rlp_list.as_ref(),
+        pre_trie_map.as_ref(),
     ];
     let unified_rlp = alloy_rlp::encode(&items);
 
     let mut input_map = BTreeMap::<String, Bytes>::new();
-    // input_map.insert("genesisRlp".to_string(), prev_block_rlp.clone());
-    // input_map.insert("blockRlp".to_string(), block_rlp.clone());
-    // input_map.insert("preState".to_string(), pre_state_rlp.clone());
     input_map.insert(
         "unifiedBlockAndStateRlp".to_string(),
         Bytes::from(unified_rlp),

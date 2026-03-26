@@ -1,19 +1,16 @@
 use std::collections::HashMap;
 
-// Import alloy types (updated for 1.0)
 use alloy_consensus::{Block, BlockHeader, Header, TxEnvelope};
 use alloy_eips::eip4895::Withdrawals;
-use alloy_primitives::{Address, Bytes, B256, U256};
+use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_rlp::{Decodable, Encodable};
 use alloy_rpc_types::Block as RpcBlock;
 use alloy_trie::{TrieAccount, KECCAK_EMPTY};
 use eyre::Result;
 use rsp_mpt::EthereumState;
-// use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
 
-// Convert RPC block to RLP bytes with header only (empty transactions, uncles, withdrawals)
+/// Convert RPC block to RLP bytes with header only (empty transactions, uncles, withdrawals)
 pub fn block_to_header_only_rlp(rpc_block: &RpcBlock) -> Result<Bytes> {
-    // Convert RPC header to consensus header
     let header = Header {
         parent_hash: rpc_block.header.parent_hash,
         ommers_hash: rpc_block.header.ommers_hash,
@@ -38,9 +35,6 @@ pub fn block_to_header_only_rlp(rpc_block: &RpcBlock) -> Result<Bytes> {
         requests_hash: rpc_block.header.requests_hash,
     };
 
-    // Create a block with header only (empty body)
-    // The Block struct in alloy-consensus has header and body
-    // For header-only block, we create empty transactions and uncles
     let block = Block {
         header,
         body: alloy_consensus::BlockBody {
@@ -50,7 +44,6 @@ pub fn block_to_header_only_rlp(rpc_block: &RpcBlock) -> Result<Bytes> {
         },
     };
 
-    // Encode the block using RLP
     let mut buf = Vec::new();
     block.encode(&mut buf);
     Ok(Bytes::from(buf))
@@ -80,7 +73,6 @@ pub fn build_pre_state_rlp(
             let mut bytes = value;
 
             if let Ok(account) = TrieAccount::decode(&mut bytes) {
-                // // Create account data parts separately for RLP encoding
                 let addr_rlp = alloy_rlp::encode(&address);
                 let nonce_rlp = alloy_rlp::encode(&account.nonce);
                 let balance_rlp = alloy_rlp::encode(&account.balance);
@@ -153,17 +145,30 @@ pub fn build_pre_state_rlp(
 
     let output = encode_rlp_list(&[&accounts_rlp, &storage_rlp, &codes_rlp]);
 
-    // println!("output: {}", hex::encode(&output));
     Ok(Bytes::from(output))
 }
+
+pub fn build_pre_trie_rlp(witness_state: &Vec<Bytes>) -> Result<Bytes> {
+    let mut mpt_node_list = Vec::new();
+
+    witness_state.iter().for_each(|encoded_node| {
+        let mut node_entry = Vec::new();
+        let mut node_hash = keccak256(encoded_node);
+        node_hash.encode(&mut node_entry);
+        encoded_node.encode(&mut node_entry);
+        mpt_node_list.push(node_entry);
+    });
+    let node_refs: Vec<&Vec<u8>> = mpt_node_list.iter().collect();
+    let nodes_rlp_list = encode_rlp_list(&node_refs);
+    Ok(Bytes::from(nodes_rlp_list))
+}
+
 
 pub fn encode_rlp_list(items: &[&Vec<u8>]) -> Vec<u8> {
     let mut output = Vec::new();
 
-    // Calculate total payload length
     let total_payload: usize = items.iter().map(|item| item.len()).sum();
 
-    // Encode list header
     if total_payload < 56 {
         output.push(0xc0 + total_payload as u8);
     } else {
@@ -173,7 +178,6 @@ pub fn encode_rlp_list(items: &[&Vec<u8>]) -> Vec<u8> {
         output.extend_from_slice(len_bytes);
     }
 
-    // Append all the pre-encoded items
     for item in items {
         output.extend_from_slice(item);
     }

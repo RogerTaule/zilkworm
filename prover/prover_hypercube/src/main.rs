@@ -1,11 +1,9 @@
 mod ethproofs_client;
-mod fetcher;
-mod rlp_methods;
 mod service;
-mod types;
+mod stdin_builders;
 
 use crate::ethproofs_client::EthProofsConfig;
-use crate::fetcher::{fetch_block_and_witness, FetchRequest};
+use z6m_common::{fetch_block_and_witness, FetchRequest};
 use crate::service::{
     AppConfig, ExecuteOptions, FetchOptions, ProveOptions, ServiceConfig, SetupOptions,
     VerifyOptions, Z6mProverService,
@@ -320,11 +318,11 @@ async fn main() -> Result<()> {
             proof_path,
             vk_path,
         }) => {
-        //     app.verify_proof(VerifyOptions {
-        //         proof_path,
-        //         vk_path,
-        //     })
-        //     .await?;
+            //     app.verify_proof(VerifyOptions {
+            //         proof_path,
+            //         vk_path,
+            //     })
+            //     .await?;
         }
         None => {
             bail!("no command provided; pass --service or a subcommand");

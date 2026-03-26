@@ -18,6 +18,7 @@
 #include <zilk_core/core/protocol/rule_set.hpp>
 #include <zilk_core/core/rlp/encode_vector.hpp>
 #include <zilk_core/core/state/in_memory_state.hpp>
+#include <zilk_core/core/trie_zz/mpt.hpp>
 #include <zilk_core/core/types/address.hpp>
 #include <zilk_core/core/types/evmc_bytes32.hpp>
 #include <zilk_core/print.hpp>
@@ -35,11 +36,15 @@ StateTransition::StateTransition(ByteView& unified_rlp) noexcept
 }
 
 StateTransition::StateTransition(const std::string& unified_rlp_str) noexcept {
-    // unified_rlp_ = from_hex(unified_rlp_str).value_or(Bytes{});
+    // Copy the data to own it
+    unified_rlp_data_ = unified_rlp_str;
+    unified_rlp_ = ByteView{reinterpret_cast<const uint8_t*>(unified_rlp_data_.data()), unified_rlp_data_.size()};
+}
 
-    // Read from binary
-    unified_rlp_ = ByteView{reinterpret_cast<const uint8_t*>(unified_rlp_str.data()), unified_rlp_str.size()};
-    sys_println(std::format("in ctor unified_rlp_str RLP length: {} unified_rlp_ RLP length: {}", unified_rlp_str.size(), unified_rlp_.size()).c_str());
+StateTransition::StateTransition(std::string&& unified_rlp_str) noexcept
+    : unified_rlp_data_{std::move(unified_rlp_str)} {
+    // Create view into the moved data
+    unified_rlp_ = ByteView{reinterpret_cast<const uint8_t*>(unified_rlp_data_.data()), unified_rlp_data_.size()};
 }
 
 evmc::address StateTransition::to_evmc_address(const std::string& address) {
@@ -330,12 +335,13 @@ uint64_t StateTransition::run_rlp() {
     payload_view.remove_prefix(pre_rlp_head->payload_length);
 
     auto headers_overall_rlp_header = rlp::decode_header(payload_view);
+    ByteView headers_overall_view = payload_view.substr(0, headers_overall_rlp_header->payload_length);
     if (headers_overall_rlp_header) {  // Skip invalid headers list rlp
-        auto headers_list_header = rlp::decode_header(payload_view);
+        auto headers_list_header = rlp::decode_header(headers_overall_view);
         if (!headers_list_header || !headers_list_header->list) {
             sys_println("Invalid headers list entry");
         } else {
-            ByteView headers_list_view = payload_view.substr(0, headers_list_header->payload_length);
+            ByteView headers_list_view = headers_overall_view.substr(0, headers_list_header->payload_length);
             while (!headers_list_view.empty()) {
                 auto entry_header{rlp::decode_header(headers_list_view)};
                 ByteView hh_view = headers_list_view.substr(0, entry_header->payload_length);
@@ -346,6 +352,7 @@ uint64_t StateTransition::run_rlp() {
             }
         }
     }
+    payload_view.remove_prefix(headers_overall_rlp_header->payload_length);
 
     // Use Mainnet config.
     // This can be latter extended to public testnets by providing chain id
@@ -354,11 +361,82 @@ uint64_t StateTransition::run_rlp() {
 
     if (ValidationResult err{blockchain.insert_block(block, false)}; err != ValidationResult::kOk) {
         sys_println(std::format("Validation error {}", magic_enum::enum_name<ValidationResult>(err)).c_str());
-
         return 0;
+    }
+    auto pre_trie_head = rlp::decode_header(payload_view);
+    if (!pre_trie_head) {
+        sys_println("ERROR: Failed to Decode Pre-Trie List RLP");
+        return 0;
+    }
+    ByteView pre_trie_payload = payload_view.substr(0, pre_trie_head->payload_length);
+    payload_view.remove_prefix(pre_trie_head->payload_length);
+    if (!check_root(pre_trie_payload, state, block.header)) {
+        sys_println("ERROR: State Root Mismatch");
     }
 
     return block.header.gas_used;
+}
+
+bool StateTransition::check_root(ByteView pre_trie_payload, InMemoryState& state, BlockHeader& header) {
+    // Create and populate the node store
+    node_store_.populate_from_rlp(pre_trie_payload);
+
+    auto& acc_changes = state.account_changes().at(header.number);
+    const InMemoryState::StorageChanges& storage_changes = state.storage_changes().at(header.number);
+    std::vector<mpt::TrieNodeFlat> acc_updates;
+
+    Bytes val_rlp;
+    val_rlp.reserve(33);
+    for (auto& [addr, acc_opt] : acc_changes) {
+        const Account& acc = acc_opt.has_value() ? acc_opt.value() : Account{};
+
+        auto it = storage_changes.find(addr);
+        bytes32 storage_root{acc.storage_root_};
+        if (it != storage_changes.end()) {
+            std::vector<mpt::TrieNodeFlat> storage_updates{};
+            for (auto& [key, val] : it->second) {
+                auto cur_val = state.read_storage(addr, key);
+                if (cur_val == val) {
+                    continue;
+                }
+                auto zerolessVal = zeroless_view(cur_val.bytes);
+                val_rlp.clear();
+                rlp::encode(val_rlp, zerolessVal);
+                auto hashed_key = keccak_bytes32(key);
+                storage_updates.emplace_back(mpt::TrieNodeFlat{hashed_key, val_rlp});
+            }
+
+            if (storage_updates.size() > 0) {
+
+                if (mpt::is_zero_quick(acc.storage_root_)) {    // In case of a new account
+                    storage_root = kEmptyRoot;
+                }
+                mpt::GridMPT<true> storage_trie{node_store_, storage_root};
+
+                std::sort(storage_updates.begin(), storage_updates.end());
+                storage_root = storage_trie.calc_root_from_updates(storage_updates);
+            }
+        }
+        auto cur_acc_opt = state.read_account(addr);
+        if (!cur_acc_opt.has_value()) {
+            sys_println(("ERROR: Account in acc_changes but not in storage" + to_hex(addr.bytes)).c_str());
+            continue;
+        }
+        auto& curr_acc = cur_acc_opt.value();
+
+        if (acc == *cur_acc_opt && storage_root == acc.storage_root_) {
+            continue;
+        }
+        auto acc_rlp = curr_acc.rlp(storage_root);
+        auto addr_hash = keccak_bytes(addr.bytes);
+        acc_updates.emplace_back(addr_hash, acc_rlp);
+    }
+
+    std::sort(acc_updates.begin(), acc_updates.end());
+    auto prev_root = state.read_header(header.number - 1, header.parent_hash)->state_root;
+    mpt::GridMPT<false> acc_trie(node_store_, prev_root);
+    auto new_root = acc_trie.calc_root_from_updates(acc_updates);
+    return (new_root == header.state_root);
 }
 
 uint64_t StateTransition::run() {
@@ -386,22 +464,3 @@ uint64_t StateTransition::run() {
 }
 
 }  // namespace silkworm::cmd::state_transition
-
-// COUT can't be executed on rv32im ::: ====>
-
-// void StateTransition::print_error_message(const ExpectedState& expected_state, const ExpectedSubState& expected_sub_state, const std::string& message) {
-//     if (terminate_on_error_) {
-//         throw std::runtime_error(message);
-//     }
-//     // print_message(expected_state, expected_sub_state, message);
-// }
-
-// void StateTransition::print_diagnostic_message(const ExpectedState& expected_state, const ExpectedSubState& expected_sub_state, const std::string& message) {
-//     if (show_diagnostics_) {
-//         print_message(expected_state, expected_sub_state, message);
-//     }
-// }
-
-// void StateTransition::print_message(const ExpectedState& expected_state, const ExpectedSubState& expected_sub_state, const std::string& message) {
-//     // std::cout << "[" << test_name_ << ":" << expected_state.fork_name() << ":" << expected_sub_state.index << "] " << message << std::endl;
-// }

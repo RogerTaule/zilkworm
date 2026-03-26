@@ -1,8 +1,7 @@
 #pragma once
 #include <cstddef> // size_t
 #include <cstdint> // uint8_t, uint32_t, uint64_t
-#include <cstring> // strlen
-
+#include <string_view>
 #include <intx/intx.hpp>
 
 // Notes:
@@ -163,13 +162,14 @@ extern "C"
     ReadVecResult read_vec_raw();
 } // extern "C"
 
-static inline void sys_print(const char *s)
+static inline void sys_print(std::string_view v)
 {
-    syscall_write(1, reinterpret_cast<const uint8_t *>(s), std::strlen(s));
+    syscall_write(1, reinterpret_cast<const uint8_t *>(v.data()), v.size());
 }
-static inline void sys_println(const char *s)
+
+static inline void sys_println(std::string_view v)
 {
-    syscall_write(1, reinterpret_cast<const uint8_t *>(s), std::strlen(s));
+    syscall_write(1, reinterpret_cast<const uint8_t *>(v.data()), v.size());
     syscall_write(1, reinterpret_cast<const uint8_t *>("\n"), 1);
 }
 
