@@ -91,12 +91,11 @@ impl DynamicProver {
                 Ok((proof, cycle_count))
             }
             (DynamicProver::Cuda(prover), DynProvingKey::Cuda(cuda_pk)) => {
-                let proof_result = prover
-                    .prove(cuda_pk, stdin.clone())
-                    .await;
-                let proof = proof_result.map_err(|e| eyre::eyre!("Proving failed: {}", e))?;
-                let cycles = proof.cycles;
-                return Ok((proof, cycles));
+                let (proof, cycles) = prover
+                    .prove_with_cycles(cuda_pk, stdin.clone(), mode)
+                    .await
+                    .map_err(|e| eyre::eyre!("Proving failed: {}", e))?;
+                Ok((proof, cycles))
             }
             (DynamicProver::Env(cpu_prover), DynProvingKey::Cuda(cuda_proving_key)) => todo!(),
             (DynamicProver::Cuda(cuda_prover), DynProvingKey::Env(cpuproving_key)) => todo!(),
@@ -825,7 +824,7 @@ impl Z6mProverService {
 
             let gas_used = output.read::<u64>();
             let cycle_count = report.total_instruction_count();
-            let prover_gas = report.gas.unwrap_or_default();
+            let prover_gas = report.gas().unwrap_or_default();
             let syscall_count = report.total_syscall_count();
 
             println!(
@@ -874,7 +873,7 @@ impl Z6mProverService {
         let (mut output, report) = client.execute(Z6M_ELF, stdin.clone()).await.unwrap();
         let gas_used = output.read::<u64>();
         let cycle_count = report.total_instruction_count();
-        let prover_gas = report.gas.unwrap_or_default();
+        let prover_gas = report.gas().unwrap_or_default();
         let syscall_count = report.total_syscall_count();
         info!(
             "execution complete, block={} gas_used={}, cycle_count={}, prover_gas={}, syscall_count={}",

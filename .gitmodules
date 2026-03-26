@@ -12,3 +12,7 @@
 [submodule "eest-fixtures"]
 	path = third_party/eest-fixtures
 	url = https://github.com/erigontech/eest-fixtures
+[submodule "third_party/sp1"]
+	path = third_party/sp1
+	url = https://github.com/erigontech/sp1.git
+	branch = erigon/patches-v6.0.2
