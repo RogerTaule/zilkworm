@@ -111,3 +111,15 @@ install(
     ${CMAKE_CURRENT_SOURCE_DIR}/zilk_core/dev
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zilk_core
 )
+
+# Header-only transitive deps since this is fetched and qemu has split build required by zilk_core public headers
+install(
+    DIRECTORY
+    ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include/nlohmann
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+install(
+    DIRECTORY
+    ${CMAKE_BINARY_DIR}/_deps/magic_enum-src/include/magic_enum
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
