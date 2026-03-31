@@ -1,6 +1,8 @@
 name: Qemu EESTs on RV64IM
 
 on:
+  push:
+    branches: [master, main, release/*]
   schedule:
     - cron: "0 0 */3 * *" # Run every 3 days at midnight UTC
   workflow_dispatch:
@@ -10,7 +12,6 @@ jobs:
     name: Build and Run EEST Tests RV64IM (Ubuntu 25.10)
     runs-on: ubuntu-latest
     container: ubuntu:25.10
-    environment: ci
     steps:
       - name: Install system dependencies
         env:
@@ -46,7 +47,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT_TOKEN }}
           submodules: recursive
           lfs: true
 
