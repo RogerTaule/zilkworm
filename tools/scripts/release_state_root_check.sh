@@ -6,19 +6,28 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-BLOCKS_DIR="/mnt/nodes_wd_8tb/witness_blocks/blocks"
 BINARY="$PROJECT_DIR/build/zilk_core/dev/cli/state_transition"
 JOBS=$(nproc)
 LOG_DIR="$PROJECT_DIR/temp/release_state_root_check"
-USE_DIR_SCAN=false
+BLOCKS_DIR=""
 
 usage() {
-    echo "Usage: $0 [-j threads] [-s start_block] [-e end_block] [-l log_dir] [--dir blocks_dir]"
+    echo "Usage: $0 --dir <blocks_dir> [-j threads] [-s start_block] [-e end_block] [-l log_dir]"
+    echo ""
+    echo "  --dir   Path to the blocks directory (required)"
+    echo "  -j      Parallel jobs (default: nproc)"
+    echo "  -s      Start block number (inclusive)"
+    echo "  -e      End block number (inclusive)"
+    echo "  -l      Log output directory"
 }
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --dir)
+            BLOCKS_DIR="$2"
+            shift 2
+            ;;
         -j)
             JOBS="$2"
             shift 2
@@ -35,11 +44,6 @@ while [[ $# -gt 0 ]]; do
             LOG_DIR="$2"
             shift 2
             ;;
-        --dir)
-            BLOCKS_DIR="$2"
-            USE_DIR_SCAN=true
-            shift 2
-            ;;
         -h|--help)
             usage
             exit 0
@@ -51,7 +55,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ "$USE_DIR_SCAN" == true && ! -d "$BLOCKS_DIR" ]]; then
+if [[ -z "$BLOCKS_DIR" ]]; then
+    echo "Error: --dir is required"
+    usage
+    exit 1
+fi
+
+if [[ ! -d "$BLOCKS_DIR" ]]; then
     echo "Error: blocks directory does not exist: $BLOCKS_DIR"
     exit 1
 fi
@@ -68,7 +78,7 @@ echo "Blocks dir: $BLOCKS_DIR" | tee -a "$SUMMARY_LOG"
 echo "Log dir: $LOG_DIR" | tee -a "$SUMMARY_LOG"
 echo "" | tee -a "$SUMMARY_LOG"
 
-# ── Step 1: Build in Release mode ─────────────────────────────────────────────
+# Build in Release mode
 echo "Building state_transition (Release)..." | tee -a "$SUMMARY_LOG"
 cmake \
     -DCMAKE_BUILD_TYPE=Release \
@@ -88,45 +98,25 @@ cmake --build "$PROJECT_DIR/build" \
 echo "Build complete: $BINARY" | tee -a "$SUMMARY_LOG"
 echo "" | tee -a "$SUMMARY_LOG"
 
-# ── Step 2: Collect block list ─────────────────────────────────────────────────
-# Hardcoded list of specific blocks to test (mirror of launch.json args).
-# Comment/uncomment entries to select which blocks to run.
-EXPLICIT_BINS=(
-    "/mnt/nodes/witness_blocks/blocks/24492521/unifiedBlockAndStateRlp24492521.bin"
-    "/mnt/nodes/witness_blocks/blocks/24496722/unifiedBlockAndStateRlp24496722.bin"
-)
-
-# If --dir or -s/-e range flags were given, scan the blocks directory;
-# otherwise use the explicit list above.
+# Collect block list from --dir
 BLOCK_LIST=()
-if [[ "$USE_DIR_SCAN" == true || -n "${START:-}" || -n "${END:-}" ]]; then
-    mapfile -t ALL_BLOCKS < <(ls "$BLOCKS_DIR" | sort -n)
-    for block_num in "${ALL_BLOCKS[@]}"; do
-        bin_file="$BLOCKS_DIR/$block_num/unifiedBlockAndStateRlp${block_num}.bin"
-        [[ ! -f "$bin_file" ]] && continue
-        if [[ -n "${START:-}" && "$block_num" -lt "$START" ]]; then continue; fi
-        if [[ -n "${END:-}"   && "$block_num" -gt "$END"   ]]; then continue; fi
-        BLOCK_LIST+=("$bin_file")
-    done
-else
-    for bin_file in "${EXPLICIT_BINS[@]}"; do
-        [[ -f "$bin_file" ]] && BLOCK_LIST+=("$bin_file")
-    done
-fi
+mapfile -t ALL_BLOCKS < <(ls "$BLOCKS_DIR" | sort -n)
+for block_num in "${ALL_BLOCKS[@]}"; do
+    bin_file="$BLOCKS_DIR/$block_num/unifiedBlockAndStateRlp${block_num}.bin"
+    [[ ! -f "$bin_file" ]] && continue
+    if [[ -n "${START:-}" && "$block_num" -lt "$START" ]]; then continue; fi
+    if [[ -n "${END:-}"   && "$block_num" -gt "$END"   ]]; then continue; fi
+    BLOCK_LIST+=("$bin_file")
+done
 
 TOTAL=${#BLOCK_LIST[@]}
 echo "Blocks to process: $TOTAL" | tee -a "$SUMMARY_LOG"
 echo "" | tee -a "$SUMMARY_LOG"
 
-# ── Step 3: Run blocks in parallel, detect mismatches ─────────────────────────
-# Shared counters via temp files
-MISMATCH_DIR=$(mktemp -d)
-trap 'rm -rf "$MISMATCH_DIR"' EXIT
-
+# Run blocks in parallel, detect mismatches
 run_block() {
     local bin_file="$1"
     local log_dir="$2"
-    # Use the filename (without extension) as the log name
     local label
     label=$(basename "$bin_file" .bin)
     local log_file="$log_dir/${label}.log"
@@ -164,7 +154,7 @@ done < <(
 
 MISMATCH_COUNT=${#MISMATCH_BLOCKS[@]}
 
-# ── Step 4: Report ─────────────────────────────────────────────────────────────
+# Report
 echo "" | tee -a "$SUMMARY_LOG"
 echo "=== Results ===" | tee -a "$SUMMARY_LOG"
 echo "Total blocks run : $TOTAL" | tee -a "$SUMMARY_LOG"
