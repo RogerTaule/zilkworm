@@ -7,7 +7,7 @@ use alloy_consensus::transaction::SignerRecoverable;
 use alloy_consensus::{BlockHeader, Header as ConsensusHeader, Transaction};
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
-use alloy_rlp::{Decodable, Encodable};
+use alloy_rlp::Decodable;
 use alloy_rpc_types::{Block as RpcBlock, BlockTransactions, Transaction as RPCTransaction};
 use alloy_rpc_types_debug::ExecutionWitness;
 use alloy_trie::{TrieAccount, KECCAK_EMPTY};

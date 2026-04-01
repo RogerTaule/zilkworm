@@ -5,8 +5,8 @@ mod stdin_builders;
 use crate::ethproofs_client::EthProofsConfig;
 use z6m_common::{fetch_block_and_witness, FetchRequest};
 use crate::service::{
-    AppConfig, ExecuteOptions, FetchOptions, ProveOptions, ServiceConfig, SetupOptions,
-    VerifyOptions, Z6mProverService,
+    AppConfig, ExecuteOptions, ProveOptions, ServiceConfig,
+    Z6mProverService,
 };
 use clap::{Parser, Subcommand};
 use eyre::{bail, eyre, Result};
@@ -263,7 +263,7 @@ async fn main() -> Result<()> {
     }
 
     match args.command {
-        Some(Command::Setup { pk_path, vk_path }) => {
+        Some(Command::Setup { pk_path: _, vk_path: _ }) => {
             // app.setup_keys(SetupOptions { pk_path, vk_path }).await?;
         }
         Some(Command::Fetch {
@@ -315,8 +315,8 @@ async fn main() -> Result<()> {
             unreachable!("Prove is handled by the service path above");
         }
         Some(Command::Verify {
-            proof_path,
-            vk_path,
+            proof_path: _,
+            vk_path: _,
         }) => {
             //     app.verify_proof(VerifyOptions {
             //         proof_path,

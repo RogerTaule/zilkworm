@@ -153,7 +153,7 @@ pub fn build_pre_trie_rlp(witness_state: &Vec<Bytes>) -> Result<Bytes> {
 
     witness_state.iter().for_each(|encoded_node| {
         let mut node_entry = Vec::new();
-        let mut node_hash = keccak256(encoded_node);
+        let node_hash = keccak256(encoded_node);
         node_hash.encode(&mut node_entry);
         encoded_node.encode(&mut node_entry);
         mpt_node_list.push(node_entry);

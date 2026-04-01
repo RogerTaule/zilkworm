@@ -7,12 +7,9 @@ use z6m_common::{fetch_block_and_witness, FetchOutcome, FetchRequest};
 use chrono;
 use serde::Serialize;
 use sp1_cuda::CudaProvingKey;
-use sp1_prover::worker::SP1CoreExecutor;
-use sp1_prover::{SP1CompressWitness, SP1CoreProof, SP1CoreProofData, SP1ProofWithMetadata};
-use sp1_sdk::cuda::builder::CudaProverBuilder;
 use sp1_sdk::{
-   include_elf, CpuProver, CudaProver, Elf, ProveRequest, Prover,
-    ProverClient, ProvingKey, SP1Proof, SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin,
+    include_elf, CpuProver, CudaProver, Elf, ProveRequest, Prover,
+    ProverClient, ProvingKey, SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin,
     SP1VerifyingKey, SP1ProvingKey
 };
 use std::fs::{File, OpenOptions};
@@ -20,7 +17,7 @@ use std::io::{BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::{default, env};
+use std::env;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
@@ -95,11 +92,12 @@ impl DynamicProver {
                     .map_err(|e| eyre::eyre!("Proving failed: {}", e))?;
                 Ok((proof, cycles))
             }
-            (DynamicProver::Env(cpu_prover), DynProvingKey::Cuda(cuda_proving_key)) => todo!(),
-            (DynamicProver::Cuda(cuda_prover), DynProvingKey::Env(cpuproving_key)) => todo!(),
+            (DynamicProver::Env(_cpu_prover), DynProvingKey::Cuda(_cuda_proving_key)) => todo!(),
+            (DynamicProver::Cuda(_cuda_prover), DynProvingKey::Env(_cpuproving_key)) => todo!(),
         }
     }
 
+    #[allow(dead_code)]
     fn verify(&self, proof: &SP1ProofWithPublicValues, vk: &SP1VerifyingKey) -> Result<()> {
         match self {
             DynamicProver::Env(prover) => prover
@@ -131,16 +129,19 @@ pub struct ServiceConfig {
     pub post_every: Option<u64>,
     pub rpc_url: String,
     pub save_all_responses: bool,
+    #[allow(dead_code)]
     pub proving_key_path: Option<PathBuf>,
     pub proof_type: String,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct SetupOptions {
     pub pk_path: PathBuf,
     pub vk_path: PathBuf,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct FetchOptions {
     pub block_number: Option<u64>,
@@ -164,10 +165,12 @@ pub struct ProveOptions {
     pub file_name: Option<PathBuf>,
     pub is_test: bool,
     pub data_dir: PathBuf,
+    #[allow(dead_code)]
     pub proof_path: Option<PathBuf>,
     pub proof_type: String,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct VerifyOptions {
     pub proof_path: PathBuf,
@@ -231,6 +234,7 @@ impl Z6mProverService {
         })
     }
 
+    #[allow(dead_code)]
     pub async fn setup_keys(&self, opts: SetupOptions) -> Result<()> {
         let client = self.client.lock().await;
         let pk = client.setup(Z6M_ELF).await;
@@ -242,11 +246,11 @@ impl Z6mProverService {
 
         std::fs::create_dir_all(opts.pk_path.parent().unwrap_or_else(|| Path::new(".")))?;
         std::fs::create_dir_all(opts.vk_path.parent().unwrap_or_else(|| Path::new(".")))?;
-        let cfg = bincode::config::standard();
+        let _cfg = bincode::config::standard();
         // let mut fpk = BufWriter::new(File::create(&opts.pk_path)?);
-        // bincode::serde::encode_into_std_write(&pk, &mut fpk, cfg)?;
+        // bincode::serde::encode_into_std_write(&pk, &mut fpk, _cfg)?;
         let mut fvk = BufWriter::new(File::create(&opts.vk_path)?);
-        bincode::serde::encode_into_std_write(&vk, &mut fvk, cfg)?;
+        bincode::serde::encode_into_std_write(&vk, &mut fvk, _cfg)?;
         info!(
             "setup completed: pk={}, vk={}",
             opts.pk_path.display(),
@@ -255,6 +259,7 @@ impl Z6mProverService {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn fetch_block(&self, opts: FetchOptions) -> Result<FetchOutcome> {
         let outcome = fetch_block_and_witness(FetchRequest {
             rpc_url: &opts.rpc_url,
@@ -289,10 +294,10 @@ impl Z6mProverService {
             build_stdin_from_unified_rlp(&input_path)?
         };
 
-        let cfg = bincode::config::standard();
+        let _cfg = bincode::config::standard();
         // let pk: DynProvingKey = {
         //     let mut r = BufReader::new(File::open(&opts.pk_path)?);
-        //     bincode::serde::decode_from_std_read(&mut r, cfg)?
+        //     bincode::serde::decode_from_std_read(&mut r, _cfg)?
         // };
 
         // Lock the client for exclusive proving access
@@ -311,7 +316,7 @@ impl Z6mProverService {
         let pk_res = client.setup(Z6M_ELF).await;
         match pk_res {
             Ok(pk) => {
-                let proof = client.prove(&pk, stdin.clone()).compressed().await;
+                let _proof = client.prove(&pk, stdin.clone()).compressed().await;
             }
             Err(err) => println!("ERROR {err}"),
         }
@@ -386,7 +391,7 @@ impl Z6mProverService {
             build_stdin_from_unified_rlp(&input_path)?
         };
 
-        let cfg = bincode::config::standard();
+        let _cfg = bincode::config::standard();
         // Write proof to file
         let proof_path = opts
             .data_dir
@@ -505,6 +510,7 @@ impl Z6mProverService {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn verify_proof(&self, opts: VerifyOptions) -> Result<()> {
         let cfg = bincode::config::standard();
         let mut proof: SP1ProofWithPublicValues = {
@@ -615,7 +621,7 @@ impl Z6mProverService {
                         // Reset the connection with the GPU prover
                         let prover_client = DynamicProver::new().await?;
                         let proving_key = prover_client.setup(Z6M_ELF).await;
-                        let verifying_key = match &proving_key {
+                        let _verifying_key = match &proving_key {
                             DynProvingKey::Env(env_pk) => env_pk.verifying_key().clone(),
                             DynProvingKey::Cuda(cuda_pk) => cuda_pk.verifying_key().clone(),
                         };
@@ -662,7 +668,7 @@ impl Z6mProverService {
     }
 
     // Process block using shared client for proper synchronization
-    pub async fn process_block_static(
+    async fn process_block_static(
         block_number: u64,
         service: &ServiceConfig,
         data_dir: &PathBuf,
@@ -678,7 +684,7 @@ impl Z6mProverService {
         );
         let should_prove = matches_interval(service.prove_every, block_number);
         let should_execute = matches_interval(service.execute_every, block_number) && !should_prove;
-        let should_post = matches_interval(service.post_every, block_number) || should_prove;
+        let _should_post = matches_interval(service.post_every, block_number) || should_prove;
 
         let should_anything = should_prove || should_execute || service.save_all_responses;
         if !should_anything {
@@ -718,7 +724,7 @@ impl Z6mProverService {
             }
         }
 
-        let mut proof_log: Option<ProvingLog> = None;
+        let mut _proof_log: Option<ProvingLog> = None;
         if should_prove {
             println!(
                 "[{}] Proving block {}",
@@ -753,7 +759,7 @@ impl Z6mProverService {
             .await
             {
                 Ok(Ok(log)) => {
-                    proof_log = Some(log);
+                    _proof_log = Some(log);
                 }
                 Ok(Err(err)) => {
                     error!(%block_number, error = %err, "proving failed");
@@ -957,6 +963,7 @@ impl Z6mProverService {
         Ok(dir.join(file_name))
     }
 
+    #[allow(dead_code)]
     fn write_proof(
         &self,
         opts: &ProveOptions,
@@ -978,6 +985,7 @@ impl Z6mProverService {
         Ok(target_path)
     }
 
+    #[allow(dead_code)]
     fn persist_execution_logs(&self, data_dir: &Path, log: &ExecutionLog) -> Result<()> {
         let log_file: PathBuf = data_dir.join("executionLogs.log");
         let mut text_file = OpenOptions::new()
@@ -999,6 +1007,7 @@ impl Z6mProverService {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn persist_proving_logs(&self, data_dir: &Path, log: &ProvingLog) -> Result<()> {
         let log_file: PathBuf = data_dir.join("provingLogs.log");
         let mut text_file = OpenOptions::new()
