@@ -15,7 +15,7 @@
    cargo prove install-toolchain
    ```
    For the purpose of zilkworm we will not be using the packaged c-toolchain. Therefore, doing `sp1up --c-toolchain` isn't useful. However it's something to keep in mind for resolving issues.
-   (Note: If you want to use NVIDIA CUDA for proving, you must also have cuslop server from https://github.com/succinctlabs/cuslop)
+   (Note: If you want to use NVIDIA CUDA for proving, you must also have sp1-gpu-server built from sp1-gpu/crates/server/ in the erigontech/sp1 repository)
 5. GCC compiler for rv64-im
    We will use the latest version from https://xpack-dev-tools.github.io/riscv-none-elf-gcc-xpack/docs/install/
    ```

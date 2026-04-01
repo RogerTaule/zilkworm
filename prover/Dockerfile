@@ -13,7 +13,7 @@ RUN apt-get update
 RUN apt install -y \
   cuda-toolkit-13-0 \
   cuda-toolkit-13-0-config-common
-COPY cuslop-server /root/.sp1/bin/cuslop-server
+COPY sp1-gpu-server /root/.sp1/bin/sp1-gpu-server
 
 FROM scratch
 COPY --from=builder / /

@@ -1,11 +1,15 @@
-# .dockerignore for z6m Claude workspace build
-# Used when: docker build -f tools/claude/Dockerfile .
+# Excludes build artifacts and large test fixtures from the Docker context.
 
-# Build outputs
+# Build outputs (rebuilt inside the container)
 build/
 debug_build/
-target/
+prover/guest_hypercube/build/
 prover/target/
+
+# Large test fixtures (4.7 GB) — not needed for prover build
+third_party/eest-fixtures/blockchain_tests/
+third_party/eest-fixtures/state_tests/
+third_party/ethereum-tests/
 
 # IDE / editor
 .vscode/
@@ -13,16 +17,11 @@ prover/target/
 *.swp
 *.swo
 
-# Large test fixtures (4.7GB) — agents can init on demand
-third_party/eest-fixtures/blockchain_tests/
-third_party/eest-fixtures/state_tests/
-
-
 # Session data / logs
 temp/
 tools/claude/logs/
 
-# Claude Code worktrees (can be multi-GB)
+# Claude Code worktrees
 .claude/worktrees/
 
 # OS junk
