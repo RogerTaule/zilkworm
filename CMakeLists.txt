@@ -33,7 +33,7 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
 endif()
 
 project(zilkworm)
-set(PROJECT_VERSION 0.1.0-dev)
+set(PROJECT_VERSION 0.1.0-alpha.1)
 
 include(CTest)
 include(CableBuildInfo)

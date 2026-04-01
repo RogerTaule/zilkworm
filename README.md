@@ -12,7 +12,7 @@
     A fast, modular, optimized ZKEVM core written in C++
 </p>
 
-[NOTE: THIS IS A WORK IN PROGRESS REPOSITORY THAT MAY LACK MAINTENANCE, AND IS PROVIDED AS IS. DO NOT USE IN PRODUCTION ]
+[ALPHA STAGE: This is in pre-release. Functional for block execution and proof generation, but not yet production-ready.]
 
 
 Zilkworm is a prototype implementation of a ZKEVM (Zero-Knowledge Ethereum Virtual Machine) generating ZK proofs that an        
