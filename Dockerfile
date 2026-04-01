@@ -33,17 +33,20 @@ ARG CUDA_ARCHS
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake pkg-config \
-    git ca-certificates curl \
+    build-essential pkg-config \
+    git ca-certificates curl wget \
     golang protobuf-compiler libprotobuf-dev \
-    libssl-dev
+    libssl-dev libclang-dev \
+    && wget -qO /tmp/cmake.sh "https://github.com/Kitware/CMake/releases/download/v3.31.6/cmake-3.31.6-linux-x86_64.sh" \
+    && sh /tmp/cmake.sh --skip-license --prefix=/usr/local \
+    && rm /tmp/cmake.sh
 
 ENV CARGO_HOME=/root/.cargo \
     RUSTUP_HOME=/root/.rustup \
     PATH="/root/.cargo/bin:${PATH}"
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-        sh -s -- -y --default-toolchain 1.88.0 --profile default
+        sh -s -- -y --default-toolchain 1.91.0 --profile default
 
 RUN git clone --depth 1 --branch erigon/patches-v6.0.2 \
         https://github.com/erigontech/sp1.git /tmp/sp1
@@ -99,7 +102,7 @@ ENV CARGO_HOME=/root/.cargo \
     PATH="/root/.cargo/bin:${PATH}"
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-        sh -s -- -y --default-toolchain 1.88.0 --profile default \
+        sh -s -- -y --default-toolchain 1.91.0 --profile default \
     && rustup component add rustfmt rust-src
 
 WORKDIR /src
