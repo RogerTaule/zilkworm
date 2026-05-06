@@ -1,3 +1,6 @@
+// Copyright 2026 The Zilkworm Authors
+// SPDX-License-Identifier: Apache-2.0
+
 use std::collections::HashMap;
 
 use alloy_consensus::{Block, BlockHeader, Header, TxEnvelope};
