@@ -3,7 +3,7 @@
 # Configure with the toolchain file:
 #   cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=cmake/zisk-toolchain.cmake
 #   cmake --build build
-# Output: build/hello.elf — run with `ziskemu -e build/hello.elf -i <input.bin>`.
+# Output: build/z6m_guest.elf — run with `ziskemu -e build/z6m_guest.elf -i <input.bin>`.
 
 cmake_minimum_required(VERSION 3.28)
 
@@ -39,7 +39,7 @@ cable_add_buildinfo_library(PROJECT_NAME zilkworm GIT_DESCRIBE "" GIT_BRANCH "")
 add_subdirectory(${Z6M_ROOT}/third_party ${CMAKE_BINARY_DIR}/third_party)
 add_subdirectory(${Z6M_ROOT}/zilk_core   ${CMAKE_BINARY_DIR}/zilk_core)
 
-add_executable(hello.elf
+add_executable(z6m_guest.elf
     hello.cpp
     arena_malloc.cpp
     runtime_stubs.cpp
@@ -48,19 +48,19 @@ add_executable(hello.elf
     _start.s
 )
 
-target_include_directories(hello.elf PRIVATE include)
+target_include_directories(z6m_guest.elf PRIVATE include)
 # silkworm_dev publicly links silkworm_core + nlohmann_json, which
 # in turn propagates intx::intx / evmone / evmc include paths.
-target_link_libraries(hello.elf PRIVATE silkworm_dev)
+target_link_libraries(z6m_guest.elf PRIVATE silkworm_dev)
 
 # -nostartfiles drops newlib's crt0 (which expects __global_pointer$ that
 # the Zisk linker script doesn't provide); _start.s + zisk.ld take its place.
-target_link_options(hello.elf PRIVATE
+target_link_options(z6m_guest.elf PRIVATE
     -nostartfiles
     -T ${CMAKE_CURRENT_SOURCE_DIR}/zisk.ld
 )
 
 # Re-link whenever the linker script changes.
-set_property(TARGET hello.elf APPEND PROPERTY LINK_DEPENDS
+set_property(TARGET z6m_guest.elf APPEND PROPERTY LINK_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/zisk.ld
 )

@@ -1,0 +1,10 @@
+# Copyright 2026 The Zilkworm Authors
+# SPDX-License-Identifier: Apache-2.0
+
+# prover_zisk has its own toolchain pin so it can use a newer rustc
+# than the SP1 paths in this repo. zisk-sdk transitively pulls alloy
+# 1.8+ which requires rustc >= 1.91.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "rust-src"]
+profile = "default"
