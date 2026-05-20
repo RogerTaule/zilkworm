@@ -1,20 +1,18 @@
-/* hello.cpp — smoke test for intx::uint256 under Zisk (L0 milestone).
+/* hello.cpp — L1 smoke test: call into zilk_core's common/ static lib.
  *
- * Reads N as a little-endian u64 from input, then computes
- *   c = uint256(N) * uint256(0xFFFF_FFFF_FFFF_FFFF)
- * and prints the low two 64-bit words of c. The multiplication
- * deliberately produces a value larger than u64 (N * (2^64 - 1) needs
- * two words for any N > 1), so it exercises intx's multi-word math.
+ * Builds on L0 by linking the freshly-cross-compiled zilk_core_common
+ * static library. silkworm::endian::to_big_compact() encodes a u64 as
+ * a big-endian byte string with leading zeros stripped. The call pulls
+ * endian.cpp.o (the function itself) and util.cpp.o (zeroless_view) into
+ * the executable.
  *
- * For N=5: c = 5 * (2^64 - 1) = 5*2^64 - 5
- *          w0 = 0xFFFFFFFFFFFFFFFB
- *          w1 = 0x0000000000000004
- *
- * Validates: g++ accepts C++23 for this target and intx headers
- * compile cross-compiled.
+ * For N=0x1234:        output bytes "12 34"
+ * For N=0xDEADBEEF:    output bytes "DE AD BE EF"
+ * For N=0:             empty
  */
 #include "zisk_io.h"
 #include <intx/intx.hpp>
+#include <zilk_core/core/common/endian.hpp>
 
 static unsigned long read_u64_le(const unsigned char *p) {
     unsigned long v = 0;
@@ -30,21 +28,24 @@ int main() {
     }
     unsigned long n = read_u64_le(inp.ptr);
 
-    intx::uint256 a{0xFFFFFFFFFFFFFFFFULL};
-    intx::uint256 b{n};
-    intx::uint256 c = a * b;
+    silkworm::ByteView v = silkworm::endian::to_big_compact(n);
 
-    /* Extract the low two 64-bit words. */
-    auto w0 = static_cast<uint64_t>(c);
-    auto w1 = static_cast<uint64_t>(c >> 64);
-
-    sys_println("uint256 N * (2^64 - 1), low 2 words (hex):");
-    sys_print_u64_hex(w1);
+    sys_println("to_big_compact(N), bytes (hex, big-endian, zeroless):");
+    sys_print_u64_hex(static_cast<uint64_t>(v.size()));
     uart_putc(' ');
-    sys_print_u64_hex(w0);
+    for (auto b : v) {
+        uart_putc("0123456789abcdef"[(b >> 4) & 0xf]);
+        uart_putc("0123456789abcdef"[b & 0xf]);
+    }
     uart_putc('\n');
 
-    set_output_u64(0, w0);
-    set_output_u64(8, w1);
+    /* set_output: byte 0 = length, bytes 1..len = payload (little-endian
+       packing into u64s isn't strictly necessary — we just stash the bytes
+       so a host could read them back). */
+    set_output_u32(0, static_cast<uint32_t>(v.size()));
+    for (uint32_t i = 0; i < v.size(); ++i) {
+        /* one byte per u32 slot; wasteful but simple to verify */
+        set_output_u32(4 + i * 4, v[i]);
+    }
     return 0;
 }
