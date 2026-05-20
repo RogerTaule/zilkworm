@@ -37,12 +37,12 @@ _float_ram_data_size  = 0x10000;   /* 64 KB reserved */
             ├────────────────────┤ ← _bss_end
             │   stack ↑ 4MB      │
             ├────────────────────┤ ← _init_stack_top = _kernel_heap_bottom
-            │   heap ↓           │
+            │   heap ↑           │  (bump allocator grows upward)
             │                    │
 0xBFFEFFFF  │                    │
-0xBFFF0000  ├────────────────────┤ ← _kernel_heap_top 
+0xBFFF0000  ├────────────────────┤ ← _kernel_heap_top
             │ float ram          │
-0xC0000000  └────────────────────┘ 
+0xC0000000  └────────────────────┘
 
 */
 
@@ -63,6 +63,7 @@ SECTIONS
     *(.srodata .srodata.* .srodata.cst*)
   } >rom AT>rom :rodata
 
+
   /* reserved space for output data */
 
   .output_data (NOLOAD) : {
@@ -71,7 +72,22 @@ SECTIONS
     PROVIDE(_output_data_end = .);
   } >ram AT>ram :output_data
 
-  .data : { *(.data .data.* .sdata .sdata.*) } >ram AT>ram :data
+  .data : {
+    /* PROGBITS data first so the output section stays type PROGBITS;
+       if init_array were first, the whole .data inherits type INIT_ARRAY
+       and ziskemu silently drops its contents (calls would jump to 0). */
+    *(.data .data.* .sdata .sdata.*)
+
+    . = ALIGN(8);
+    PROVIDE_HIDDEN(__init_array_start = .);
+    KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+    KEEP(*(.init_array EXCLUDE_FILE(*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o) .ctors))
+    PROVIDE_HIDDEN(__init_array_end = .);
+    . = ALIGN(8);
+    PROVIDE_HIDDEN(__preinit_array_start = .);
+    KEEP(*(.preinit_array))
+    PROVIDE_HIDDEN(__preinit_array_end = .);
+  } >ram AT>ram :data
 
   .bss : {
     PROVIDE(_bss_start = .);
@@ -79,7 +95,13 @@ SECTIONS
     PROVIDE(_bss_end = .); # ... and one at the end
   } >ram AT>ram :bss
 
-  . = ALIGN(8);
+  /* RISC-V lp64 ABI requires sp to be 16-byte aligned at every
+     function-call boundary. ALIGN(16) here makes _init_stack_top
+     16-aligned so the initial sp set by _start.s is ABI-compliant;
+     ALIGN(8) (the previous value) gave us 8-byte alignment, which
+     happened to not crash anything visible but violates the ABI and
+     breaks intrinsics / vector code that depend on 16-byte sp. */
+  . = ALIGN(16);
   PROVIDE(_init_stack_top = . + _stack_size); # reserve 4M bytes for the initialisation stack
 
   PROVIDE(_kernel_heap_bottom = _init_stack_top);

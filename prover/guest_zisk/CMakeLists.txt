@@ -43,6 +43,8 @@ add_executable(hello.elf
     hello.cpp
     arena_malloc.cpp
     runtime_stubs.cpp
+    memcpy.cpp
+    memmove.cpp
     _start.s
 )
 
