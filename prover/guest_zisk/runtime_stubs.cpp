@@ -17,3 +17,13 @@ extern "C" int _getentropy(void *buf, size_t len) {
     for (;;) {}
     return -1;
 }
+
+/* __dso_handle: needed so __cxa_atexit(dtor, 0, &__dso_handle) links when
+ * C++ code has function-local statics with non-trivial destructors. We
+ * never actually run __cxa_atexit handlers — the guest exits via the
+ * marchid/QEMU_EXIT path in _start.s, so the dtors registered through
+ * this handle would never fire even if invoked. The address just needs
+ * to exist so the relocation resolves. */
+extern "C" {
+    void *__dso_handle = nullptr;
+}

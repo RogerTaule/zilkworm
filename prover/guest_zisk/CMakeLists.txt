@@ -8,7 +8,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(zisk_guest_poc LANGUAGES C CXX ASM)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -19,7 +19,12 @@ add_executable(hello.elf
     _start.s
 )
 
-target_include_directories(hello.elf PRIVATE include)
+# intx is header-only — point at its include dir directly to avoid pulling
+# in the rest of zilk_core's build graph at this milestone.
+target_include_directories(hello.elf PRIVATE
+    include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/intx/include
+)
 
 # -nostartfiles drops newlib's crt0 (which expects __global_pointer$ that
 # the Zisk linker script doesn't provide); _start.s + zisk.ld take its place.
