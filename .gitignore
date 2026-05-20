@@ -26,7 +26,8 @@ pgo-data.profdata
 **/*.bin
 
 
-build*
+build/
+build_*/
 venv
 xcode
 *.code-workspace
