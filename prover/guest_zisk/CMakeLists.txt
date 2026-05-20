@@ -26,6 +26,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Variable expected by third_party/ and zilk_core/ build glue.
 set(SILKWORM_MAIN_DIR ${Z6M_ROOT})
 
+# Define ZISK globally before adding zilk_core/third_party so any
+# #ifdef ZISK gating (e.g. zilk_core/print.hpp's UART branch) picks
+# the bare-metal path instead of std::cout.
+add_compile_definitions(ZISK)
+
 include(CableBuildInfo)
 cable_add_buildinfo_library(PROJECT_NAME zilkworm GIT_DESCRIBE "" GIT_BRANCH "")
 
@@ -42,9 +47,9 @@ add_executable(hello.elf
 )
 
 target_include_directories(hello.elf PRIVATE include)
-# silkworm_core propagates the include paths and transitive deps
-# (intx::intx, evmone, evmc) we need; no local re-declaration required.
-target_link_libraries(hello.elf PRIVATE silkworm_core)
+# silkworm_dev publicly links silkworm_core + nlohmann_json, which
+# in turn propagates intx::intx / evmone / evmc include paths.
+target_link_libraries(hello.elf PRIVATE silkworm_dev)
 
 # -nostartfiles drops newlib's crt0 (which expects __global_pointer$ that
 # the Zisk linker script doesn't provide); _start.s + zisk.ld take its place.
