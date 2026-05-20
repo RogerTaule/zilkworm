@@ -551,10 +551,39 @@ No need to reclaim memory.
 
 ### 8.5 C++ standard library (`std::string`, `std::vector`, ...)
 
-Most of libstdc++ works on Zisk if you provide:
+Switching from `gcc` to `g++` is necessary but not sufficient for C++.
+There are at least four problems you'll discover by trying:
 
-1. The allocator above (operator `new`/`delete` route to `malloc`/`free`).
-2. C++ ABI stubs (most are no-ops in a single-threaded freestanding env).
+**Problem 1: `g++` treats `.c` files as C++ by default.** This mangles
+symbols you intended as C. Either rename your stub files to `.cpp` and
+wrap them in `extern "C"`, or compile them separately with `gcc`.
+
+**Problem 2: libc symbols pulled in by libstdc++.** Even the simplest
+C++ program (just `#include <string>`) drags in `getentropy_r` via
+`std::random_device` instantiation in libstdc++'s headers. The linker
+fails with `undefined reference to _getentropy`. Provide a stub (it
+should NEVER be called at runtime — non-determinism would break proof
+soundness, so halt on entry):
+
+```cpp
+// runtime_stubs.cpp
+extern "C" int _getentropy(void *buf, size_t len) {
+    (void)buf; (void)len;
+    /* Non-determinism forbidden — halt loudly. */
+    const char msg[] = "FATAL: _getentropy called\n";
+    volatile unsigned char *uart = (volatile unsigned char *)0xA0000200;
+    for (const char *p = msg; *p; ++p) *uart = (unsigned char)*p;
+    *(volatile unsigned int *)0x100000 = 0x5555;
+    for (;;) {}
+}
+```
+
+**Problem 3: missing allocator.** `new` calls `operator new` which calls
+`malloc`. Newlib's `malloc` calls `_sbrk` which isn't implemented on
+Zisk. Without a working allocator, `new` writes to wild memory and
+ziskemu panics with something like `write_silent invalid addr=8`.
+Provide a custom allocator (see Section 8.4) and wire `operator new` /
+`operator delete` to it:
 
 ```cpp
 // operator_new.cpp
@@ -569,7 +598,7 @@ void  operator delete[](void *p) noexcept      { free(p); }
 void  operator delete(void *p, std::size_t) noexcept   { free(p); }
 void  operator delete[](void *p, std::size_t) noexcept { free(p); }
 
-// C++ ABI stubs.
+// C++ ABI stubs (no-ops in a single-threaded freestanding env).
 extern "C" {
     void __cxa_pure_virtual(void) {
         /* should never be called; halt if it is */
@@ -580,10 +609,42 @@ extern "C" {
 }
 ```
 
-With these in place, you can use `std::string`, `std::vector`, `std::map`,
-etc. with no further setup. Build flag `-fno-exceptions` keeps things small;
-if you need exceptions, you'll have to provide unwind tables and the
-exception runtime, which is significantly more work.
+**Problem 4: ELF section alignment.** Even with `-fno-exceptions`,
+libstdc++ pulls in `.gcc_except_table.*` metadata sections (one per
+throw helper). These have 1-byte or 4-byte alignment, while ziskemu
+requires **all loaded sections to start at 8-byte-aligned addresses**.
+Symptom: `Mem::add_read_section() got a start address=0x... not
+aligned to 8 bytes`.
+
+Workarounds, in order of preference:
+
+  - **Discard the metadata** via a linker script overlay:
+    ```ld
+    /DISCARD/ : {
+        *(.gcc_except_table*)
+        *(.eh_frame*)
+    }
+    ```
+    This is the cleanest fix — we don't use exceptions, so the metadata
+    is dead weight.
+
+  - **Force alignment** by adding `*(.gcc_except_table*) . = ALIGN(8);`
+    blocks to the `.rodata` section of the linker script.
+
+  - **Strip after linking** with `riscv-none-elf-objcopy
+    --remove-section=.gcc_except_table*` — works but adds a build step.
+
+**Problem 5: `__throw_*` undeclared with `-ffreestanding`.** The
+`-ffreestanding` flag suppresses the include path that brings in
+`<bits/functexcept.h>`, so calls inside libstdc++ headers to
+`__throw_length_error` etc. fail to compile (e.g. "is not a member of
+std"). Drop `-ffreestanding` when compiling C++.
+
+Once you've solved problems 1-5, `std::string`, `std::vector`,
+`std::map`, etc. work as expected. If you need exceptions, you'll
+additionally have to provide unwind tables and the exception runtime,
+which is significantly more work and usually unnecessary in a zkVM
+context (you can `static_assert` or `abort()` on error instead).
 
 ### 8.6 Forbidden operations
 

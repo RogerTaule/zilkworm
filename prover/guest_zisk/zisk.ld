@@ -52,7 +52,16 @@ SECTIONS
 
   . = ALIGN(8);
   PROVIDE(_global_pointer = .);
-  .rodata : { *(.rodata .rodata.*)} >rom AT>rom :rodata
+  /* SUBALIGN(8) forces every input section placed here to start at an
+     8-byte boundary, regardless of its own alignment. Required because
+     libstdc++ emits many small .srodata.<mangled> sections with align=1,
+     which Zisk's runtime rejects (Mem::add_read_section requires 8-byte
+     aligned start addresses). Also extended the wildcard to collect the
+     short-rodata family. */
+  .rodata : SUBALIGN(8) {
+    *(.rodata .rodata.*)
+    *(.srodata .srodata.* .srodata.cst*)
+  } >rom AT>rom :rodata
 
   /* reserved space for output data */
 
@@ -78,4 +87,13 @@ SECTIONS
   PROVIDE(_kernel_heap_size = _kernel_heap_top - _kernel_heap_bottom);
 
   _end = .;
+
+  /DISCARD/ : {
+    /* Discard exception-handling metadata. libstdc++ links these even with
+       -fno-exceptions, and they break Zisk's 8-byte alignment requirement
+       on read sections. Safe to drop because Zisk programs never unwind. */
+    *(.gcc_except_table .gcc_except_table.*)
+    *(.eh_frame .eh_frame.*)
+    *(.eh_frame_hdr .eh_frame_hdr.*)
+  }
 }
