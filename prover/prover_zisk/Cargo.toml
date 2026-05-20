@@ -1,0 +1,56 @@
+# Copyright 2026 The Zilkworm Authors
+# SPDX-License-Identifier: Apache-2.0
+
+# Standalone workspace: prover_zisk's deps (zisk-sdk) conflict with the
+# SP1 forks used by prover_hypercube / prover_turbo. Keeping a separate
+# lockfile lets both backends evolve independently.
+[workspace]
+members = ["."]
+
+[package]
+version = "0.1.0"
+name = "z6m_prover_zisk"
+edition = "2021"
+default-run = "z6m_prover"
+
+[[bin]]
+name = "z6m_prover"
+path = "src/main.rs"
+
+[dependencies]
+# Zisk host SDK — pin to v0.17.0 to match the local source we read.
+# The dependency name is `zisk-sdk` (path = sdk/) in the zisk workspace.
+zisk-sdk = { git = "https://github.com/0xPolygonHermez/zisk.git", tag = "v0.17.0" }
+# Direct emulator deps so we can call ZiskEmulator::process_rom with a
+# custom EmuOptions (zisk_sdk::run() hardcodes max_steps = 1e9 which
+# isn't enough for full zilk_core state-transition runs).
+ziskemu     = { git = "https://github.com/0xPolygonHermez/zisk.git", tag = "v0.17.0" }
+zisk-core   = { git = "https://github.com/0xPolygonHermez/zisk.git", tag = "v0.17.0" }
+zisk-common = { git = "https://github.com/0xPolygonHermez/zisk.git", tag = "v0.17.0" }
+
+# Standard host deps mirrored from prover_hypercube
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+serde = { version = "1.0.200", default-features = false, features = ["derive"] }
+clap = { version = "4.0", features = ["derive", "env"] }
+bincode = { version = "2.0.1", features = ["serde"] }
+tracing = "0.1.40"
+hex = "0.4.3"
+dotenv = "0.15.0"
+blake3 = "1.5"
+
+alloy = { version = "1.0", features = ["full", "node-bindings", "rpc-types-debug"] }
+alloy-provider = "1.0"
+alloy-primitives = "1.0"
+alloy-rpc-types-debug = "1.0"
+reqwest = { version = "0.12", features = ["json"] }
+eyre = "0.6"
+tokio = { version = "1", features = ["full"] }
+url = "2.5"
+futures = "0.3"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+z6m_common = { path = "../common" }
+
+[build-dependencies]
+blake3 = "1.5"
