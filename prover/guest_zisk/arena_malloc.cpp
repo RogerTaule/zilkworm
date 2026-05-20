@@ -95,6 +95,34 @@ extern "C" int posix_memalign(void **out, std::size_t alignment, std::size_t siz
     return *out ? 0 : 12; /* ENOMEM */
 }
 
+/* Checkpoint / rewind primitives.
+ *
+ * Used by the EEST runner in state_transition.cpp::run() to recycle
+ * arena memory between independent sub-tests within one JSON file. The
+ * 13 MB EIP-2935 history fixture (blockchain_tests/eip2935 ... test_
+ * block_hashes_history_at_transition.json) for instance serialises
+ * dozens of fork-by-parameter sub-tests; without recycling, our bump
+ * arena grows monotonically until we OOM.
+ *
+ * Contract:
+ *   - arena_checkpoint() captures the current bump pointer.
+ *   - arena_rewind(cp) restores it. Any allocation made AFTER the
+ *     checkpoint becomes garbage; pointers into that range MUST NOT
+ *     be dereferenced afterwards.
+ *
+ * Caller is responsible for ensuring no live references exist into
+ * the rewound region. In state_transition.cpp we take the checkpoint
+ * AFTER the first sub-test runs to completion, so any function-local
+ * statics initialised lazily during that first run live below the
+ * checkpoint and survive subsequent rewinds. */
+extern "C" void *arena_checkpoint() noexcept {
+    return arena_next;
+}
+
+extern "C" void arena_rewind(void *checkpoint) noexcept {
+    arena_next = static_cast<char *>(checkpoint);
+}
+
 /* C++ operator new / delete family.
  * All routed through malloc / free above. With -fno-exceptions the
  * compiler skips the throw-bad_alloc path, so a nullptr return from
