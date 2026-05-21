@@ -68,11 +68,23 @@ target_include_directories(z6m_guest.elf PRIVATE include)
 # in turn propagates intx::intx / evmone / evmc include paths.
 target_link_libraries(z6m_guest.elf PRIVATE silkworm_dev)
 
+# Per-function/data sections so the linker can drop anything unreferenced.
+# libstdc++ pulls in ~1000 `__cxa_*` exception sites, ~40 `__muldf3` /
+# `__eqdf2` FP helpers and ~200 newlib stdio entries via load-bearing
+# header inclusions; with -fno-exceptions and no actual FP / stdio use at
+# runtime, none of that is reachable from main() — but without
+# -Wl,--gc-sections the linker keeps it all anyway.
+target_compile_options(z6m_guest.elf PRIVATE
+    -ffunction-sections
+    -fdata-sections
+)
+
 # -nostartfiles drops newlib's crt0 (which expects __global_pointer$ that
 # the Zisk linker script doesn't provide); _start.s + zisk.ld take its place.
 target_link_options(z6m_guest.elf PRIVATE
     -nostartfiles
     -T ${CMAKE_CURRENT_SOURCE_DIR}/zisk.ld
+    -Wl,--gc-sections
 )
 
 # Re-link whenever the linker script changes.
