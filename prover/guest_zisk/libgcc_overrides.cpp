@@ -1,66 +1,27 @@
-// libgcc_overrides.cpp — replace libgcc software helpers with native rv64IM ops.
+// libgcc_overrides.cpp — inline replacements for the bit-counting helpers.
 //
-// Why this exists: our -march=rv64ima_zicsr target doesn't match any exact
-// libgcc multilib in the xPack riscv-none-elf-gcc 15.2 distribution, so the
-// link picks lib/gcc/.../rv64ia_zaamo_zalrsc/lp64/libgcc.a — a variant
-// without the M (multiply) extension. Every call site that lowers to a
-// __muldi3 / __multi3 / __udivdi3 / __umoddi3 / __divdi3 / __moddi3 /
-// __udivti3 helper therefore executes a 30–50 instruction software
-// shift-and-add loop instead of the single rv64IM `mul` / `div` / `rem`
-// instruction the chip supports.
+// With `-march=rv64imac_zicsr_zaamo_zalrsc` (confirmed safe to use on Zisk by
+// the team), the GCC multilib resolver picks
+// `lib/gcc/riscv-none-elf/15.2.0/rv64imac_zaamo_zalrsc/lp64/libgcc.a` — a
+// libgcc built WITH the M extension. That alone collapses ~1800 software
+// `__muldi3` / `__multi3` / `__udivdi3` / `__umoddi3` / `__divdi3` /
+// `__moddi3` / `__bswapdi2` / `__bswapsi2` shift-and-add helpers down to
+// native `mul`, `divu`, `remu` and inline bswap shifts — no source overrides
+// needed for any of them.
 //
-// Audit on the post-arith256 build:
-//     __muldi3     :  162 call sites
-//     __multi3     :  110 call sites
-//     __udivdi3    :  146 call sites
-//     __umoddi3    :   71 call sites
-//     __divdi3     :   96 call sites
-//     __moddi3     :  102 call sites
-//     __udivti3    :   92 call sites
-//     __clzdi2     :   87 call sites  (no native CLZ outside Zbb; we still
-//                                       provide an inlined binary search)
-//     __ctzdi2     :   19 call sites
-//     __popcountdi2:    4 call sites
-//                  ──────
-//                    889 call sites total.
-//
-// This translation unit is built with the same rv64ima_zicsr flags as the
-// rest of the guest, so the simple operator-based implementations below
-// compile to a single native instruction (`mul`, `divu`, `remu`, `mulh`,
-// …). The linker picks our definitions over libgcc's because object files
-// are searched before static archives.
+// What no libgcc multilib in the xPack 15.2 distribution covers is the Zbb
+// extension (count-leading-zeros, count-trailing-zeros, popcount). Even the
+// `rv64imac` variant lacks Zbb, so `__builtin_clzll` / `__builtin_ctzll` /
+// `__builtin_popcountll` still lower to libgcc out-of-line helpers
+// (`__clzdi2`, `__ctzdi2`, `__popcountdi2`). The replacements below let GCC
+// inline a binary search (or SWAR popcount) at every site instead of paying
+// the JAL + epilogue.
 
 #include <cstdint>
 
 extern "C"
 {
-// ─── 64-bit multiply (low half) ──────────────────────────────────────
-// GCC on rv64IM lowers `int64_t * int64_t` to a single `mul` instruction.
-int64_t __muldi3(int64_t a, int64_t b) noexcept { return a * b; }
-uint64_t __umuldi3(uint64_t a, uint64_t b) noexcept { return a * b; }
-
-// ─── 64-bit divide / modulo ──────────────────────────────────────────
-// Lower directly to `div`/`divu`/`rem`/`remu`.
-uint64_t __udivdi3(uint64_t a, uint64_t b) noexcept { return a / b; }
-uint64_t __umoddi3(uint64_t a, uint64_t b) noexcept { return a % b; }
-int64_t __divdi3(int64_t a, int64_t b) noexcept { return a / b; }
-int64_t __moddi3(int64_t a, int64_t b) noexcept { return a % b; }
-
-// ─── 128-bit multiply (low half) ─────────────────────────────────────
-// GCC inlines this as a mul/mulhu sequence for the cross terms.
-__int128 __multi3(__int128 a, __int128 b) noexcept { return a * b; }
-
-// ─── 128-bit unsigned divide ─────────────────────────────────────────
-// We intentionally do NOT override __udivti3 here. GCC compiles a /= b
-// for unsigned __int128 by emitting a call to __udivti3, which means a
-// naive `return a / b;` override would recurse infinitely. Leaving it
-// to libgcc's software implementation is correct; we can revisit with a
-// proper shift-subtract 128-bit divider if the call frequency turns out
-// to be high enough to matter.
-
-// ─── Bit-counting helpers (no native rv64IM equivalent) ──────────────
-// We hand-roll the binary-search forms — same shape libgcc would emit,
-// but visible to the optimiser at every caller (avoids the JAL + epilogue).
+// Count leading zeros — binary search, ~10 instructions inlined per site.
 int __clzdi2(uint64_t v) noexcept
 {
     if (v == 0)
@@ -75,6 +36,7 @@ int __clzdi2(uint64_t v) noexcept
     return n;
 }
 
+// Count trailing zeros — same shape, walks the low bits.
 int __ctzdi2(uint64_t v) noexcept
 {
     if (v == 0)
@@ -89,7 +51,7 @@ int __ctzdi2(uint64_t v) noexcept
     return n;
 }
 
-// SWAR popcount — eight summed half-byte counts in one 64-bit multiply.
+// SWAR popcount — 8 packed half-byte counts collapsed via one 64-bit multiply.
 int __popcountdi2(uint64_t v) noexcept
 {
     v = v - ((v >> 1) & 0x5555555555555555ULL);
@@ -97,5 +59,4 @@ int __popcountdi2(uint64_t v) noexcept
     v = (v + (v >> 4)) & 0x0F0F0F0F0F0F0F0FULL;
     return static_cast<int>((v * 0x0101010101010101ULL) >> 56);
 }
-
 }  // extern "C"
