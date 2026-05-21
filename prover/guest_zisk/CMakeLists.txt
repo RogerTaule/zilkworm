@@ -43,9 +43,15 @@ add_executable(z6m_guest.elf
     hello.cpp
     arena_malloc.cpp
     runtime_stubs.cpp
-    memcpy.cpp
     memmove.cpp
     _start.s
+    # DMA-accelerated mem ops: memcpy / memset / memcmp via Zisk CSR
+    # syscalls 0x813 / 0x816 / 0x814. Each routine is 2–3 instructions
+    # vs the ~150-line musl-derived assembly memcpy.cpp we previously
+    # used. Sourced as-is from ziskos/entrypoint/src/dma/*.s.
+    dma/memcpy.s
+    dma/memset.s
+    dma/memcmp.s
     # Override libgcc's software multiply/divide/clz/ctz/popcount helpers
     # with versions that lower to native rv64IM instructions. The xPack
     # toolchain picks the rv64ia libgcc multilib for our -march and thus
