@@ -77,6 +77,7 @@ target_link_libraries(z6m_guest.elf PRIVATE silkworm_dev)
 target_compile_options(z6m_guest.elf PRIVATE
     -ffunction-sections
     -fdata-sections
+    -flto
 )
 
 # -nostartfiles drops newlib's crt0 (which expects __global_pointer$ that
@@ -85,6 +86,7 @@ target_link_options(z6m_guest.elf PRIVATE
     -nostartfiles
     -T ${CMAKE_CURRENT_SOURCE_DIR}/zisk.ld
     -Wl,--gc-sections
+    -flto
 )
 
 # Re-link whenever the linker script changes.
