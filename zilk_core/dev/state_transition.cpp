@@ -24,6 +24,13 @@
 #include <zilk_core/core/types/evmc_bytes32.hpp>
 #include <zilk_core/print.hpp>
 
+#ifdef ZISK
+// Provided by prover/guest_zisk/arena_malloc.cpp. Declared here at file
+// scope (C++ forbids extern "C" inside a function body).
+extern "C" void *arena_checkpoint() noexcept;
+extern "C" void  arena_rewind(void *checkpoint) noexcept;
+#endif
+
 namespace silkworm::cmd::state_transition {
 
 StateTransition::StateTransition(std::string_view json_str, const bool terminate_on_error, const bool show_diagnostics) noexcept
@@ -444,6 +451,20 @@ uint64_t StateTransition::run() {
     bool any_failed = false;
     bool any_skipped = false;
     const auto base_json = nlohmann::json::parse(json_str_);
+
+#ifdef ZISK
+    /* The bump arena in prover/guest_zisk/arena_malloc.cpp never frees;
+     * for EEST JSONs containing many independent sub-tests (e.g. the
+     * 13 MB EIP-2935 history fixture serialises dozens of fork x param
+     * variations) memory grows monotonically until OOM. We capture a
+     * checkpoint AFTER the first sub-test has run — so any lazily-
+     * initialised function-local statics live below the checkpoint and
+     * survive — then rewind to it after every subsequent sub-test,
+     * recycling per-sub-test allocations. */
+    void *checkpoint = nullptr;
+    bool  first_done = false;
+#endif
+
     for (const auto& [name, test] : base_json.items()) {
         sys_println(std::format("  {}:", name).c_str());
         const auto result = blockchain_test(test);
@@ -456,6 +477,14 @@ uint64_t StateTransition::run() {
         } else {
             sys_println("    passed");
         }
+#ifdef ZISK
+        if (!first_done) {
+            checkpoint = arena_checkpoint();
+            first_done = true;
+        } else {
+            arena_rewind(checkpoint);
+        }
+#endif
     }
     if (any_failed)
         return 1;

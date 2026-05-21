@@ -46,6 +46,10 @@ add_executable(z6m_guest.elf
     memcpy.cpp
     memmove.cpp
     _start.s
+    # Zisk syscall overrides for evmone precompiles. Each file defines an
+    # extern "C" entry point that evmone's portable precompile code routes
+    # to via `#elif defined(ZISK)` gates.
+    precompiles/zisk_sha256.cpp
 )
 
 target_include_directories(z6m_guest.elf PRIVATE include)

@@ -41,11 +41,6 @@ enum Command {
         build_eth_test: bool,
         #[arg(long, action = clap::ArgAction::SetTrue)]
         geth: bool,
-        // TODO: add `--with-prestate` once z6m_common's FetchRequest supports
-        // merging debug_traceBlockByNumber/prestateTracer (~200 LOC change in
-        // fetcher.rs, out of scope for this PR). ~5% of mainnet blocks
-        // (CREATE2-pre-funded SELFDESTRUCT pattern) need it; without it
-        // those blocks may fail kWrongReceiptsRoot in the guest.
     },
     /// Execute the guest program without proving.
     Execute {
