@@ -46,6 +46,11 @@ add_executable(z6m_guest.elf
     memcpy.cpp
     memmove.cpp
     _start.s
+    # Override libgcc's software multiply/divide/clz/ctz/popcount helpers
+    # with versions that lower to native rv64IM instructions. The xPack
+    # toolchain picks the rv64ia libgcc multilib for our -march and thus
+    # ships software shift-and-add helpers; this file shadows them.
+    libgcc_overrides.cpp
     # Zisk syscall overrides for evmone precompiles. Each file defines an
     # extern "C" entry point that evmone's portable precompile code routes
     # to via `#elif defined(ZISK)` gates.
