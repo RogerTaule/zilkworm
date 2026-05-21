@@ -30,10 +30,15 @@ set(CMAKE_OBJDUMP      "${_zisk_prefix}riscv-none-elf-objdump" CACHE FILEPATH ""
 # zicsr is required for `csrr marchid` used in _start.s to dispatch the
 # emulator-vs-prover exit path. medany is required because .text lives in
 # ROM (0x80000000) and .data in RAM (0xa0030000+), beyond medlow's reach.
-set(_zisk_arch_flags "-march=rv64ima_zicsr -mabi=lp64 -mcmodel=medany")
+set(_zisk_arch_flags "-march=rv64imac_zicsr_zaamo_zalrsc -mabi=lp64 -mcmodel=medany")
 
 set(CMAKE_C_FLAGS_INIT   "${_zisk_arch_flags}")
-set(CMAKE_CXX_FLAGS_INIT "${_zisk_arch_flags} -fno-exceptions -fno-rtti")
+# Bare-metal guest defensive flags:
+#   -fno-exceptions / -fno-rtti           : we don't throw and don't dynamic_cast
+#   -fno-asynchronous-unwind-tables       : drops .eh_frame (dead with -fno-exceptions)
+#   -fno-unwind-tables                    : drops .eh_frame_hdr too
+#   -fno-threadsafe-statics               : single-threaded, no __cxa_guard_* (~58 sites)
+set(CMAKE_CXX_FLAGS_INIT "${_zisk_arch_flags} -fno-exceptions -fno-rtti -fno-asynchronous-unwind-tables -fno-unwind-tables -fno-threadsafe-statics")
 set(CMAKE_ASM_FLAGS_INIT "${_zisk_arch_flags}")
 
 # Don't look at the host's libc; this target has no system root.
