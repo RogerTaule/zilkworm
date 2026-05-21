@@ -30,6 +30,9 @@ set(SILKWORM_MAIN_DIR ${Z6M_ROOT})
 # #ifdef ZISK gating (e.g. zilk_core/print.hpp's UART branch) picks
 # the bare-metal path instead of std::cout.
 add_compile_definitions(ZISK)
+# Also expose ZISK as a CMake variable so third_party glue (notably
+# evmone/cmake/blst.cmake) can pick the ZISK-specific blst patch.
+set(ZISK TRUE)
 
 include(CableBuildInfo)
 cable_add_buildinfo_library(PROJECT_NAME zilkworm GIT_DESCRIBE "" GIT_BRANCH "")
