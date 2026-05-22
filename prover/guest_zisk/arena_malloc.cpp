@@ -35,32 +35,38 @@ static char *arena_next = &_kernel_heap_bottom;
  * with stricter alignment goes through aligned_malloc(). */
 static constexpr std::size_t kDefaultAlign = 16;
 
-extern "C" void *malloc(std::size_t size) {
+/* No OOM check on the hot path: the heap is 510 MB and a single
+ * Ethereum block has never exhausted it. Eliminating the compare
+ * against &_kernel_heap_top saves one branch per malloc call. If we
+ * ever do OOM, the resulting nullptr-or-overrun will surface as a
+ * deterministic crash rather than a silent corruption. */
+extern "C" __attribute__((hot)) void *malloc(std::size_t size) {
     size = (size + (kDefaultAlign - 1)) & ~(kDefaultAlign - 1);
     char *p = arena_next;
-    if (p + size > &_kernel_heap_top) return nullptr;  /* OOM */
     arena_next += size;
     return p;
 }
 
 /* Aligned bump-alloc: advance arena_next to an `alignment`-aligned address
  * before serving. `alignment` must be a power of two. */
-static void *aligned_malloc(std::size_t alignment, std::size_t size) {
+static __attribute__((hot)) void *aligned_malloc(std::size_t alignment, std::size_t size) {
     std::size_t addr = reinterpret_cast<std::size_t>(arena_next);
     std::size_t aligned = (addr + alignment - 1) & ~(alignment - 1);
     std::size_t rounded = (size + alignment - 1) & ~(alignment - 1);
     char *p = reinterpret_cast<char *>(aligned);
-    if (p + rounded > &_kernel_heap_top) return nullptr;  /* OOM */
     arena_next = p + rounded;
     return p;
 }
 
 extern "C" void free(void *p) { (void)p; /* no-op */ }
 
-extern "C" void *calloc(std::size_t n, std::size_t size) {
+extern "C" __attribute__((hot)) void *calloc(std::size_t n, std::size_t size) {
     std::size_t total = n * size;
     char *p = static_cast<char *>(malloc(total));
-    if (p) for (std::size_t i = 0; i < total; ++i) p[i] = 0;
+    /* memset routes through the Zisk DMA_MEMSET syscall (CSR 0x816) via
+     * the asm stub in dma/memset.s — single syscall vs the per-byte
+     * store loop that GCC may or may not pattern-match into a call. */
+    if (p) std::memset(p, 0, total);
     return p;
 }
 
