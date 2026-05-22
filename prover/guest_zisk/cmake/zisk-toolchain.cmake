@@ -30,7 +30,38 @@ set(CMAKE_OBJDUMP      "${_zisk_prefix}riscv-none-elf-objdump" CACHE FILEPATH ""
 # zicsr is required for `csrr marchid` used in _start.s to dispatch the
 # emulator-vs-prover exit path. medany is required because .text lives in
 # ROM (0x80000000) and .data in RAM (0xa0030000+), beyond medlow's reach.
-set(_zisk_arch_flags "-march=rv64imac_zicsr_zaamo_zalrsc -mabi=lp64 -mcmodel=medany")
+#
+# -mtune=size: optimise for fewer-instruction code paths. On a zkVM,
+# instruction count = steps; there's no pipeline / branch prediction
+# benefit to chase, so picking the smaller of two equivalent sequences
+# wins unambiguously.
+#
+# -funroll-loops, -fipa-pta and the inline `--param=` budget bumps are
+# the survivors of a flag sweep against the 5-block reference corpus
+# (mainnet 25,145,982..25,146,222). Many other flags from a prior tuning
+# pass (-fmerge-all-constants, -fno-jump-tables, -fmodulo-sched,
+# -flive-range-shrinkage, -fipa-icf, -fdevirtualize-speculatively, …)
+# moved cost by less than ±0.05 % on this base and were dropped. -fno-
+# strict-aliasing was a *regression* (+0.05 % cost) because our current
+# arena doesn't need the type-pun escape hatch and turning aliasing off
+# blocks GCC optimisations that do apply.
+#
+# Lifted from the optimisation roadmap recorded in
+# `backup/full-zisk-port-2026-05-19` (which used a different rv64im
+# base) and re-measured one-by-one on rv64imac.
+set(_zisk_arch_flags
+    "-march=rv64imac_zicsr_zaamo_zalrsc -mabi=lp64 -mcmodel=medany -mtune=size"
+    " -funroll-loops"
+    " -fipa-pta"
+    " --param=max-inline-insns-single=1600"
+    " --param=max-inline-insns-auto=533"
+    " --param=inline-unit-growth=266"
+    " --param=max-inline-recursive-depth=6"
+    " --param=max-completely-peeled-insns=400"
+    " --param=large-function-growth=280"
+    " --param=large-unit-insns=30000"
+)
+string(JOIN "" _zisk_arch_flags ${_zisk_arch_flags})
 
 set(CMAKE_C_FLAGS_INIT   "${_zisk_arch_flags}")
 # Bare-metal guest defensive flags:

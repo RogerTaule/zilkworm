@@ -23,7 +23,13 @@ using NodeCollector = std::function<void(ByteView nibbled_key, const Node&)>;
 // and https://eth.wiki/fundamentals/patricia-tree
 class HashBuilder {
   public:
-    HashBuilder() = default;
+    // Reserve up-front so subsequent resize() calls in leaf/extension/branch
+    // RLP emission never reallocate. Critical: if rlp_buffer_'s backing store
+    // moves while a ByteView returned from a previous call still aliases it
+    // (e.g. `child_ref` passed into extension_node_rlp comes from the parent
+    // stack_ vector but transitively from this same buffer), the old ByteView
+    // is invalidated before the memcpy and we'd silently corrupt the trie.
+    HashBuilder() { rlp_buffer_.reserve(1024); }
 
     // Not copyable nor movable
     HashBuilder(const HashBuilder&) = delete;

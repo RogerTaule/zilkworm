@@ -11,6 +11,7 @@
 #include <evmone_precompiles/keccak.hpp>
 #include <zilk_core/core/common/assert.hpp>
 #include <zilk_core/core/common/empty_hashes.hpp>
+#include <zilk_core/core/common/endian.hpp>
 #include <zilk_core/core/common/util.hpp>
 #include <zilk_core/core/rlp/encode.hpp>
 
@@ -18,43 +19,107 @@ namespace silkworm::trie {
 
 // See "Specification: Compact encoding of hex sequence with optional terminator"
 // at https://eth.wiki/fundamentals/patricia-tree
-static Bytes encode_path(ByteView nibbles, bool terminating) {
-    Bytes res(nibbles.size() / 2 + 1, '\0');
-    const bool odd{static_cast<bool>((nibbles.size() & 1u) != 0)};
+//
+// Writes the HP-encoded path into `out` (caller-provided buffer, at
+// least 33 bytes). Returns the number of bytes written. Avoids the
+// heap allocation the old `Bytes` return value triggered — encode_path
+// is called per leaf/ext node, hundreds of times per block.
+static size_t encode_path(uint8_t* out, ByteView nibbles, bool terminating) noexcept {
+    const size_t size = nibbles.size() / 2 + 1;
+    const bool odd = (nibbles.size() & 1u) != 0;
 
-    res[0] = terminating ? 0x20 : 0x00;
-    res[0] += odd ? 0x10 : 0x00;
+    out[0] = static_cast<uint8_t>((terminating ? 0x20 : 0x00) | (odd ? 0x10 : 0x00));
 
     if (odd) {
-        res[0] |= nibbles[0];
+        out[0] |= nibbles[0];
         nibbles.remove_prefix(1);
     }
 
-    for (auto it{std::next(res.begin(), 1)}, end{res.end()}; it != end; ++it) {
-        *it = static_cast<uint8_t>((nibbles[0] << 4) + nibbles[1]);
+    for (size_t i = 1; i < size; ++i) {
+        out[i] = static_cast<uint8_t>((nibbles[0] << 4) | (nibbles[1] & 0x0F));
         nibbles.remove_prefix(2);
     }
 
-    return res;
+    return size;
+}
+
+// Raw-pointer-write RLP helpers. The generic `rlp::encode(Bytes&, …)`
+// path goes through `push_back` / `append` on a `std::basic_string<uint8_t>`,
+// costing ~5–6 RISC-V instructions per byte through libstdc++'s size /
+// capacity bookkeeping. These helpers write through a plain `uint8_t*`
+// after the buffer has been resize()d to the exact total length: same
+// logic, ~3–4× fewer instructions per byte emitted.
+//
+// rlp_buffer_ is reserved to 1024 bytes in the ctor so resize() never
+// reallocates — that was a real correctness hazard in a prior attempt:
+// if `child_ref` (a ByteView passed in from the caller) aliased
+// rlp_buffer_'s backing store, a reallocating resize() would invalidate
+// the source pointer before the memcpy.
+
+[[gnu::always_inline]] static inline uint8_t* hb_rlp_write_list_header(
+    uint8_t* p, size_t payload_length) noexcept {
+    if (payload_length < 56) {
+        *p++ = static_cast<uint8_t>(rlp::kEmptyListCode + payload_length);
+    } else {
+        const ByteView len_be = endian::to_big_compact(payload_length);
+        *p++ = static_cast<uint8_t>(0xF7 + len_be.size());
+        std::memcpy(p, len_be.data(), len_be.size());
+        p += len_be.size();
+    }
+    return p;
+}
+
+[[gnu::always_inline]] static inline uint8_t* hb_rlp_write_byteview(
+    uint8_t* p, ByteView s) noexcept {
+    if (s.size() == 1 && s[0] < rlp::kEmptyStringCode) {
+        *p++ = s[0];
+        return p;
+    }
+    if (s.size() < 56) {
+        *p++ = static_cast<uint8_t>(rlp::kEmptyStringCode + s.size());
+    } else {
+        const ByteView len_be = endian::to_big_compact(s.size());
+        *p++ = static_cast<uint8_t>(0xB7 + len_be.size());
+        std::memcpy(p, len_be.data(), len_be.size());
+        p += len_be.size();
+    }
+    std::memcpy(p, s.data(), s.size());
+    p += s.size();
+    return p;
 }
 
 ByteView HashBuilder::leaf_node_rlp(ByteView path, ByteView value) {
-    Bytes encoded_path{encode_path(path, /*terminating=*/true)};
-    rlp_buffer_.clear();
-    rlp::Header h{.list = true, .payload_length = rlp::length(encoded_path) + rlp::length(value)};
-    rlp::encode_header(rlp_buffer_, h);
-    rlp::encode(rlp_buffer_, encoded_path);
-    rlp::encode(rlp_buffer_, value);
+    uint8_t hpbuf[33];
+    const size_t hp_size = encode_path(hpbuf, path, /*terminating=*/true);
+    const ByteView ep_view{hpbuf, hp_size};
+    const size_t payload_length = rlp::length(ep_view) + rlp::length(value);
+    const size_t header_size = rlp::length_of_length(payload_length);
+    const size_t total_size  = header_size + payload_length;
+
+    rlp_buffer_.resize(total_size);
+    auto* p = reinterpret_cast<uint8_t*>(rlp_buffer_.data());
+    p = hb_rlp_write_list_header(p, payload_length);
+    p = hb_rlp_write_byteview(p, ep_view);
+    p = hb_rlp_write_byteview(p, value);
+    SILKWORM_ASSERT(static_cast<size_t>(p - reinterpret_cast<uint8_t*>(rlp_buffer_.data())) == total_size);
     return rlp_buffer_;
 }
 
 ByteView HashBuilder::extension_node_rlp(ByteView path, ByteView child_ref) {
-    Bytes encoded_path{encode_path(path, /*terminating=*/false)};
-    rlp_buffer_.clear();
-    rlp::Header h{.list = true, .payload_length = rlp::length(encoded_path) + child_ref.size()};
-    rlp::encode_header(rlp_buffer_, h);
-    rlp::encode(rlp_buffer_, encoded_path);
-    rlp_buffer_.append(child_ref);
+    uint8_t hpbuf[33];
+    const size_t hp_size = encode_path(hpbuf, path, /*terminating=*/false);
+    const ByteView ep_view{hpbuf, hp_size};
+    const size_t payload_length = rlp::length(ep_view) + child_ref.size();
+    const size_t header_size = rlp::length_of_length(payload_length);
+    const size_t total_size  = header_size + payload_length;
+
+    rlp_buffer_.resize(total_size);
+    auto* p = reinterpret_cast<uint8_t*>(rlp_buffer_.data());
+    p = hb_rlp_write_list_header(p, payload_length);
+    p = hb_rlp_write_byteview(p, ep_view);
+    std::memcpy(p, child_ref.data(), child_ref.size());
+    p += child_ref.size();
+    SILKWORM_ASSERT(static_cast<size_t>(p - reinterpret_cast<uint8_t*>(rlp_buffer_.data())) == total_size);
     return rlp_buffer_;
 }
 
