@@ -187,6 +187,16 @@ pub struct FetchOutcome {
     pub block_number: u64,
     pub block_directory: PathBuf,
     pub unified_rlp_path: PathBuf,
+    pub tx_count: u64,
+    pub gas_used: u64,
+    pub chain_id: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CachedBlockMeta {
+    tx_count: u64,
+    gas_used: u64,
+    chain_id: u64,
 }
 
 pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchOutcome> {
@@ -221,11 +231,17 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
     // let unified_map_path = block_dir.join(format!("inputRlpUnified{}.json", block_number));
     let unified_rlp_only_path =
         block_dir.join(format!("unifiedBlockAndStateRlp{}.bin", block_number));
-    if unified_rlp_only_path.exists() {
+    let meta_path = block_dir.join(format!("blockMeta{}.json", block_number));
+
+    if unified_rlp_only_path.exists() && meta_path.exists() {
+        let meta: CachedBlockMeta = serde_json::from_str(&fs::read_to_string(&meta_path)?)?;
         return Ok(FetchOutcome {
             block_number,
             block_directory: block_dir,
             unified_rlp_path: unified_rlp_only_path,
+            tx_count: meta.tx_count,
+            gas_used: meta.gas_used,
+            chain_id: meta.chain_id,
         });
     }
 
@@ -241,6 +257,9 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
         }
         fetched
     };
+    let chain_id = provider.get_chain_id().await?;
+    let tx_count = current_block.transactions.len() as u64;
+    let gas_used = current_block.header.gas_used;
 
     let current_block_rlp: Bytes = if block_rlp_path.exists() {
         let block_rlp_json = fs::read_to_string(&block_rlp_path)?;
@@ -333,6 +352,11 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
         bail!("missing unifiedBlockAndStateRlp entry");
     }
 
+    write_json(
+        &meta_path,
+        &CachedBlockMeta { tx_count, gas_used, chain_id },
+    )?;
+
     debug!(
         %block_number,
         "fetched block data and wrote unified rlp to {:?}",
@@ -343,6 +367,9 @@ pub async fn fetch_block_and_witness(request: FetchRequest<'_>) -> Result<FetchO
         block_number,
         block_directory: block_dir,
         unified_rlp_path: unified_rlp_only_path,
+        tx_count,
+        gas_used,
+        chain_id,
     })
 }
 
