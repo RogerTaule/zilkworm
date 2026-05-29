@@ -1,7 +1,7 @@
 [submodule "evmone"]
 	path = third_party/evmone
-	url = git@github.com:eduadiez/zvm1.git
-	branch = wip-zisk-precompiles
+	url = https://github.com/RogerTaule/zvm1.git
+	branch = feat/crypto-provider
 [submodule "intx"]
 	path = third_party/intx
 	url = https://github.com/chfast/intx.git

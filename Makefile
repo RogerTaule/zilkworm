@@ -63,7 +63,7 @@ rv32im-eest-blockchain-tests:
 # bin/ directory containing riscv-none-elf-gcc / g++).
 z6m_guest_zisk:
 	cmake -S prover/guest_zisk -B prover/guest_zisk/build \
-		-DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/cmake/zisk-toolchain.cmake \
+		-DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/prover/guest_zisk/cmake/zisk-toolchain.cmake \
 		-DCMAKE_BUILD_TYPE=Release \
 		-G Ninja
 	cmake --build prover/guest_zisk/build --target z6m_guest.elf

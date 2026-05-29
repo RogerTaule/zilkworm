@@ -57,6 +57,28 @@ std::optional<Bytes> blake2_f_run(ByteView input) noexcept;
 uint64_t point_evaluation_gas(ByteView input, evmc_revision) noexcept;
 std::optional<Bytes> point_evaluation_run(ByteView input) noexcept;
 
+// EIP-2537: BLS12-381 curve operations (Prague).
+uint64_t bls12_g1_add_gas(ByteView input, evmc_revision) noexcept;
+std::optional<Bytes> bls12_g1_add_run(ByteView input) noexcept;
+
+uint64_t bls12_g1_msm_gas(ByteView input, evmc_revision) noexcept;
+std::optional<Bytes> bls12_g1_msm_run(ByteView input) noexcept;
+
+uint64_t bls12_g2_add_gas(ByteView input, evmc_revision) noexcept;
+std::optional<Bytes> bls12_g2_add_run(ByteView input) noexcept;
+
+uint64_t bls12_g2_msm_gas(ByteView input, evmc_revision) noexcept;
+std::optional<Bytes> bls12_g2_msm_run(ByteView input) noexcept;
+
+uint64_t bls12_pairing_gas(ByteView input, evmc_revision) noexcept;
+std::optional<Bytes> bls12_pairing_run(ByteView input) noexcept;
+
+uint64_t bls12_map_fp_to_g1_gas(ByteView input, evmc_revision) noexcept;
+std::optional<Bytes> bls12_map_fp_to_g1_run(ByteView input) noexcept;
+
+uint64_t bls12_map_fp2_to_g2_gas(ByteView input, evmc_revision) noexcept;
+std::optional<Bytes> bls12_map_fp2_to_g2_run(ByteView input) noexcept;
+
 struct SupportedContract {
     Contract contract;
     evmc_revision added_in;
@@ -68,12 +90,19 @@ inline constexpr std::optional<SupportedContract> kContracts[]{
     SupportedContract{{sha256_gas, sha256_run}, EVMC_FRONTIER},                    // 0x02
     SupportedContract{{rip160_gas, rip160_run}, EVMC_FRONTIER},                    // 0x03
     SupportedContract{{id_gas, id_run}, EVMC_FRONTIER},                            // 0x04
-    SupportedContract{{expmod_gas, nullptr}, EVMC_BYZANTIUM},                      // 0x05
-    SupportedContract{{nullptr, nullptr}, EVMC_BYZANTIUM},                         // 0x06
-    SupportedContract{{nullptr, nullptr}, EVMC_BYZANTIUM},                         // 0x07
-    SupportedContract{{nullptr, nullptr}, EVMC_BYZANTIUM},                         // 0x08
+    SupportedContract{{expmod_gas, expmod_run}, EVMC_BYZANTIUM},                   // 0x05
+    SupportedContract{{bn_add_gas, bn_add_run}, EVMC_BYZANTIUM},                   // 0x06
+    SupportedContract{{bn_mul_gas, bn_mul_run}, EVMC_BYZANTIUM},                   // 0x07
+    SupportedContract{{snarkv_gas, snarkv_run}, EVMC_BYZANTIUM},                   // 0x08
     SupportedContract{{blake2_f_gas, blake2_f_run}, EVMC_ISTANBUL},                // 0x09
     SupportedContract{{point_evaluation_gas, point_evaluation_run}, EVMC_CANCUN},  // 0x0a
+    SupportedContract{{bls12_g1_add_gas, bls12_g1_add_run}, EVMC_PRAGUE},           // 0x0b
+    SupportedContract{{bls12_g1_msm_gas, bls12_g1_msm_run}, EVMC_PRAGUE},           // 0x0c
+    SupportedContract{{bls12_g2_add_gas, bls12_g2_add_run}, EVMC_PRAGUE},           // 0x0d
+    SupportedContract{{bls12_g2_msm_gas, bls12_g2_msm_run}, EVMC_PRAGUE},           // 0x0e
+    SupportedContract{{bls12_pairing_gas, bls12_pairing_run}, EVMC_PRAGUE},         // 0x0f
+    SupportedContract{{bls12_map_fp_to_g1_gas, bls12_map_fp_to_g1_run}, EVMC_PRAGUE},   // 0x10
+    SupportedContract{{bls12_map_fp2_to_g2_gas, bls12_map_fp2_to_g2_run}, EVMC_PRAGUE}, // 0x11
 };
 
 bool is_precompile(const evmc::address&, evmc_revision) noexcept;

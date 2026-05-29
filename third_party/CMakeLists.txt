@@ -66,11 +66,19 @@ add_library(
   evmone/lib/evmone_precompiles/pairing/bn254/pairing.cpp
   evmone/lib/evmone_precompiles/secp256k1.cpp
   evmone/lib/evmone_precompiles/bls.cpp
+  evmone/lib/evmone_precompiles/default_crypto_provider.cpp
   evmone/test/state/host.cpp
   evmone/test/state/precompiles.cpp
   evmone/test/state/state.cpp
   evmone/test/state/system_contracts.cpp
 )
+
+# zilkworm is a zkVM project, so the zkvm crypto provider is mandatory:
+# z6m_dispatch.hpp's run() calls install_zkvm_provider() unconditionally.
+# Disabling this would produce a binary that can't consume precompile hints,
+# so we don't expose a knob.
+target_sources(evmone PRIVATE evmone/lib/evmone_precompiles/zkvm_crypto_provider.cpp)
+target_compile_definitions(evmone PUBLIC EVMONE_CRYPTO_ZKVM)
 set_source_files_properties(evmone/lib/evmone/vm.cpp PROPERTIES COMPILE_DEFINITIONS PROJECT_VERSION="0.11.0")
 target_include_directories(
   evmone

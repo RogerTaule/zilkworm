@@ -22,6 +22,7 @@ _start:
     j .Linit_loop
 .Linit_done:
 
+    call init_sys_alloc
     call main
     csrr t0, marchid
     li   t1, 0xFFFEEEE
