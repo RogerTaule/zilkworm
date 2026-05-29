@@ -8,6 +8,11 @@ _start:
     .option pop
     la sp, _init_stack_top
 
+    /* Initialise the ziskos bump allocator BEFORE C++ static ctors run.
+     * arena_malloc shares the same HEAP_POS counter (see arena_malloc.cpp),
+     * so HEAP_POS must be live before the first `new` / `malloc` call. */
+    call init_sys_alloc
+
     /* Run C++ static constructors before main(). Each entry in
      * .init_array is a function pointer; call them in order.
      * s0/s1 are callee-saved per RISC-V ABI, so the called ctors
@@ -22,7 +27,6 @@ _start:
     j .Linit_loop
 .Linit_done:
 
-    call init_sys_alloc
     call main
     csrr t0, marchid
     li   t1, 0xFFFEEEE

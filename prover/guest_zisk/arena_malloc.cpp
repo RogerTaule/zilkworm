@@ -23,12 +23,19 @@
 extern "C" char _kernel_heap_bottom;
 extern "C" char _kernel_heap_top;
 
-/* Eager-initialised pointer constant: the linker resolves
- * &_kernel_heap_bottom at link time, stored in .data as a relocated
- * R_RISCV_64 entry. ziskemu then loads .data and arena_next is live
- * before any global ctor runs — so malloc has no lazy-init branch on
- * the hot path. */
-static char *arena_next = &_kernel_heap_bottom;
+/* SHARED bump pointer with ziskos's Rust BumpPointerAlloc.
+ *
+ * ziskos exports a global `static mut HEAP_POS: usize` with
+ * `#[export_name = "ZISK_BUMP_HEAP_POS"]`. By aliasing arena_malloc's
+ * pointer here we ensure the C++ and Rust sides of the guest walk a
+ * single monotonic heap pointer instead of two independent ones that
+ * would otherwise overlap (and silently corrupt each other's data).
+ *
+ * Init order: _start.s calls `init_sys_alloc` before .init_array runs,
+ * which sets ZISK_BUMP_HEAP_POS = &_kernel_heap_bottom. So this pointer
+ * is live before the first C++ allocation. */
+extern "C" std::size_t ZISK_BUMP_HEAP_POS;
+#define arena_next (reinterpret_cast<char *&>(ZISK_BUMP_HEAP_POS))
 
 /* Default alignment for malloc-family allocations. Matches
  * __STDCPP_DEFAULT_NEW_ALIGNMENT__ (16) on rv64 lp64. Any allocation
